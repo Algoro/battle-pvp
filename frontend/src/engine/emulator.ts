@@ -23,10 +23,35 @@ export class EmulatorDriver {
   private romBytes: Uint8Array | null = null;
   private aiConfig: any = { attAI: "lookahead", defAI: "plan", defMode: "active", patchSet: "pvp", sampleRate: 48000 };
   private audio: any = null; // AudioOutput (устанавливается из App)
+  private startStage = 1; // стартовая стадия (1..35)
+  private startStars = 0; // стартовые звёзды DEF (0..3)
   public onFrame?: (frame: number) => void;
 
   // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
   setAudio(audio: any) { this.audio = audio; return this; }
+
+  // Стартовая стадия. Применяется при следующем reset()/loadROM.
+  setStartStage(stage: number) {
+    this.startStage = Math.max(1, Math.min(35, Math.floor(stage) || 1));
+    this.nes?.setStartStage?.(this.startStage);
+    return this;
+  }
+
+  // Стартовые звёзды команды DEF (0..3).
+  setStartStars(stars: number) {
+    this.startStars = Math.max(0, Math.min(3, Math.floor(stars) || 0));
+    this.nes?.setStartStars?.(this.startStars);
+    return this;
+  }
+
+  getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
+  getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }
+  // Пиксели CHR-тайла ФОНА (64 значения 0..3). В Battle City BG pattern table — $1000
+  // (вторая таблица, offset 256 в ptTile): там тайл 0 пустой, 0x0F.. — кирпич/сталь и т.п.
+  getChrTilePixels(tileIndex: number): Uint8Array | null {
+    const t = this.nes?.ppu?.ptTile?.[256 + (tileIndex & 0xff)];
+    return t?.pix ?? null;
+  }
 
   private coreConfig(): any {
     return {
@@ -46,6 +71,8 @@ export class EmulatorDriver {
     this.romBytes = bytes;
     this.nes = new PvPNes(this.coreConfig());
     this.nes.loadROM(bytes);
+    this.nes.setStartStage(this.startStage);
+    this.nes.setStartStars(this.startStars);
     return this;
   }
 
@@ -56,6 +83,8 @@ export class EmulatorDriver {
     if (!this.romBytes) return this;
     this.nes = new PvPNes(this.coreConfig());
     this.nes.loadROM(this.romBytes);
+    this.nes.setStartStage(this.startStage);
+    this.nes.setStartStars(this.startStars);
     return this;
   }
 

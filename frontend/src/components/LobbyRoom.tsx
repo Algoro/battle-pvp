@@ -2,11 +2,15 @@
 // инвайт-код, настройка слотов и чат комнаты.
 import { useState } from "react";
 import ChatPanel from "./ChatPanel";
+import StageSelect from "./StageSelect";
+import StarsSelect from "./StarsSelect";
 import type { ChatMessage, LobbyState, LobbySettings, Team } from "../engine/lobby-client";
+import type { EmulatorDriver } from "../engine/emulator";
 
 interface Props {
   lobby: LobbyState;
   meId: string;
+  emulator?: EmulatorDriver | null;
   onLeave: () => void;
   onTeam: (team: Team) => void;
   onReady: (ready: boolean) => void;
@@ -19,7 +23,7 @@ interface Props {
 }
 
 export default function LobbyRoom({
-  lobby, meId, onLeave, onTeam, onReady, onStart, onKick, onSettings, chat, onSendChat, error,
+  lobby, meId, emulator, onLeave, onTeam, onReady, onStart, onKick, onSettings, chat, onSendChat, error,
 }: Props) {
   const me = lobby.players.find((p) => p.id === meId);
   const isHost = !!me?.host;
@@ -119,6 +123,15 @@ export default function LobbyRoom({
               <input type="checkbox" checked={!!lobby.settings.requireReady}
                 onChange={(e) => onSettings({ requireReady: e.target.checked })} /> Только когда все готовы
             </label>
+            <div className="room__stage">
+              <StageSelect
+                emulator={emulator ?? null}
+                stage={lobby.settings.stage || 1}
+                onChange={(stage) => onSettings({ stage })}
+                previewSize={140}
+              />
+              <StarsSelect stars={lobby.settings.defStars || 0} onChange={(defStars) => onSettings({ defStars })} />
+            </div>
           </div>
         )}
 

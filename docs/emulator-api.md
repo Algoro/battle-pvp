@@ -29,6 +29,9 @@ emu.patching;                        // отчёт применения патч
 | `getFrameHash()` | FNV-1a32 по `cpu.mem` — для детекта desync. |
 | `readMem(addr)` | Чтение байта из памяти CPU. |
 | `patching` | Отчёт применения патчей после `loadROM` при `patchSet`: `{ fingerprint, applied, routines }`. |
+| `setStartStage(stage)` | Стартовая стадия партии (1..35), внедряется детерминированно. |
+| `setStartStars(stars)` | Стартовые звёзды команды DEF (0..3) — апгрейд танка (`ram_tank_upgrade`). |
+| `getStage(stage)` / `getStageBlocks(stage)` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
 | `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |
 | `setAttAI(mode)` / `setDefAI(mode)` | Режим ИИ (см. `docs/ai.md`). |

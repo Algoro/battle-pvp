@@ -1,18 +1,24 @@
 // CreateRoomDialog.tsx — создание игры с настройкой числа слотов по сторонам.
 import { useState } from "react";
+import StageSelect from "./StageSelect";
+import StarsSelect from "./StarsSelect";
 import type { LobbySettings } from "../engine/lobby-client";
+import type { EmulatorDriver } from "../engine/emulator";
 
 interface Props {
   onCreate: (name: string, settings: LobbySettings) => void;
   onCancel: () => void;
+  emulator?: EmulatorDriver | null;
 }
 
-export default function CreateRoomDialog({ onCreate, onCancel }: Props) {
+export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props) {
   const [name, setName] = useState("Моя игра");
   const [defSlots, setDefSlots] = useState(2);
   const [attSlots, setAttSlots] = useState(2);
   const [autoStart, setAutoStart] = useState(false);
   const [requireReady, setRequireReady] = useState(false);
+  const [stage, setStage] = useState(1);
+  const [defStars, setDefStars] = useState(0);
 
   return (
     <div className="modal" onClick={onCancel}>
@@ -38,12 +44,16 @@ export default function CreateRoomDialog({ onCreate, onCancel }: Props) {
           <span>Старт только когда все готовы</span>
           <input type="checkbox" checked={requireReady} onChange={(e) => setRequireReady(e.target.checked)} />
         </label>
+        <div className="modal__field">
+          <StageSelect emulator={emulator ?? null} stage={stage} onChange={setStage} previewSize={140} />
+          <StarsSelect stars={defStars} onChange={setDefStars} />
+        </div>
         <p className="modal__hint">Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».</p>
         <div className="modal__actions">
           <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
           <button
             className="btn btn--primary"
-            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true })}
+            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars })}
           >
             Создать
           </button>

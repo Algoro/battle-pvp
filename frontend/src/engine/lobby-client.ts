@@ -12,14 +12,14 @@ export type Team = "DEF" | "ATT";
 export interface LobbyPlayer {
   id: string; name: string; team: Team; ready: boolean; host: boolean; port: number; online: boolean;
 }
-export interface LobbySettings { defSlots: number; attSlots: number; autoStart: boolean; requireReady: boolean; fillBots: boolean; }
+export interface LobbySettings { defSlots: number; attSlots: number; autoStart: boolean; requireReady: boolean; fillBots: boolean; stage: number; defStars: number; }
 export interface LobbyState {
   id: string; code: string; name: string; host: string; state: string;
   settings: LobbySettings; slots: { DEF: number; ATT: number }; capacity: number;
   players: LobbyPlayer[]; createdAt: number;
 }
 export interface ChatMessage { scope: string; id: string | null; from: string; name: string; text: string; ts: number; }
-export interface MatchStart { matchId: string; peers: { playerId: string; team: Team; port: number; name?: string }[]; }
+export interface MatchStart { matchId: string; peers: { playerId: string; team: Team; port: number; name?: string }[]; stage?: number; defStars?: number; }
 
 // Клиент лобби поверх одного WS-соединения. События — через колбэки.
 export class LobbyClient {

@@ -167,6 +167,8 @@ export default function App() {
     myTeam: Team;
     myPorts: number[];
     matchId: string;
+    stage?: number;
+    defStars?: number;
     opps: { team: Team; port: number; playerId: string }[];
     negotiate: () => Promise<{ transport: any; mode?: string }>;
     createSession: (emu: EmulatorDriver, transport: any, myPorts: number[], remotePorts: number[], extra?: any) => any;
@@ -176,6 +178,9 @@ export default function App() {
 
     // 1) детерминированный сброс → идентичное начальное состояние у обоих
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
+    // стартовая стадия (одинаковая у всех клиентов)
+    emu.setStartStage(opts.stage ?? 1);
+    emu.setStartStars(opts.defStars ?? 0);
     // 2) человеческие танки (мои и соперников) — чтобы локальный ИИ за них не играл
     const mark = (team: Team, port: number) => (team === "DEF" ? emu.setHumanDefTank(port) : emu.setHumanTank(port));
     for (const p of myPorts) mark(myTeam, p);
@@ -232,6 +237,8 @@ export default function App() {
         myTeam,
         myPorts,
         matchId: m.matchId,
+        stage: m.stage ?? 1,
+        defStars: m.defStars ?? 0,
         opps,
         negotiate: () => lc.negotiateAll(opps.map((o) => o.playerId), m.matchId),
         createSession: (emu, transport, mp, rp, extra) => lc.createSession(emu, transport, mp, rp, handleNetEvent, extra),
@@ -346,9 +353,13 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const startSolo = (team: Team) => {
-    if (team === "ATT" && emuRef.current) emuRef.current.setHumanTank(2);
-    if (team === "DEF" && emuRef.current) emuRef.current.setHumanDefTank(0);
+  const startSolo = (team: Team, stage = 1, stars = 0) => {
+    const emu = emuRef.current!;
+    emu.setStartStage(stage);
+    emu.setStartStars(stars);
+    emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
+    if (team === "ATT") emu.setHumanTank(2);
+    if (team === "DEF") emu.setHumanDefTank(0);
     setScreen({ name: "game", mode: "solo", team });
   };
 
@@ -365,6 +376,8 @@ export default function App() {
         myTeam: team,
         myPorts: team === "DEF" ? [0] : [2],
         matchId: match.matchId,
+        stage: 1,
+        defStars: 0,
         opps: [{ team: oppTeam, port: team === "DEF" ? 2 : 0, playerId: match.opponent }],
         negotiate: () => nc.negotiate(),
         createSession: (emu, transport, mp, rp, extra) => nc.createSession(emu, transport, mp, rp, extra),
@@ -484,6 +497,7 @@ export default function App() {
         <LobbyRoom
           lobby={lobby}
           meId={meId}
+          emulator={emuRef.current}
           error={error}
           onLeave={doLeave}
           onTeam={(t) => lc().setTeam(lobby.id, t)}
@@ -498,6 +512,7 @@ export default function App() {
         <LobbyBrowser
           lobbies={lobbies}
           meId={meId}
+          emulator={emuRef.current}
           meName={meName}
           onNameChange={setMeName}
           error={error}
@@ -513,6 +528,7 @@ export default function App() {
       )}
       {showCreate && (
         <CreateRoomDialog
+          emulator={emuRef.current}
           onCancel={() => setShowCreate(false)}
           onCreate={(name, settings) => { setShowCreate(false); doCreate(name, settings); }}
         />

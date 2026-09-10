@@ -14,6 +14,15 @@ async function setupMatch(browser) {
   await bob.goto("/?player=bob&name=Боб");
 
   await alice.getByRole("button", { name: /Создать игру/ }).click();
+  await alice.locator(".modal__box .stage-select__range").fill("7"); // выбрать стадию 7
+  await alice.locator(".modal__box .stars-select__btn").last().click(); // 3 звезды защитникам
+  // предпросмотр стадии отрисован из ROM (не пустой)
+  const previewInk = await alice.locator(".modal__box .stage-preview").evaluate((c) => {
+    const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+    for (let i = 0; i < d.length; i += 4) if (d[i] !== 10 || d[i + 1] !== 14 || d[i + 2] !== 20) return true;
+    return false;
+  });
+  expect(previewInk, "предпросмотр стадии пуст").toBe(true);
   await alice.getByRole("button", { name: "Создать", exact: true }).click();
   await expect(alice.locator(".room-header__meta")).toBeVisible({ timeout: 10_000 });
   const meta = await alice.locator(".room-header__meta").innerText();
@@ -48,6 +57,14 @@ test("онлайн 1v1: лобби, старт, синхронные хэши, �
     }
   }
   expect(converged, "хэши клиентов не сошлись (desync)").toBe(true);
+
+  // выбранная стадия и стартовые звёзды применены детерминированно у обоих
+  const [stages, upgrades] = await Promise.all([
+    Promise.all([alice.evaluate(() => window.__bc.readMem(0x85)), bob.evaluate(() => window.__bc.readMem(0x85))]),
+    Promise.all([alice.evaluate(() => window.__bc.readMem(0x101)), bob.evaluate(() => window.__bc.readMem(0x101))]),
+  ]);
+  expect(stages, "стартовая стадия не совпала с выбранной").toEqual([7, 7]);
+  expect(upgrades, "стартовые звёзды защитников не применены").toEqual([0x60, 0x60]);
 
   const text = "держим базу";
   await bob.locator(".chat__form input").fill(text);

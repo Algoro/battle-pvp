@@ -394,7 +394,7 @@ export class RelayServer {
     for (const p of lobby.players.values()) this.sockets.set(p.playerId, p.socket || this.sockets.get(p.playerId));
     this.store.ensureMatch(room.id, [...room.teams[TEAM_DEF], ...room.teams[TEAM_ATT]]);
 
-    const payload = { type: "match.start", matchId: room.id, peers };
+    const payload = { type: "match.start", matchId: room.id, peers, stage: lobby.settings.stage || 1, defStars: lobby.settings.defStars || 0 };
     for (const p of lobby.players.values()) this._send(p.socket, payload);
 
     if (this.chat) this.chat.clear(lobby.id);

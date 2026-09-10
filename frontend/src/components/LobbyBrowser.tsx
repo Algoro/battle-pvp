@@ -2,15 +2,19 @@
 // вход по коду и глобальный чат.
 import { useState } from "react";
 import ChatPanel from "./ChatPanel";
+import StageSelect from "./StageSelect";
+import StarsSelect from "./StarsSelect";
 import type { ChatMessage, LobbyState } from "../engine/lobby-client";
+import type { EmulatorDriver } from "../engine/emulator";
 
 interface Props {
   lobbies: LobbyState[];
+  emulator?: EmulatorDriver | null;
   onJoin: (lobbyId: string) => void;
   onJoinCode: (code: string) => void;
   onCreate: () => void;
   onQuickMatch: () => void;
-  onSolo: (team: "DEF" | "ATT") => void;
+  onSolo: (team: "DEF" | "ATT", stage: number, stars: number) => void;
   chat: ChatMessage[];
   onSendChat: (text: string) => void;
   meId: string;
@@ -21,9 +25,11 @@ interface Props {
 }
 
 export default function LobbyBrowser({
-  lobbies, onJoin, onJoinCode, onCreate, onQuickMatch, onSolo, chat, onSendChat, meId, meName, onNameChange, error, busy,
+  lobbies, emulator, onJoin, onJoinCode, onCreate, onQuickMatch, onSolo, chat, onSendChat, meId, meName, onNameChange, error, busy,
 }: Props) {
   const [code, setCode] = useState("");
+  const [soloStage, setSoloStage] = useState(1);
+  const [soloStars, setSoloStars] = useState(0);
 
   return (
     <div className="lobby">
@@ -45,8 +51,12 @@ export default function LobbyBrowser({
           <div className="browser__bar">
             <button className="btn btn--primary" onClick={onCreate} disabled={busy}>＋ Создать игру</button>
             <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("DEF")} disabled={busy}>Соло 🛡</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("ATT")} disabled={busy}>Соло ⚔</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars)} disabled={busy}>Соло 🛡</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars)} disabled={busy}>Соло ⚔</button>
+          </div>
+          <div className="browser__stage">
+            <StageSelect emulator={emulator ?? null} stage={soloStage} onChange={setSoloStage} previewSize={140} />
+            <StarsSelect stars={soloStars} onChange={setSoloStars} />
           </div>
 
           <div className="browser__join">

@@ -268,6 +268,15 @@ body { margin: 0; }
 .audio-ctl__btn { background: transparent; border: 1px solid #3a3f4b; border-radius: 4px; cursor: pointer; padding: 1px 6px; }
 .audio-ctl__label { width: 66px; font-size: 12px; color: #c7ccd6; }
 .audio-ctl__range { width: 84px; }
+.stage-select { display: flex; flex-direction: column; gap: 6px; }
+.stage-select__row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.stage-select__label { font-size: 12px; color: #c7ccd6; }
+.stage-select__range { flex: 1; min-width: 100px; }
+.stage-preview { image-rendering: pixelated; border: 1px solid #3a3f4b; border-radius: 4px; background: #0a0e14; }
+.room__stage, .browser__stage { margin-top: 8px; }
+.stars-select { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.stars-select__label { font-size: 12px; color: #c7ccd6; }
+.stars-select__btn--on { border-color: #e0b040; color: #ffd76a; }
 .room__toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .modal__field input[type="text"], .modal__field input:not([type]) { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 10px; color: #e8ebf0; }
 .modal__hint { font-size: 12px; color: #7d8798; margin: 0; }

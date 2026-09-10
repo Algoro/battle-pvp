@@ -30,6 +30,8 @@ export function normalizeSettings(s = {}) {
     autoStart: !!s.autoStart,             // авто-старт при полном лобби и готовности всех
     requireReady: !!s.requireReady,       // хост стартует только когда не-хост игроки ready
     fillBots: s.fillBots !== false,       // пустые слоты добивает ИИ (иначе старт невозможен без людей)
+    stage: clampInt(s.stage, 1, 35, 1),   // стартовая стадия (1..35)
+    defStars: clampInt(s.defStars, 0, 3, 0), // стартовые звёзды команды DEF (0..3)
   };
 }
 

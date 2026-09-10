@@ -180,7 +180,7 @@ async function handleHttp(req, res, ctx) {
       ctx.store.ensureMatch(r.room.id, [...r.room.teams[TEAM_DEF], ...r.room.teams[TEAM_ATT]]);
       ctx.chat.clear(lobby.id);
       ctx.lobbies.remove(lobby.id);
-      return json(res, 200, { matchId: r.room.id, peers: r.peers });
+      return json(res, 200, { matchId: r.room.id, peers: r.peers, stage: lobby.settings.stage || 1, defStars: lobby.settings.defStars || 0 });
     }
     return json(res, 404, { error: "unknown-action" });
   }

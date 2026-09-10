@@ -48,9 +48,13 @@ test("Lobby: create, join, configurable slots, ports, reconnect, leave, host tra
 });
 
 test("Lobby: настройки клэмпятся в допустимые границы (DEF 1-2, ATT 1-6)", () => {
-  assert.deepStrictEqual(normalizeSettings({ defSlots: 5, attSlots: 99 }), { defSlots: 2, attSlots: 6, autoStart: false, requireReady: false, fillBots: true });
-  assert.deepStrictEqual(normalizeSettings({ defSlots: 0, attSlots: -3 }), { defSlots: 1, attSlots: 1, autoStart: false, requireReady: false, fillBots: true });
+  assert.deepStrictEqual(normalizeSettings({ defSlots: 5, attSlots: 99 }), { defSlots: 2, attSlots: 6, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0 });
+  assert.deepStrictEqual(normalizeSettings({ defSlots: 0, attSlots: -3 }), { defSlots: 1, attSlots: 1, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0 });
   assert.strictEqual(normalizeSettings({ requireReady: true }).requireReady, true);
+  assert.strictEqual(normalizeSettings({ stage: 42 }).stage, 35);
+  assert.strictEqual(normalizeSettings({ stage: 0 }).stage, 1);
+  assert.strictEqual(normalizeSettings({ defStars: 9 }).defStars, 3);
+  assert.strictEqual(normalizeSettings({ defStars: -1 }).defStars, 0);
   // setSettings нельзя ужать ниже занятых
   const lobby = new Lobby({ hostPlayerId: "h" });
   lobby.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null });
@@ -298,3 +302,32 @@ test("matchmaker: пары только с одинаковым отпечатк
   assert.strictEqual(paired.room.cartridgeFingerprint, "A");
   assert.strictEqual(paired.opponent, "d1");
 });
+
+test("интеграция WS: выбранная стадия передаётся в match.start", async () => {
+  const app = createApp({ dbPath: ":memory:" });
+  await new Promise((r) => app.http.listen(0, r));
+  const wsBase = `ws://127.0.0.1:${app.http.address().port}/ws`;
+  const c1 = new WebSocket(wsBase);
+  const c2 = new WebSocket(wsBase);
+  await Promise.all([new Promise((r) => c1.on("open", r)), new Promise((r) => c2.on("open", r))]);
+  const waitMsg = (ws, type, pred = () => true) =>
+    new Promise((resolve, reject) => {
+      const t = setTimeout(() => reject(new Error("timeout " + type)), 3000);
+      const h = (d) => { const m = J(d); if (m.type === type && pred(m)) { clearTimeout(t); ws.off("message", h); resolve(m); } };
+      ws.on("message", h);
+    });
+  const jh = waitMsg(c1, "lobby.joined");
+  c1.send(JSON.stringify({ type: "lobby.create", playerId: "host", name: "Host", settings: { defSlots: 1, attSlots: 1, stage: 7, defStars: 2 } }));
+  const lobbyId = (await jh).lobbyId;
+  const ja = waitMsg(c2, "lobby.joined");
+  c2.send(JSON.stringify({ type: "lobby.join", lobbyId, playerId: "att1", name: "Att", team: TEAM_ATT }));
+  await ja;
+  const ms1 = waitMsg(c1, "match.start");
+  c1.send(JSON.stringify({ type: "lobby.start", lobbyId }));
+  const s1 = await ms1;
+  assert.strictEqual(s1.stage, 7);
+  assert.strictEqual(s1.defStars, 2);
+  c1.close(); c2.close();
+  await new Promise((r) => setTimeout(r, 50));
+  await app.close();
+}, { timeout: 15000 });

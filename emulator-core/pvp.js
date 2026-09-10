@@ -18,6 +18,7 @@ import BattleCityPPU from "./ppu-ext.js";
 import BattleCityPAPU from "./papu-ext.js";
 import { applyPatchSet } from "./patching/apply.js";
 import { encodeState, decodeState } from "./io/state-codec.js";
+import { readStage, readStageBlocks, STAGE_COUNT, normalizeStage } from "./io/stage-data.js";
 import { stepTank, runtimePassable, DX as TANK_DX, DY as TANK_DY } from "./io/tank-driver.js";
 import { plan, planDefense, resetDefState } from "./ai/tactical-ai.js";
 import { scanPlan } from "./ai/scan-ai.js";
@@ -179,6 +180,7 @@ class PvPNes extends NES {
     super.reset();
     this.ppu = new BattleCityPPU(this);
     this.papu = new BattleCityPAPU(this);
+    this._installStartStageHook();
   }
 
   // Гейт аудио: true — onAudioSample не вызывается (переигровка при откате/resync).
@@ -188,6 +190,55 @@ class PvPNes extends NES {
 
   getAudioSuppressed() {
     return this._audioSuppressed;
+  }
+
+  // Задать стартовую стадию партии (1..35). Стадия внедряется один раз — на входе
+  // sub_F000_draw_stage, до выбора данных (см. _installStartStageHook).
+  setStartStage(stage) {
+    this._startStage = normalizeStage(stage);
+    this._installStartStageHook();
+    return this;
+  }
+
+  // Стартовое количество звёзд (апгрейд танка) для команды DEF, 0..3.
+  // Пишется в ram_tank_upgrade (порт 0 -> $0101, порт 1 -> $0102) на старте партии.
+  setStartStars(stars) {
+    const n = Math.max(0, Math.min(3, Math.floor(Number(stars) || 0)));
+    this._startStars = n;
+    this._installStartStageHook();
+    return this;
+  }
+
+  _installStartStageHook() {
+    if (this._startStage == null && this._startStars == null) return;
+    // Внедряем на входе sub_F000_draw_stage (PC $F000): до CMP/декода выставляем
+    // A/ram_stage (стадия) и ram_tank_upgrade (звёзды DEF). REG_PC = опкод+1 ($F001).
+    this.setPcHook(0xf001, (cpu) => {
+      if (this._startStage != null) {
+        cpu.mem[0x85] = this._startStage;
+        cpu.REG_ACC = this._startStage; // draw_stage получает стадию в A
+        this._startStage = null;
+      }
+      if (this._startStars != null) {
+        // ram_tank_upgrade кодируется шагами 0x20: 0x00/0x20/0x40/0x60 (см. бонус EA07).
+        const up = this._startStars * 0x20;
+        cpu.mem[0x101] = up; // ram_tank_upgrade (port 0)
+        cpu.mem[0x102] = up; // ram_tank_upgrade + 1 (port 1)
+        this._startStars = null;
+      }
+    });
+  }
+
+  getStageCount() {
+    return STAGE_COUNT;
+  }
+
+  getStageBlocks(stage) {
+    return Array.from(readStageBlocks(this.rom, stage));
+  }
+
+  getStage(stage) {
+    return readStage(this.rom, stage);
   }
 
   // ---- input mux (edge detection для портов 2..7; порты 0,1 идут через аппарат) ----
