@@ -28,7 +28,8 @@ emulator-core/.jsnes-lock
 *.nes
 *.chr
 *.ram.nl
-rom/disasm/incbin/
+# генерируется scripts/prepare.mjs; дизассемблер — в сабмодуле vendor/nes-disasm
+rom/disasm/
 
 # Инструменты/редакторы
 .DS_Store

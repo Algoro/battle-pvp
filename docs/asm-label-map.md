@@ -1,7 +1,9 @@
 # Карта меток ASM (Battle City, банк FF)
 
-Источник: дизассемблер `./rom/disasm` (bank_FF.asm / bank_ram.inc / bank_val.inc),
-собран BZK 6502 Disassembler. Полный анализ — `docs/dev/reports/agent-reversing.md`.
+Источник: дизассемблер `vendor/nes-disasm/Battle City` (bank_FF.asm / bank_ram.inc /
+bank_val.inc), BZK 6502 Disassembler — сабмодуль `cyneprepou4uk/NES-Games-Disassembly`.
+Копия asm в наше репо не коммитится; генерируемый `rom/disasm/` (`.gitignore`) служит для
+тестов. Полный анализ — `docs/dev/reports/agent-reversing.md`.
 
 ## Векторы / поток
 - NMI `vec_D400_NMI` — каждый кадр: чтение джойстиков, счётчик кадров.

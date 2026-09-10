@@ -106,10 +106,11 @@ emulator-core/   ядро: PvPNes (поверх неизменного jsnes), p
 netcode/         rollback-netcode: протокол, сессия, транспорты (webrtc/relay/local)
 frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD
 qa/              node-тесты + Playwright e2e
-rom/             original/ (ваш ROM), patches/, disasm/ (asm-референс), tools для пересборки
+rom/             original/ (ваш ROM; не коммитится) + генерируемый disasm/
 scripts/         prepare.mjs, extract-patches.mjs, ci.sh, verify-environment.sh, init-git.sh
 docs/            документация (docs/dev — внутренние заметки, docs/design — дизайн)
-vendor/jsnes/    git-сабмодуль: неизменный апстрим jsnes
+vendor/jsnes/      git-сабмодуль: неизменный апстрим jsnes (Apache-2.0)
+vendor/nes-disasm/ git-сабмодуль (sparse): справочный дизассемблер Battle City
 ```
 
 ## Обновление jsnes
@@ -142,8 +143,14 @@ git push -u origin main
 - [docs/ai.md](docs/ai.md) — ИИ атакующих/защитников.
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
 
-## Лицензии
+## Лицензия и правовой статус
 
-- Код проекта — MIT (см. `LICENSE`).
-- jsnes — Apache-2.0 (см. `vendor/jsnes`).
-- ROM Battle City не распространяется; см. `THIRD_PARTY.md` и `rom/original/README.md`.
+- Код проекта — **Apache-2.0** (см. `LICENSE`, `NOTICE`).
+- jsnes — Apache-2.0 (сабмодуль `vendor/jsnes`).
+- Дизассемблер (`vendor/nes-disasm`) — сторонний репозиторий без указанной лицензии,
+  подключён только сабмодулем как справка; его содержимое не перепубликуется.
+- **ROM Battle City не распространяется.** Нужна своя легальная копия. Патчи применяются
+  только в памяти и не содержат ROM.
+- «Battle City» — товарный знак Bandai Namco. Проект неофициальный, некоммерческий,
+  не аффилирован с правообладателем.
+- **Не публикуйте Docker-образы с ROM** в открытых реестрах. Подробнее — `THIRD_PARTY.md`.

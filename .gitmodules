@@ -2,3 +2,8 @@
 	path = vendor/jsnes
 	url = https://github.com/bfirsh/jsnes.git
 	shallow = true
+
+[submodule "vendor/nes-disasm"]
+	path = vendor/nes-disasm
+	url = https://github.com/cyneprepou4uk/NES-Games-Disassembly.git
+	shallow = true

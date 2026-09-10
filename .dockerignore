@@ -20,3 +20,4 @@ docs
 rom/patches
 rom/build
 rom/tests
+vendor/nes-disasm

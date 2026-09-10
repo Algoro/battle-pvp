@@ -4,6 +4,7 @@
   "description": "Автотесты: ASM-патчи (headless-эмуляция), netcode (джиттер/потери), sync-test режим, нагрузка комнат, e2e Playwright.",
   "type": "module",
   "private": true,
+  "license": "Apache-2.0",
   "scripts": {
     "test": "node ../scripts/prepare.mjs && node --test tests/*.test.js",
     "e2e": "node ../scripts/prepare.mjs && playwright test",

@@ -1,0 +1,13 @@
+Battle City PvP
+Copyright 2026 Battle City PvP contributors
+Licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components included in this distribution:
+
+- jsnes — https://github.com/bfirsh/jsnes
+  Copyright Ben Firshman and jsnes contributors
+  Licensed under the Apache License, Version 2.0.
+
+Battle City is a trademark of Bandai Namco Entertainment Inc. This is an
+unofficial, non-commercial fan project, not affiliated with or endorsed by
+Bandai Namco. The original ROM is not distributed.
