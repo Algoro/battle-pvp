@@ -108,7 +108,7 @@ frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD
 qa/              node-тесты + Playwright e2e
 rom/             original/ (ваш ROM; не коммитится) + генерируемый disasm/
 scripts/         prepare.mjs, extract-patches.mjs, ci.sh, verify-environment.sh, init-git.sh
-docs/            документация (docs/dev — внутренние заметки, docs/design — дизайн)
+docs/            документация (см. раздел «Документация»)
 vendor/jsnes/      git-сабмодуль: неизменный апстрим jsnes (Apache-2.0)
 vendor/nes-disasm/ git-сабмодуль (sparse): справочный дизассемблер Battle City
 ```
