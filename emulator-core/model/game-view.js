@@ -9,6 +9,8 @@
 //
 // Все движки (tactical/scan/lookahead) и тесты используют этот слой.
 
+import { RAM } from "../rom-contract.js";
+
 export const FIELD = 32;
 export const TILE = 8;
 export const DEF_END = 2; // первые 2 танка — защитники
@@ -122,9 +124,9 @@ export function bulletProperty(type) {
 export function bulletSpeed(type) { return (bulletProperty(type) & 0x01) ? 4 : 2; }
 
 // Оставшиеся жизни игрока (0..): port 0 — $0051, port 1 — $0052.
-export function playerLives(mem, port) { return mem[0x51 + port]; }
+export function playerLives(mem, port) { return mem[RAM.LIVES + port]; }
 // Уровень апгрейда игрока (звёзды 0..3): $0101/$0102.
-export function playerLevel(mem, port) { return mem[0x0101 + port]; }
+export function playerLevel(mem, port) { return mem[RAM.TANK_UPGRADE + port]; }
 
 // Сколько попаданий выдерживает враг по типу. Мигающий (бонусный, bit2) — 1.
 // Бронированный (0xE0..0xE7): (type & 3) — число брони, финальный выстрел добивает.
@@ -157,28 +159,28 @@ function aliveFlag(flag) { const hi = flag & 0xf0; return hi >= 0x90 && hi <= 0x
 export class GameState {
   constructor(mem) {
     this.mem = mem;
-    this.field = mem.subarray(0x0400, 0x0400 + FIELD * FIELD);
+    this.field = mem.subarray(RAM.FIELD, RAM.FIELD + FIELD * FIELD);
     this._read();
   }
   _read() {
     const mem = this.mem;
     // Состояние уровня/эффектов (для стратегии и эксплуатации).
-    this.enemiesLeft = mem[0x80];     // сколько врагов осталось до победы
-    this.spawnTimer = mem[0x82];      // таймер спавна врагов
-    this.fortified = mem[0x45] > 0;   // лопата: база укреплена
-    this.clockTimer = mem[0x0100];    // часы: враги заморожены (не стреляют)
+    this.enemiesLeft = mem[RAM.ENEMIES_LEFT];     // сколько врагов осталось до победы
+    this.spawnTimer = mem[RAM.SPAWN_TIMER];      // таймер спавна врагов
+    this.fortified = mem[RAM.FORTIFIED] > 0;   // лопата: база укреплена
+    this.clockTimer = mem[RAM.CLOCK_TIMER];    // часы: враги заморожены (не стреляют)
     this.tanks = [];
     for (let t = 0; t < 8; t++) {
-      const flag = mem[0xa0 + t], x = mem[0x90 + t], y = mem[0x98 + t];
-      const type = mem[0xa8 + t];
+      const flag = mem[RAM.TANK_FLAG + t], x = mem[RAM.TANK_X + t], y = mem[RAM.TANK_Y + t];
+      const type = mem[RAM.TANK_TYPE + t];
       const cell = cellOf(x, y);
       this.tanks.push({
         index: t, team: t < DEF_END ? "DEF" : "ATT", x, y, flag, type,
         dir: flag & 0x03,                          // направление взгляда (0..3)
         flashing: t >= DEF_END && (type & 0x04) !== 0,
         alive: aliveFlag(flag), inField: aliveFlag(flag) && x < 255,
-        helmet: t < DEF_END && mem[0x89 + t] > 0,  // каска (неуязвимость, DEF)
-        stunned: t < DEF_END && mem[0x6f + t] > 0, // ошеломление (DEF)
+        helmet: t < DEF_END && mem[RAM.HELMET + t] > 0,  // каска (неуязвимость, DEF)
+        stunned: t < DEF_END && mem[RAM.STUN + t] > 0, // ошеломление (DEF)
         speedClass: enemySpeedClass(type),         // класс скорости врага
         hitsLeft: t >= DEF_END ? hitsLeft(type) : 1,
         bulletSpeed: bulletSpeed(type),            // скорость пули стрелка
@@ -194,15 +196,15 @@ export class GameState {
     }));
     this.bullets = [];
     for (let t = 0; t < 8; t++) {
-      const status = mem[0xcc + t];
+      const status = mem[RAM.BULLET_STATUS + t];
       if ((status & 0xf0) === 0x40) {
-        const x = mem[0xb8 + t], y = mem[0xc2 + t];
+        const x = mem[RAM.BULLET_X + t], y = mem[RAM.BULLET_Y + t];
         this.bullets.push({ owner: t, team: t < DEF_END ? "DEF" : "ATT", dir: status & 0x03, x, y, cell: cellOf(x, y) });
       }
     }
     this.prizes = [];
-    const pid = mem[0x88];
-    if (pid !== 0xff) this.prizes.push({ id: pid, value: prizeValue(pid), x: mem[0x86], y: mem[0x87], cell: cellOf(mem[0x86], mem[0x87]) });
+    const pid = mem[RAM.PRIZE_ID];
+    if (pid !== 0xff) this.prizes.push({ id: pid, value: prizeValue(pid), x: mem[RAM.PRIZE_X], y: mem[RAM.PRIZE_Y], cell: cellOf(mem[RAM.PRIZE_X], mem[RAM.PRIZE_Y]) });
     this.eagle = this._findEagle();
   }
   _findEagle() {
@@ -224,7 +226,7 @@ export class GameState {
   ice(c, r) { return inBounds(c, r) && isIce(this.field[cellIdx(c, r)]); }
   tileCost(c, r) { return tileCostAt(this.field, c, r); }
   // Тестовый хук: штатно активирует бонус (как в PvPNes.spawnBonus).
-  spawnBonus(id, x, y) { this.mem[0x86] = x; this.mem[0x87] = y; this.mem[0x88] = id; this.mem[0x62] = 0; }
+  spawnBonus(id, x, y) { this.mem[RAM.PRIZE_X] = x; this.mem[RAM.PRIZE_Y] = y; this.mem[RAM.PRIZE_ID] = id; this.mem[RAM.BONUS_TIMER] = 0; }
   refresh() { this._read(); return this; }
 }
 
@@ -238,7 +240,7 @@ export function readState(mem) { return new GameState(mem); }
 const TILE_CODE = { ".": 0x00, "#": 0x11, B: 0x0f, W: 0x12, I: 0x21, T: 0x22 };
 export function buildState({ field, tanks = [], bullets = [], prize = null, eagle = null } = {}) {
   const mem = new Uint8Array(0x10000);
-  mem[0x80] = 20; // игра началась
+  mem[RAM.ENEMIES_LEFT] = 20; // игра началась
   mem[0x7f] = 20; // счётчик спавна врагов (декрементится при спавне)
   if (field) {
     for (let r = 0; r < field.length; r++) {
@@ -250,8 +252,8 @@ export function buildState({ field, tanks = [], bullets = [], prize = null, eagl
     }
   }
   if (eagle) mem[0x400 + eagle.row * 32 + eagle.col] = 0xc8;
-  if (prize) { mem[0x88] = prize.id; mem[0x86] = prize.x; mem[0x87] = prize.y; }
-  else mem[0x88] = 0xff;
+  if (prize) { mem[RAM.PRIZE_ID] = prize.id; mem[RAM.PRIZE_X] = prize.x; mem[RAM.PRIZE_Y] = prize.y; }
+  else mem[RAM.PRIZE_ID] = 0xff;
   // танки
   for (const tk of tanks) {
     const i = tk.i, x = tk.x ?? 255, y = tk.y ?? 255;

@@ -8,6 +8,7 @@
 // Относительный путь: ./backend/signaling/relay.js
 import { TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
 import { startLobbyMatch } from "../lobby/lobby.js";
+import { validateMessage } from "./schema.js";
 
 const MAX_PAYLOAD = 256 * 1024;
 const MAX_SIGNAL = 64 * 1024; // SDP/ICE не должны быть больше
@@ -60,6 +61,11 @@ export class RelayServer {
   }
 
   _route(ws, msg) {
+    const v = validateMessage(msg);
+    if (!v.ok) {
+      this._send(ws, { type: "error", error: v.error });
+      return;
+    }
     switch (msg.type) {
       // --- матч ---
       case "join":

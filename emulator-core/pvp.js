@@ -25,18 +25,10 @@ import { scanPlan } from "./ai/scan-ai.js";
 import { lookaheadPlan } from "./ai/lookahead-ai.js";
 import { strategyDefense } from "./ai/defender-strategy.js";
 import { attackerPlan } from "./ai/attacker-strategy.js";
-
-// Битовая маска кнопок (совпадает с con_btn в банке ROM).
-export const BTN = {
-  A: 0x01,
-  B: 0x02,
-  Select: 0x04,
-  Start: 0x08,
-  Up: 0x10,
-  Down: 0x20,
-  Left: 0x40,
-  Right: 0x80,
-};
+import { RAM, ROM as ROM_ADDR, BTN } from "./rom-contract.js";
+import { createStartup, assertRomContract } from "./startup.js";
+import { Tracer } from "./io/trace.js";
+export { BTN };
 
 // Кнопка направления по индексу dir (0=Up,1=Left,2=Down,3=Right) — как con_btn.
 const DIR_BTN = [BTN.Up, BTN.Left, BTN.Down, BTN.Right];
@@ -47,17 +39,12 @@ const PLAYER_SPAWN_Y = [0xd8, 0xd8];
 export const NUM_PLAYERS = 8; // логических портов
 export const DEF_PORTS = 2; // 0,1 -> $4016/$4017
 
-// Резервная RAM-зона (должна совпадать с bank_ram.inc + ASM-патчем P2).
-const NET_DIR = 0x01db; // 6 байт: направление ATT-танка (0=Up,1=Left,2=Down,3=Right, FF=нет)
-const NET_FIRE = 0x01e1; // 6 байт: edge выстрела
-const NET_RESPAWN = 0x01e7; // 6 байт: edge респавна
-const NET_STATE = 0x01ed; // 1 байт
 
 // Сторожевой статус пули для ЧЕЛОВЕЧЕСКИХ танков, чтобы блокировать RNG-огонь ASM
 // (sub_E162 -> sub_E08C проверяет «слот пули свободен?»: если статус != 0 — не стреляет).
 // Значение 0x01 безопасно: в sub_E02E диспетчер `(status>>3)&0xFE = 0` -> RTS (no-op),
 // sub_E604/sub_E910/sub_E70C обрабатывают только `(status&0xf0)==0x40`, т.е. маркер не
-// двигается, не сталкивается и не рендерится как пуля. При нажатии A (NET_FIRE) слот
+// двигается, не сталкивается и не рендерится как пуля. При нажатии A (RAM.NET_FIRE) слот
 // освобождается, чтобы ASM выстрелил по кнопке.
 const HUMAN_BULLET_BUSY = 0x01;
 
@@ -117,6 +104,8 @@ class PvPNes extends NES {
     this.opts.onAudioSampleGroup = rawGroup
       ? (g, l, r) => { if (!this._audioSuppressed) rawGroup(g, l, r); }
       : rawGroup;
+    // Декларативные стартовые опции (стадия/звёзды) — см. startup.js
+    this._startup = createStartup(this);
     this.prevButtons = new Uint8Array(NUM_PLAYERS);
     this.humanTanks = new Set(); // танки, управляемые человеком (AI отключён, JS двигает)
     this.humanDefTanks = new Set(); // DEF-танки за живым игроком (ИИ не играет за них)
@@ -131,7 +120,7 @@ class PvPNes extends NES {
     this._frameHash = "00000000";
     // Режим ИИ атакующих (ATT 2..7): "lookahead" — предсказание будущего (A+D,
     // по умолчанию), "scan" — полное сканирование, "js" — тактический,
-    // "asm" — родной ASM-ИИ (JS не пишет NET_DIR/NET_FIRE для атакующих).
+    // "asm" — родной ASM-ИИ (JS не пишет RAM.NET_DIR/RAM.NET_FIRE для атакующих).
     this._attAI = opts?.attAI ?? "lookahead"; // "js"|"plan"=tactical plan, "scan", "lookahead", "asm"=native
     // Режим защитников (DEF 0,1): "active" — полный ИИ (по умолчанию),
     // "stationary" — только огонь, "none" — без управления.
@@ -149,12 +138,8 @@ class PvPNes extends NES {
     // те же движки, что и у атакующих, но с ролью "def".
     this._defAI = opts?.defAI ?? "plan";
     this._defState = new Map();
-    // Трейс ИИ: события решений/убийств для лога с фильтрами (см. setTraceEnabled).
-    this._trace = [];
-    this._traceSeq = 0;
-    this._traceCap = opts?.traceCap ?? 500;
-    this._traceEnabled = false;
-    this._prevAliveMask = 0; // маска живых танков прошлого кадра (для детекта убийств)
+    // Трейс ИИ вынесен в отдельный класс (io/trace.js).
+    this.tracer = new Tracer(opts?.traceCap ?? 500);
   }
 
   // Загрузка ROM как расширение (jsnes.loadROM не трогаем): грузим ОРИГИНАЛ,
@@ -163,6 +148,10 @@ class PvPNes extends NES {
   loadROM(data) {
     this.rom = new ROM(this);
     this.rom.load(data);
+    if (this.opts.patchSet && !assertRomContract(this.rom)) {
+      // Предупреждение: образ не соответствует ожидаемому контракту Battle City.
+      if (typeof console !== "undefined") console.warn("[PvPNes] ROM не соответствует rom-contract");
+    }
     this.patching = null;
     if (this.opts.patchSet) {
       this.patching = applyPatchSet(this.rom, this.opts.patchSet);
@@ -180,7 +169,7 @@ class PvPNes extends NES {
     super.reset();
     this.ppu = new BattleCityPPU(this);
     this.papu = new BattleCityPAPU(this);
-    this._installStartStageHook();
+    this._startup?.reinstall();
   }
 
   // Гейт аудио: true — onAudioSample не вызывается (переигровка при откате/resync).
@@ -195,39 +184,17 @@ class PvPNes extends NES {
   // Задать стартовую стадию партии (1..35). Стадия внедряется один раз — на входе
   // sub_F000_draw_stage, до выбора данных (см. _installStartStageHook).
   setStartStage(stage) {
-    this._startStage = normalizeStage(stage);
-    this._installStartStageHook();
+    this._startup.setStage(normalizeStage(stage));
     return this;
   }
 
   // Стартовое количество звёзд (апгрейд танка) для команды DEF, 0..3.
   // Пишется в ram_tank_upgrade (порт 0 -> $0101, порт 1 -> $0102) на старте партии.
   setStartStars(stars) {
-    const n = Math.max(0, Math.min(3, Math.floor(Number(stars) || 0)));
-    this._startStars = n;
-    this._installStartStageHook();
+    this._startup.setStars(stars);
     return this;
   }
 
-  _installStartStageHook() {
-    if (this._startStage == null && this._startStars == null) return;
-    // Внедряем на входе sub_F000_draw_stage (PC $F000): до CMP/декода выставляем
-    // A/ram_stage (стадия) и ram_tank_upgrade (звёзды DEF). REG_PC = опкод+1 ($F001).
-    this.setPcHook(0xf001, (cpu) => {
-      if (this._startStage != null) {
-        cpu.mem[0x85] = this._startStage;
-        cpu.REG_ACC = this._startStage; // draw_stage получает стадию в A
-        this._startStage = null;
-      }
-      if (this._startStars != null) {
-        // ram_tank_upgrade кодируется шагами 0x20: 0x00/0x20/0x40/0x60 (см. бонус EA07).
-        const up = this._startStars * 0x20;
-        cpu.mem[0x101] = up; // ram_tank_upgrade (port 0)
-        cpu.mem[0x102] = up; // ram_tank_upgrade + 1 (port 1)
-        this._startStars = null;
-      }
-    });
-  }
 
   getStageCount() {
     return STAGE_COUNT;
@@ -260,9 +227,9 @@ class PvPNes extends NES {
       else if (hold & BTN.Down) dir = 2;
       else if (hold & BTN.Right) dir = 3;
     }
-    mem[NET_DIR + idx] = dir;
-    mem[NET_FIRE + idx] = (press & BTN.A) ? 1 : 0;
-    mem[NET_RESPAWN + idx] = (press & BTN.Start) ? 1 : 0;
+    mem[RAM.NET_DIR + idx] = dir;
+    mem[RAM.NET_FIRE + idx] = (press & BTN.A) ? 1 : 0;
+    mem[RAM.NET_RESPAWN + idx] = (press & BTN.Start) ? 1 : 0;
   }
 
   // ---- public API ----
@@ -274,9 +241,9 @@ class PvPNes extends NES {
     // Иначе враги стреляли бы постоянно (fire!=0) без нажатия.
     const mem = this.cpu.mem;
     for (let i = 0; i < 6; i++) {
-      mem[NET_DIR + i] = 0xff;
-      mem[NET_FIRE + i] = 0;
-      mem[NET_RESPAWN + i] = 0;
+      mem[RAM.NET_DIR + i] = 0xff;
+      mem[RAM.NET_FIRE + i] = 0;
+      mem[RAM.NET_RESPAWN + i] = 0;
     }
     const received = new Set(); // порты, получившие любой ввод (вкл. авто-старт)
     const humanControlled = new Set(); // порты с реальным управлением (направление/огонь)
@@ -297,7 +264,7 @@ class PvPNes extends NES {
       }
     }
     // Мозг атакующих: рулит вражескими танками (ATT 2..7) без сетевого ввода и не
-    // управляемых человеком. Пишет направление (NET_DIR) и огонь (NET_FIRE), тело
+    // управляемых человеком. Пишет направление (RAM.NET_DIR) и огонь (RAM.NET_FIRE), тело
     // ASM исполняет движение/коллизию/спавн. Режимы: "js" — тактический,
     // "scan" — полное сканирование, "lookahead" — предсказание будущего (A+D).
     if (this._attAI === "js" || this._attAI === "plan" || this._attAI === "scan" || this._attAI === "lookahead" || this._attAI === "strategy-att") {
@@ -317,14 +284,14 @@ class PvPNes extends NES {
       for (const [t, decision] of this._aiDecisions) {
         if (received.has(t) || this.humanTanks.has(t)) continue;
         this._traceEvent({ side: "att", tank: t, event: "decision", goal: decision.goal, dir: decision.dir, fire: !!decision.fire });
-        if (decision.dir !== null) mem[NET_DIR + (t - DEF_PORTS)] = decision.dir;
-        if (decision.fire) mem[NET_FIRE + (t - DEF_PORTS)] = 1;
+        if (decision.dir !== null) mem[RAM.NET_DIR + (t - DEF_PORTS)] = decision.dir;
+        if (decision.fire) mem[RAM.NET_FIRE + (t - DEF_PORTS)] = 1;
       }
     }
     // Защитный ИИ: DEF-танки (0,1) без РЕАЛЬНОГО управления игрока активно защищают
     // базу. Применяется ТОЛЬКО после старта игры — во время титула/меню нельзя
     // перезаписывать DEF-контроллер (затирается Start, которым стартуют игру).
-    const startedGame = mem[0x80] !== 0xff;
+    const startedGame = mem[RAM.ENEMIES_LEFT] !== 0xff;
     let def;
     if (this._defAI === "plan") {
       def = planDefense(mem, this._frame, this._defState);
@@ -373,7 +340,7 @@ class PvPNes extends NES {
     const playerOnDef = this.humanDefTanks.has(0) || this.humanDefTanks.has(1);
     if (!playerOnDef) {
       for (let t = 0; t < 2; t++) {
-        if (!this.humanTanks.has(t) && mem[0x51 + t] === 0) mem[0x51 + t] = 3;
+        if (!this.humanTanks.has(t) && mem[RAM.LIVES + t] === 0) mem[RAM.LIVES + t] = 3;
       }
     }
     // Человеческие танки: AI отключается. JS задаёт направление (до кадра, чтобы
@@ -389,19 +356,19 @@ class PvPNes extends NES {
       const active = this._humanTankActive(flag);
       if (!active) { this._jsPrev[t] = null; continue; } // мёртв/респавн — не трогаем
       const idx = t - DEF_PORTS;
-      const dir = mem[NET_DIR + idx];
-      this._jsPrev[t] = { x: mem[0x90 + t], y: mem[0x98 + t] };
+      const dir = mem[RAM.NET_DIR + idx];
+      this._jsPrev[t] = { x: mem[RAM.TANK_X + t], y: mem[RAM.TANK_Y + t] };
       this._jsDir[t] = dir;
-      this._bulletBefore[t] = mem[0xcc + t];
-      // Блокируем RNG-огонь ASM для человеческого танка: sub_E162 в ветке «без NET_FIRE»
+      this._bulletBefore[t] = mem[RAM.BULLET_STATUS + t];
+      // Блокируем RNG-огонь ASM для человеческого танка: sub_E162 в ветке «без RAM.NET_FIRE»
       // стреляет по RNG, и пуля успевала сталкиваться с кирпичом ДО удаления (баг:
       // самопроизвольный выстрел в упор сносил кирпич). Держим слот занятым маркером,
       // пока игрок не жмёт A; при A — освобождаем, чтобы ASM выстрелил по кнопке.
-      const firing = mem[NET_FIRE + idx] === 1;
+      const firing = mem[RAM.NET_FIRE + idx] === 1;
       if (firing) {
-        if (mem[0xcc + t] === HUMAN_BULLET_BUSY) mem[0xcc + t] = 0;
-      } else if (mem[0xcc + t] === 0) {
-        mem[0xcc + t] = HUMAN_BULLET_BUSY;
+        if (mem[RAM.BULLET_STATUS + t] === HUMAN_BULLET_BUSY) mem[RAM.BULLET_STATUS + t] = 0;
+      } else if (mem[RAM.BULLET_STATUS + t] === 0) {
+        mem[RAM.BULLET_STATUS + t] = HUMAN_BULLET_BUSY;
       }
       if (dir !== 0xff) {
         mem[flagAddr] = 0xa0 | dir;
@@ -423,31 +390,31 @@ class PvPNes extends NES {
       const prev = this._jsPrev[t];
       if (!prev) continue;
       // Если после кадра танк НЕ активен (мёртв/респавн) — не вмешиваемся.
-      const flagNow = mem[0xa0 + t];
+      const flagNow = mem[RAM.TANK_FLAG + t];
       const activeNow = this._humanTankActive(flagNow);
       if (!activeNow) { this._jsPrev[t] = null; continue; }
       const dir = this._jsDir[t];
-      const field = mem.subarray(0x0400, 0x0400 + 32 * 32);
+      const field = mem.subarray(RAM.FIELD, RAM.FIELD + 32 * 32);
       let next;
       if (dir !== 0xff) {
         next = stepTankStrict(field, prev, dir) ?? prev;
-        mem[0xa0 + t] = 0xa0 | dir;
+        mem[RAM.TANK_FLAG + t] = 0xa0 | dir;
       } else {
         next = prev; // нет ввода — удержать позицию (AI отключён)
         // Держим последнее направление в состоянии 0x80|dir (без анимации гусениц у
         // стоящего танка), чтобы ASM не развернул танк и не крутил гусеницы.
         const keep = this._lastPlayerDir[t];
-        if (keep !== undefined) mem[0xa0 + t] = 0x88 | keep;
+        if (keep !== undefined) mem[RAM.TANK_FLAG + t] = 0x88 | keep;
       }
-      mem[0x90 + t] = next.x;
-      mem[0x98 + t] = next.y;
+      mem[RAM.TANK_X + t] = next.x;
+      mem[RAM.TANK_Y + t] = next.y;
       // Подавление самопроизвольного (RNG) выстрела ASM: если игрок не нажимал A,
       // а пуля танка появилась именно в этом кадре — убираем её (танк стреляет
       // только по кнопке). Свой выстрел (игрок нажал A) не трогаем.
       const playerFired = !!this._playerFire[t];
-      const appeared = this._bulletBefore[t] === 0 && mem[0xcc + t] !== 0;
+      const appeared = this._bulletBefore[t] === 0 && mem[RAM.BULLET_STATUS + t] !== 0;
       if (!playerFired && appeared) {
-        mem[0xcc + t] = 0; // снять пулю
+        mem[RAM.BULLET_STATUS + t] = 0; // снять пулю
         mem[0xba + t] = 0; // pos_X пули
         mem[0xc4 + t] = 0; // pos_Y пули
       }
@@ -457,17 +424,17 @@ class PvPNes extends NES {
     // детерминированно выталкиваем его назад по направлению взгляда. Одинаково у обоих
     // клиентов (читает только RAM), поэтому не нарушает синхронизацию.
     for (let t = 0; t < NUM_PLAYERS; t++) {
-      const flag = mem[0xa0 + t];
+      const flag = mem[RAM.TANK_FLAG + t];
       const hi = flag & 0xf0;
       if (!(hi >= 0x80 && hi <= 0xd0)) continue; // только «на поле»
       const dir = flag & 0x03;
       for (let it = 0; it < 4; it++) {
-        const x = mem[0x90 + t], y = mem[0x98 + t];
+        const x = mem[RAM.TANK_X + t], y = mem[RAM.TANK_Y + t];
         if (!solidPixel(mem, x, y)) break;
         const nx = x - TANK_DX[dir], ny = y - TANK_DY[dir];
         if (nx < 0 || nx > 255 || ny < 0 || ny > 255) break;
-        mem[0x90 + t] = nx;
-        mem[0x98 + t] = ny;
+        mem[RAM.TANK_X + t] = nx;
+        mem[RAM.TANK_Y + t] = ny;
       }
     }
     this._frameHash = this.getFrameHash();
@@ -478,12 +445,10 @@ class PvPNes extends NES {
 
   // ==== трейс ИИ (лог решений/убийств с фильтрами во фронте) ====
   _traceEvent(ev) {
-    if (!this._traceEnabled) return;
-    this._trace.push({ id: this._traceSeq++, frame: this._frame, ...ev });
-    if (this._trace.length > this._traceCap) this._trace.splice(0, this._trace.length - this._traceCap);
+    this.tracer.event(this._frame, ev);
   }
   _isAlive(mem, t) {
-    const hi = mem[0xa0 + t] & 0xf0;
+    const hi = mem[RAM.TANK_FLAG + t] & 0xf0;
     return hi >= 0x90 && hi <= 0xd0;
   }
   // Человеческий танк «активен на поле» (0x80..0xd0), включая состояние 0x80..0x8f
@@ -494,46 +459,32 @@ class PvPNes extends NES {
     const hi = flag & 0xf0;
     return hi >= 0x80 && hi <= 0xd0;
   }
-  _aliveMask(mem) {
-    let mask = 0;
-    for (let t = 0; t < 8; t++) if (this._isAlive(mem, t)) mask |= 1 << t;
-    return mask;
-  }
   _detectDeaths() {
-    if (!this._traceEnabled) return;
-    const mem = this.cpu.mem;
-    const now = this._aliveMask(mem);
-    const died = this._prevAliveMask & ~now;
-    for (let t = 0; t < 8; t++) {
-      if (died & (1 << t)) {
-        this._traceEvent({ side: t < 2 ? "def" : "att", tank: t, event: "dead" });
-      }
-    }
-    this._prevAliveMask = now;
+    this.tracer.detectDeaths(this._frame, this.cpu.mem);
   }
 
   // Респавн мёртвых DEF-танков (как в planDefense, напрямую, без Start) — вынесен,
   // чтобы работал и при "off"-режиме защитников (иначе человек/союзник не возродится).
   _defRespawn(mem, def) {
     for (let t = 0; t < DEF_PORTS; t++) {
-      if (mem[0xa0 + t] === 0 && this._frame % 30 === 0) {
-        mem[0xa8 + t] = 0; // тип
-        mem[0x90 + t] = PLAYER_SPAWN_X[t]; // X
-        mem[0x98 + t] = PLAYER_SPAWN_Y[t]; // Y
-        mem[0x6f + t] = 0; // стан
-        mem[0xa0 + t] = 0xf0; // флаг респавна
+      if (mem[RAM.TANK_FLAG + t] === 0 && this._frame % 30 === 0) {
+        mem[RAM.TANK_TYPE + t] = 0; // тип
+        mem[RAM.TANK_X + t] = PLAYER_SPAWN_X[t]; // X
+        mem[RAM.TANK_Y + t] = PLAYER_SPAWN_Y[t]; // Y
+        mem[RAM.STUN + t] = 0; // стан
+        mem[RAM.TANK_FLAG + t] = 0xf0; // флаг респавна
         def.respawn.add(t);
       }
     }
   }
 
   // Включить/выключить сбор трейса (по умолчанию выключен — не тратим память).
-  setTraceEnabled(v) { this._traceEnabled = !!v; this._prevAliveMask = 0; return this; }
+  setTraceEnabled(v) { this.tracer.setEnabled(v); return this; }
   // Ограничить число хранимых событий (кольцевой сдвиг, первые вытесняются).
-  setTraceCap(n) { this._traceCap = Math.max(1, n | 0); return this; }
+  setTraceCap(n) { this.tracer.setCap(n); return this; }
   // Копия событий трейса (id, frame, side, tank, event, goal, dir, fire).
-  getTrace() { return this._trace.slice(); }
-  clearTrace() { this._trace.length = 0; return this; }
+  getTrace() { return this.tracer.get(); }
+  clearTrace() { this.tracer.clear(); return this; }
   // Режимы ИИ для переключения на лету. "off" — ИИ выключен (враги заморожены,
   // союзник-защитник стоит; респавн DEF сохраняется).
   getAttModes() { return ["plan", "scan", "lookahead", "strategy-att", "asm", "off"]; }
@@ -616,11 +567,11 @@ class PvPNes extends NES {
       cpu.__rngWrapped = true;
       const orig = cpu.emulate.bind(cpu);
       cpu.emulate = () => {
-        if (cpu.REG_PC === 0xd44d) {
+        if (cpu.REG_PC === ROM_ADDR.RANDOM_FN) {
           const inj = this._rngInjection;
           if (inj !== null) {
             cpu.REG_ACC = Array.isArray(inj) ? inj[this._rngIdx++ % inj.length] : inj;
-            cpu.REG_PC = 0xd466; // RTS: возврат из JSR sub_D44D с A = инжектированным
+            cpu.REG_PC = ROM_ADDR.RANDOM_RET; // RTS: возврат из JSR sub_D44D с A = инжектированным
           }
         }
         return orig();
@@ -635,13 +586,13 @@ class PvPNes extends NES {
   // бонуса (как при штатном спавне). id: 0=каска,1=часы,2=лопата,3=звезда,4=граната,5=жизнь.
   spawnBonus(id, x, y) {
     const mem = this.cpu.mem;
-    mem[0x86] = x; mem[0x87] = y; mem[0x88] = id; mem[0x62] = 0;
+    mem[RAM.PRIZE_X] = x; mem[RAM.PRIZE_Y] = y; mem[RAM.PRIZE_ID] = id; mem[RAM.BONUS_TIMER] = 0;
   }
 
   // ТЕСТОВЫЙ ХУК: текущий бонус на поле? (истина, если есть активный приз)
   hasBonus() {
     const mem = this.cpu.mem;
-    return mem[0x88] !== 0xff && mem[0x86] !== 0;
+    return mem[RAM.PRIZE_ID] !== 0xff && mem[RAM.PRIZE_X] !== 0;
   }
 
   // Полный детерминированный state как компактный бинарный Uint8Array.
@@ -669,12 +620,12 @@ class PvPNes extends NES {
   // по RAM (детерминированно и rollback-безопасно).
   handlePauseAfterFrame() {
     const mem = this.cpu.mem;
-    if (mem[0x6d] === 0) return;
-    const stage = mem[0x85];
-    const started = mem[0x80] !== 0xff;
+    if (mem[RAM.PAUSE] === 0) return;
+    const stage = mem[RAM.STAGE];
+    const started = mem[RAM.ENEMIES_LEFT] !== 0xff;
     const activeGameplay = started && stage >= 1 && stage <= 35;
     if (!activeGameplay) {
-      mem[0x6d] = 0; // вне геймплея (демо/титул) — не показываем «ПАУЗА»
+      mem[RAM.PAUSE] = 0; // вне геймплея (демо/титул) — не показываем «ПАУЗА»
     }
   }
 
@@ -684,5 +635,6 @@ class PvPNes extends NES {
   }
 }
 
-export { PvPNes, NET_DIR, NET_FIRE, NET_RESPAWN, NET_STATE };
+export { PvPNes };
+export const NET_DIR = RAM.NET_DIR, NET_FIRE = RAM.NET_FIRE, NET_RESPAWN = RAM.NET_RESPAWN, NET_STATE = RAM.NET_STATE;
 export default PvPNes;

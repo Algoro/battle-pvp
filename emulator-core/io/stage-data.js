@@ -15,9 +15,11 @@ export const STAGE_ROWS = 13;
 export const STAGE_BLOCKS = STAGE_COLS * STAGE_ROWS; // 169
 export const STAGE_STRIDE = 91;
 
-const CPU_STAGE_TABLE = 0xf07a;
-const CPU_BLOCK_ATTR = 0xdabb;
-const CPU_BLOCK_TILES = 0xdacb;
+import { ROM as ROM_ADDR } from "../rom-contract.js";
+
+const CPU_STAGE_TABLE = ROM_ADDR.STAGE_TABLE;
+const CPU_BLOCK_ATTR = ROM_ADDR.BLOCK_ATTR;
+const CPU_BLOCK_TILES = ROM_ADDR.BLOCK_TILES;
 
 // CPU-адрес -> offset в PRG-банке 0 (NROM-128, окно $8000/$C000 зеркалится).
 function prgOffset(cpuAddr) {
