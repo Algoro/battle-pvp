@@ -68,11 +68,11 @@ docker run --rm -p 8080:8080 battle-city-pvp
 ### Локально (dev)
 
 ```bash
-git submodule update --init --recursive   # jsnes
-node scripts/prepare.mjs                  # emulator-core/src + ROM-артефакты
+git submodule update --init vendor/jsnes    # неизменный эмулятор (обязателен)
+node scripts/prepare.mjs                    # emulator-core/src + ROM-артефакты
 
 # backend
-cd backend && npm install && npm start    # http://localhost:8080
+cd backend && npm install && npm start      # http://localhost:8080
 
 # frontend (Vite dev)
 cd frontend && npm install && npm run dev

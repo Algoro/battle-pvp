@@ -53,7 +53,7 @@ function sleepMs(ms) {
 
 function copyJsnes() {
   if (!existsSync(join(JSNES_SRC, "nes.js"))) {
-    console.error("[prepare] vendor/jsnes не найден. Выполните: git submodule update --init --recursive");
+    console.error("[prepare] vendor/jsnes не найден. Выполните: git submodule update --init vendor/jsnes");
     process.exit(1);
   }
   const stamp = stampOf(JSNES_SRC);

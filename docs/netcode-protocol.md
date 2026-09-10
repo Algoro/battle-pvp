@@ -51,6 +51,12 @@ Rollback netcode (аналог GGPO). Относительные пути: `./ne
 - `room` содержит `players[{playerId,team,online}]` (presence).
 - `signal` → пересылка SDP/ICE; `relay.data` → ретрансляция игровых байт;
   `pause`/`resume` → пауза матча (напр., вкладка в фоне); `start`/`finish` → жизненный цикл.
+- `chat.send` (scope `global` / `lobby` / `match`) и история чата;
+  `spectate` / `spectate.data` / `spectate.leave` — режим наблюдателя.
+
+## Отпечаток картриджа
+Клиенты передают `cartridgeFingerprint` при входе; сервер сверяет его (лобби, matchmaker,
+`join`) и не стартует матч при рассинхроне патчей (`cartridge-mismatch`).
 
 ## UX соединения (frontend)
 - `LobbyClient` авто-переподключает WS (backoff), `rejoinMatch()` возвращает в ту же комнату.

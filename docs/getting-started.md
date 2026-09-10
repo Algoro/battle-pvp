@@ -1,4 +1,4 @@
-# Getting started
+# Быстрый старт
 
 ## Требования
 
@@ -13,8 +13,18 @@
 ## Первичная настройка
 
 ```bash
-git submodule update --init --recursive   # vendor/jsnes (неизменный апстрим)
+# обязателен только jsnes (неизменный эмулятор)
+git submodule update --init vendor/jsnes
+
 node scripts/prepare.mjs                  # emulator-core/src, ROM-артефакты, public/rom
+```
+
+Справочный дизассемблер (`vendor/nes-disasm`) для сборки и тестов **не нужен**.
+При желании подключить его (sparse, только `Battle City`):
+
+```bash
+git submodule update --init vendor/nes-disasm
+git -C vendor/nes-disasm sparse-checkout set "Battle City"
 ```
 
 `scripts/prepare.mjs`:
@@ -69,7 +79,7 @@ cd qa && npx playwright install chromium && npm run e2e:online
 
 ## Частые проблемы
 
-- **`vendor/jsnes не найден`** — не инициализирован сабмодуль: `git submodule update --init --recursive`.
+- **`vendor/jsnes не найден`** — не инициализирован сабмодуль: `git submodule update --init vendor/jsnes`.
 - **`Не найден оригинальный ROM`** — положите файл в `rom/original/` (см. `rom/original/README.md`).
 - **Тесты падают на ROM** — отсутствует или неверная ревизия ROM (сверьте sha1).
 - **Порт занят** — задайте `PORT` (backend) или порт Vite.
