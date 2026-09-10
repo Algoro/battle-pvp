@@ -1,6 +1,6 @@
 # Battle City PvP
 
-> Online multiplayer for Battle City (NES) — up to 8 players or AI bots.
+> Online multiplayer for Battle City (NES)
 
 Кооперативно-соревновательная версия классической **Battle City (NES)**: команда
 **защитников** (2 танка) обороняет штаб против команды **атакующих** (до 6 танков),
