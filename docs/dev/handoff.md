@@ -1430,3 +1430,50 @@ emulator-core **177/177** (+3 теста `state-nametable.test.js`), netcode **5
   сверка override в `ppu-ext.js`.
 - Новая функциональность эмулятора — только подклассы/обёртки (`ext`/`*-ext.js`) и модули
   вокруг (`patching/`, `io/`, `ai/`, `sim/`).
+
+---
+
+# §27. Подготовка к публикации на GitHub (структура, README, документация)
+
+## 27a. Неизменные компоненты
+- **jsnes**: `vendor/jsnes` оформлен как **git-сабмодуль** (URL `bfirsh/jsnes`, commit
+  `b8a45d0…`, `.gitmodules`). `emulator-core/src` теперь **генерируется** из сабмодуля
+  (`scripts/prepare.mjs`) и не коммитится; guard-тест `jsnes-pristine.test.js` сверяет байты.
+- **ROM**: в репозиторий не входит (`*.nes` в `.gitignore`); `scripts/prepare.mjs` собирает
+  производные артефакты (`emulator-core/src`, `frontend/public/rom`, `rom/disasm/_battle_city.nes`).
+  Патчи применяются только к in-memory образу PRG.
+
+## 27b. Чистка
+- Удалено: `experiments/` (blackhole-агенты), `vendor/nes-disasm` (415 МБ), `vendor/ggpo`,
+  `vendor/telegraph`, Windows-тулчейн `rom/disasm/{ca65,ld65,lua53}.*`, `rom/disasm/_misc`
+  (5.5 МБ), `debug2.mjs`, корневой дубль ROM, `frontend/dist`, `qa/test-results`, `.playwright-mcp`.
+- Разложено: `handoff.md` → `docs/dev/`, `reports/` → `docs/dev/reports/`, дизайн-документы →
+  `docs/design/`, одноразовые скрипты → `scripts/dev/`.
+
+## 27c. Сборка/подготовка
+- `scripts/prepare.mjs` — идемпотентная и потокобезопасная подготовка (stamp-файл + lock):
+  генерирует `emulator-core/src`, ROM-артефакты; запускается из `npm test`/`prebuild`.
+- `scripts/init-git.sh` — инициализация репозитория и подключение сабмодуля jsnes.
+- `scripts/ci.sh` — локальный CI (ROM-этапы пропускаются без оригинала).
+- `scripts/verify-environment.sh` — упрощён (git/node/npm/сабмодуль/ROM).
+- `Dockerfile` — генерирует `emulator-core/src` из сабмодуля в build-stage; `.dockerignore`
+  и `.gitignore` обновлены.
+
+## 27d. Документация
+- `README.md` — публичное описание (возможности, архитектура, быстрый старт, структура).
+- `docs/`: `getting-started.md`, `architecture.md` (переписан), `multiplayer.md`,
+  `rom-patching.md`, `ai.md`; существующие `netcode-protocol.md`, `emulator-api.md`,
+  `asm-label-map.md` поддерживаются.
+- `LICENSE` (MIT), `THIRD_PARTY.md`, `rom/original/README.md`.
+- `.github/workflows/ci.yml` — CI без ROM (backend tests + frontend build).
+
+## 27e. Git
+- В каталоге проекта создан **отдельный** git-репозиторий (ветка `main`) — ранее здесь
+  действовал чужой репозиторий из `/`. Первый коммит: `Initial public release`.
+  Сабмодуль `vendor/jsnes` зарегистрирован (`.gitmodules` + gitlink; `absorbgitdirs`).
+- Публикация: `git remote add origin … && git push -u origin main`.
+
+## 27f. Проверки
+- `bash scripts/ci.sh`: pass=7 fail=0 (emulator-core 192, netcode 14, qa 30, backend 25,
+  frontend build).
+- Online E2E 2/2; контейнер собран из сабмодуля и отдаёт оригинальный ROM (:8080).
