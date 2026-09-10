@@ -54,6 +54,12 @@ test("онлайн 1v1: лобби, старт, синхронные хэши, �
   await bob.locator(".chat__form button").click();
   await expect(alice.getByText(text)).toBeVisible({ timeout: 10_000 });
 
+  // звук: AudioContext поднят жестом, обе группы (музыка/эффекты) уходят в вывод
+  const audio = await alice.evaluate(() => window.__bcAudio.stats());
+  expect(audio.ready, "AudioContext не поднялся").toBe(true);
+  expect(audio.music.posted, "нет сэмплов музыки").toBeGreaterThan(0);
+  expect(audio.sfx.posted, "нет сэмплов эффектов").toBeGreaterThan(0);
+
   await ctxA.close();
   await ctxB.close();
 });

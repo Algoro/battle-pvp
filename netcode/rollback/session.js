@@ -168,9 +168,11 @@ export class RollbackSession {
     // симулируем с предсказанием; реальные вводы исправят их через rollback).
     if (this._needCatchUp && this.remoteHeadFrame > this.currentFrame) {
       let guard = 0;
+      this.game.setAudioSuppressed?.(true);
       while (this.currentFrame < this.remoteHeadFrame && guard++ < 300) {
         this._coreStep(myInputs);
       }
+      this.game.setAudioSuppressed?.(false);
       this._needCatchUp = false;
       this.onEvent({ type: "catch-up", frame: this.currentFrame });
     }
@@ -306,9 +308,11 @@ export class RollbackSession {
 
   _rollback(fromFrame) {
     const target = this.currentFrame;
+    // Во время отката/переигровки глушим аудио (иначе повторная эмиссия сэмплов).
+    this.game.setAudioSuppressed?.(true);
     const st = this._materialize(fromFrame);
     if (st === undefined) {
-      // вышли за окно — не можем откатиться (зафиксируем событие)
+      this.game.setAudioSuppressed?.(false);
       this.onEvent({ type: "rollback-window-exceeded", frame: fromFrame });
       return;
     }
@@ -331,6 +335,7 @@ export class RollbackSession {
       this.hashHistory.set(f, h);
       this.currentFrame++;
     }
+    this.game.setAudioSuppressed?.(false);
   }
 
   _onHashCheck({ frame, hash }) {

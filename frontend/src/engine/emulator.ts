@@ -21,8 +21,19 @@ export class EmulatorDriver {
   private accum = 0;
   private running = false;
   private romBytes: Uint8Array | null = null;
-  private aiConfig: any = { attAI: "lookahead", defAI: "plan", defMode: "active", patchSet: "pvp" };
+  private aiConfig: any = { attAI: "lookahead", defAI: "plan", defMode: "active", patchSet: "pvp", sampleRate: 48000 };
+  private audio: any = null; // AudioOutput (устанавливается из App)
   public onFrame?: (frame: number) => void;
+
+  // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
+  setAudio(audio: any) { this.audio = audio; return this; }
+
+  private coreConfig(): any {
+    return {
+      ...this.aiConfig,
+      onAudioSampleGroup: (group: "music" | "sfx", l: number, r: number) => this.audio?.pushGroup(group, l, r),
+    };
+  }
 
   // Загружает ROM (Uint8Array или ArrayBuffer) и создаёт ядро.
   // Самые сильные ИИ из написанных (проверено emu-eval):
@@ -33,7 +44,7 @@ export class EmulatorDriver {
   loadROM(data: ArrayBuffer | Uint8Array) {
     const bytes = data instanceof Uint8Array ? data : new Uint8Array(data);
     this.romBytes = bytes;
-    this.nes = new PvPNes(this.aiConfig);
+    this.nes = new PvPNes(this.coreConfig());
     this.nes.loadROM(bytes);
     return this;
   }
@@ -43,7 +54,7 @@ export class EmulatorDriver {
   reset(config: any = {}) {
     this.aiConfig = { ...this.aiConfig, ...config };
     if (!this.romBytes) return this;
-    this.nes = new PvPNes(this.aiConfig);
+    this.nes = new PvPNes(this.coreConfig());
     this.nes.loadROM(this.romBytes);
     return this;
   }

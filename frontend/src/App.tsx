@@ -7,6 +7,7 @@ import GameCanvas from "./components/GameCanvas";
 import SpectateView from "./components/SpectateView";
 import { EmulatorDriver, FrameInput } from "./engine/emulator";
 import { KeyboardInput } from "./engine/input";
+import { AudioOutput } from "./engine/audio";
 import { buildSoloInputs, isGameplayStarted, isTankAlive, BTN_START } from "./engine/game-state";
 import { bytesToBase64, base64ToBytes } from "./engine/b64";
 import NetClient, { Team } from "./engine/net";
@@ -58,6 +59,11 @@ export default function App() {
   const setPause = (v: boolean) => { pausedRef.current = v; setPaused(v); };
   const emuRef = useRef<EmulatorDriver | null>(null);
   const kbRef = useRef<KeyboardInput | null>(null);
+  const audioRef = useRef<AudioOutput | null>(null);
+  if (!audioRef.current) {
+    audioRef.current = new AudioOutput();
+    (window as any).__bcAudio = audioRef.current;
+  }
 
   // Состояние соединения для UX (экран «Соединение…», режим, задержка, DESYNC).
   const [net, setNet] = useState<{
@@ -146,6 +152,7 @@ export default function App() {
 
   if (!emuRef.current && rom) {
     const emu = new EmulatorDriver();
+    emu.setAudio(audioRef.current);
     emu.loadROM(rom);
     emuRef.current = emu;
     kbRef.current = new KeyboardInput();
@@ -329,6 +336,7 @@ export default function App() {
     const onVis = () => {
       const lc = lcRef.current;
       const mid = matchIdRef.current;
+      if (document.hidden) { audioRef.current?.suspend(); } else { audioRef.current?.resume(); }
       if (!lc || !mid) return;
       if (document.hidden) { setPause(true); lc.pauseMatch(mid); }
       else { setPause(false); lc.resumeMatch(mid); }
@@ -461,6 +469,7 @@ export default function App() {
         onResult={screen.mode === "online" ? handleOnlineResult : undefined}
         chat={screen.mode === "online" ? matchChat : undefined}
         meId={meId}
+        audio={audioRef.current!}
         onSendChat={screen.mode === "online" ? (text) => { const mid = matchIdRef.current; if (mid) lcRef.current?.sendChat?.("match", text, mid); } : undefined}
         online={screen.mode === "online"
           ? { advance: onlineAdvance, draw: () => emuRef.current!.draw(), onEvent: () => {}, paused, connection: net }

@@ -15,6 +15,7 @@ import { encodeFrameBatch } from "../protocol/frame.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..", "..");
 const ROM = readFileSync(join(root, "rom", "disasm", "_battle_city.nes"));
+const ROM_ORIG = readFileSync(join(root, "rom", "original", "_battle_city.nes"));
 
 function makeGames() {
   const a = new PvPNes();
@@ -328,4 +329,41 @@ test("оптимизация снапшотов: разреженные чекп
   assert.ok(sb.rollbackCount > 0, "rollback не срабатывал");
   assert.ok(sb.states.size <= Math.ceil(120 / 8) + 2, `слишком много чекпоинтов: ${sb.states.size}`);
   assert.strictEqual(a.getFrameHash(), b.getFrameHash(), "sparse-чекпоинты нарушили сходимость");
+});
+
+test("аудио: откат глушит звук на время переигровки", () => {
+  const pair = LocalEndpoint.pair({ delay: 4, jitter: 1 }, { delay: 4, jitter: 1 }, makeRng(0xa11d));
+  const track = (romBytes) => {
+    const st = { suppressed: false, samples: 0, whileSuppressed: 0, suppressions: 0 };
+    const g = new PvPNes({
+      patchSet: "pvp",
+      sampleRate: 48000,
+      onAudioSample: () => { st.samples++; if (st.suppressed) st.whileSuppressed++; },
+    });
+    g.loadROM(romBytes);
+    const orig = g.setAudioSuppressed.bind(g);
+    g.setAudioSuppressed = (v) => { st.suppressed = !!v; if (v) st.suppressions++; orig(v); };
+    return { g, st };
+  };
+  const A = track(ROM_ORIG);
+  const B = track(ROM_ORIG);
+  const sa = new RollbackSession({ game: A.g, transport: pair.a, myPorts: [0], remotePorts: [2], onEvent: () => {} });
+  const sb = new RollbackSession({ game: B.g, transport: pair.b, myPorts: [2], remotePorts: [0], onEvent: () => {} });
+
+  let s = 1;
+  const rnd = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) & 0xff);
+  for (let f = 0; f < 100; f++) {
+    sa.advanceFrame([{ port: 0, buttons: rnd() }]);
+    sb.advanceFrame([{ port: 2, buttons: rnd() }]);
+    pair.a.flush();
+    pair.b.flush();
+  }
+  let safety = 400;
+  while (pair.a.sent > pair.a.delivered || pair.b.sent > pair.b.delivered) { pair.a.flush(); pair.b.flush(); if (safety-- < 0) break; }
+
+  for (const [name, st] of [["A", A.st], ["B", B.st]]) {
+    assert.ok(st.samples > 0, `${name}: нет звука`);
+    assert.ok(st.suppressions > 0, `${name}: откат ни разу не заглушил звук`);
+    assert.strictEqual(st.whileSuppressed, 0, `${name}: звук эмитился во время переигровки`);
+  }
 });

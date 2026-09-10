@@ -8,7 +8,9 @@ import { buildSoloInputs, determineWinner, isGameplayStarted, isTankAlive } from
 import AIControls from "./AIControls";
 import TracePanel from "./TracePanel";
 import ChatPanel from "./ChatPanel";
+import AudioControl from "./AudioControl";
 import type { ChatMessage } from "../engine/lobby-client";
+import type { AudioOutput } from "../engine/audio";
 
 interface ConnectionInfo {
   status: "solo" | "connecting" | "online" | "reconnecting" | "offline";
@@ -38,6 +40,7 @@ interface Props {
   chat?: ChatMessage[];
   meId?: string;
   onSendChat?: (text: string) => void;
+  audio?: AudioOutput;
 }
 
 // Чтение статуса команд из RAM (адреса совпадают с bank_ram.inc).
@@ -51,7 +54,7 @@ function hudState(emu: EmulatorDriver) {
   };
 }
 
-export default function GameCanvas({ emulator, keyboard, team, port, online, onResult, serverWinner, onExit, chat, meId, onSendChat }: Props) {
+export default function GameCanvas({ emulator, keyboard, team, port, online, onResult, serverWinner, onExit, chat, meId, onSendChat, audio }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hud, setHud] = useState({ livesDef: 0, livesDef2: 0, enemiesLeft: 0, gameOver: 0, stage: 0xff });
   const [status, setStatus] = useState({ rollbacks: 0, desyncs: 0, latency: 0, mode: "solo" });
@@ -148,6 +151,7 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
         <span className={team === "DEF" ? "ok" : "bad"}>Вы: {team === "DEF" ? "Защитники" : "Атакующие"}</span>
         <span>DEF жизни: {hud.livesDef}/{hud.livesDef2}</span>
         <span>ATT танков: {hud.enemiesLeft}</span>
+        {audio && <AudioControl audio={audio} />}
         {online && (
           <>
             <span>режим: {status.mode || "—"}</span>

@@ -14,6 +14,8 @@ emu.loadROM(originalRomBytes);       // Uint8Array/ArrayBuffer — ОРИГИН�
 emu.patching;                        // отчёт применения патчей: { fingerprint, applied, routines }
 ```
 
+Звук включается опциями `sampleRate: 48000` + `onAudioSample` (см. `docs/audio.md`).
+
 Без `patchSet` ядро работает на ROM «как есть» (используется в тестах с уже пропатченным
 образом). С `patchSet: "pvp"` грузится оригинал и патчится только в памяти.
 
@@ -27,6 +29,7 @@ emu.patching;                        // отчёт применения патч
 | `getFrameHash()` | FNV-1a32 по `cpu.mem` — для детекта desync. |
 | `readMem(addr)` | Чтение байта из памяти CPU. |
 | `patching` | Отчёт применения патчей после `loadROM` при `patchSet`: `{ fingerprint, applied, routines }`. |
+| `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |
 | `setAttAI(mode)` / `setDefAI(mode)` | Режим ИИ (см. `docs/ai.md`). |
 

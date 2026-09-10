@@ -20,6 +20,7 @@
 - **Spectator**: просмотр матча по ссылке `?spectate=MATCHID`.
 - **ИИ** атакующих/защитников (plan / scan / lookahead / strategy) для соло и добора слотов.
 - Чат в бою, HUD соединения (ping, rollback, DESYNC), конец матча с возвратом в лобби.
+- **Звук и музыка** из APU (jsnes) с раздельными громкостью/mute для музыки и эффектов; откаты не дают щелчков.
 - Детерминированный `saveState/loadState` и `getFrameHash` — основа побед/поражений и netcode.
 
 ## Архитектура
@@ -140,6 +141,7 @@ git push -u origin main
 - [docs/netcode-protocol.md](docs/netcode-protocol.md) — бинарный протокол и rollback.
 - [docs/rom-patching.md](docs/rom-patching.md) — неизменный ROM и in-memory патчи.
 - [docs/emulator-api.md](docs/emulator-api.md) — API ядра (PvPNes).
+- [docs/audio.md](docs/audio.md) — звук и музыка (APU, громкость, откаты).
 - [docs/ai.md](docs/ai.md) — ИИ атакующих/защитников.
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
 

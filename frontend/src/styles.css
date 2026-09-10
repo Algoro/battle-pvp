@@ -263,6 +263,11 @@ body { margin: 0; }
 .modal__box h3 { margin: 0; }
 .modal__field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: #c7ccd6; }
 .modal__check { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.audio-ctl { display: inline-flex; flex-direction: column; gap: 2px; }
+.audio-ctl__row { display: inline-flex; align-items: center; gap: 6px; }
+.audio-ctl__btn { background: transparent; border: 1px solid #3a3f4b; border-radius: 4px; cursor: pointer; padding: 1px 6px; }
+.audio-ctl__label { width: 66px; font-size: 12px; color: #c7ccd6; }
+.audio-ctl__range { width: 84px; }
 .room__toggle { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .modal__field input[type="text"], .modal__field input:not([type]) { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 8px 10px; color: #e8ebf0; }
 .modal__hint { font-size: 12px; color: #7d8798; margin: 0; }

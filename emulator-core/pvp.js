@@ -15,6 +15,7 @@
 import NES from "./src/nes.js";
 import ROM from "./src/rom.js";
 import BattleCityPPU from "./ppu-ext.js";
+import BattleCityPAPU from "./papu-ext.js";
 import { applyPatchSet } from "./patching/apply.js";
 import { encodeState, decodeState } from "./io/state-codec.js";
 import { stepTank, runtimePassable, DX as TANK_DX, DY as TANK_DY } from "./io/tank-driver.js";
@@ -101,8 +102,20 @@ function fnv1a32(buf) {
 
 class PvPNes extends NES {
   constructor(opts) {
-    // Отключаем звук по умолчанию для headless/детерминированности.
+    // Звук по умолчанию выключен (headless/детерминизм). Включается опциями
+    // sampleRate (напр. 48000) + onAudioSample. Аудио не влияет на getFrameHash.
     super({ emulateSound: false, sampleRate: 0, onAudioSample: null, ...opts });
+    // Гейт аудио: во время отката/resync переигровка кадров не должна повторно
+    // эмитить сэмплы (иначе дубли/щелчки). Управляется из RollbackSession.
+    this._audioSuppressed = false;
+    const rawAudio = this.opts.onAudioSample;
+    this.opts.onAudioSample = rawAudio
+      ? (l, r) => { if (!this._audioSuppressed) rawAudio(l, r); }
+      : rawAudio;
+    const rawGroup = this.opts.onAudioSampleGroup;
+    this.opts.onAudioSampleGroup = rawGroup
+      ? (g, l, r) => { if (!this._audioSuppressed) rawGroup(g, l, r); }
+      : rawGroup;
     this.prevButtons = new Uint8Array(NUM_PLAYERS);
     this.humanTanks = new Set(); // танки, управляемые человеком (AI отключён, JS двигает)
     this.humanDefTanks = new Set(); // DEF-танки за живым игроком (ИИ не играет за них)
@@ -165,6 +178,16 @@ class PvPNes extends NES {
   reset() {
     super.reset();
     this.ppu = new BattleCityPPU(this);
+    this.papu = new BattleCityPAPU(this);
+  }
+
+  // Гейт аудио: true — onAudioSample не вызывается (переигровка при откате/resync).
+  setAudioSuppressed(v) {
+    this._audioSuppressed = !!v;
+  }
+
+  getAudioSuppressed() {
+    return this._audioSuppressed;
   }
 
   // ---- input mux (edge detection для портов 2..7; порты 0,1 идут через аппарат) ----
