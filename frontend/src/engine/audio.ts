@@ -2,7 +2,6 @@
 // Сэмплы приходят из onAudioSampleGroup (см. EmulatorDriver) и складываются в
 // кольцевые буферы AudioWorklet. Для каждой группы — своя громкость и mute.
 // Autoplay policy: контекст поднимается после первого жеста. Аудио не влияет на детерминизм.
-// @ts-nocheck
 
 const WORKLET = `
 class NesAudioProcessor extends AudioWorkletProcessor {
@@ -58,7 +57,7 @@ const LS = {
   legacyMuted: "bcpvp.muted",
 };
 
-function loadNum(key, def) {
+function loadNum(key: string, def: number): number {
   const v = parseFloat(localStorage.getItem(key) ?? "");
   return Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : def;
 }
@@ -68,7 +67,7 @@ export class AudioOutput {
   private node: AudioWorkletNode | null = null;
   private ready = false;
   private starting = false;
-  private buffers = { music: { l: [], r: [] }, sfx: { l: [], r: [] } };
+  private buffers: Record<"music" | "sfx", { l: number[]; r: number[] }> = { music: { l: [], r: [] }, sfx: { l: [], r: [] } };
   private counters = { music: 0, sfx: 0, postedMusic: 0, postedSfx: 0, flushes: 0 };
 
   musicVolume: number;
@@ -110,7 +109,7 @@ export class AudioOutput {
     }
   }
 
-  private _gain(g) {
+  private _gain(g: "music" | "sfx"): number {
     return g === "music" ? (this.musicMuted ? 0 : this.musicVolume) : (this.sfxMuted ? 0 : this.sfxVolume);
   }
 

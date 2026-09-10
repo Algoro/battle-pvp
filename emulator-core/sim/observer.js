@@ -21,7 +21,6 @@ export class EmuObserver {
   }
   // Обёртка stepFrame: только читаем состояние, не пишем.
   _wrap() {
-    const self = this;
     const orig = this.emu.stepFrame.bind(this.emu);
     this.emu.stepFrame = (inputs) => {
       this.prev = this._read();

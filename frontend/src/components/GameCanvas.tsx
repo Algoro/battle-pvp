@@ -8,18 +8,9 @@ import { buildSoloInputs, determineWinner, isGameplayStarted, isTankAlive } from
 import AIControls from "./AIControls";
 import TracePanel from "./TracePanel";
 import ChatPanel from "./ChatPanel";
-import AudioControl from "./AudioControl";
 import type { ChatMessage } from "../engine/lobby-client";
 import type { AudioOutput } from "../engine/audio";
-
-interface ConnectionInfo {
-  status: "solo" | "connecting" | "online" | "reconnecting" | "offline";
-  mode: string;
-  latency: number;
-  desyncs: number;
-  rollbacks: number;
-  peerOffline: boolean;
-}
+import { GameHud, GameOverlays, type ConnectionInfo } from "./GameUi";
 
 interface Props {
   emulator: EmulatorDriver;
@@ -147,22 +138,7 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
 
   return (
     <div className="game">
-      <div className="hud">
-        <span className={team === "DEF" ? "ok" : "bad"}>Вы: {team === "DEF" ? "Защитники" : "Атакующие"}</span>
-        <span>DEF жизни: {hud.livesDef}/{hud.livesDef2}</span>
-        <span>ATT танков: {hud.enemiesLeft}</span>
-        {audio && <AudioControl audio={audio} />}
-        {online && (
-          <>
-            <span>режим: {status.mode || "—"}</span>
-            <span>ping: {status.latency} мс</span>
-            <span>rollbacks: {status.rollbacks}</span>
-            <span className={status.desyncs > 0 ? "bad" : "ok"}>
-              {status.desyncs > 0 ? `DESYNC ×${status.desyncs}` : "sync"}
-            </span>
-          </>
-        )}
-      </div>
+      <GameHud team={team} hud={hud} audio={audio} online={!!online} status={status} />
       <div className="game__body">
         <div className="game__board">
           <canvas ref={canvasRef} className="screen" />
@@ -176,29 +152,7 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
           <TracePanel emulator={emulator} />
         </aside>
       </div>
-      {online && conn?.status === "connecting" && (
-        <div className="game__pause">Соединение с соперником…</div>
-      )}
-      {online && conn?.status === "reconnecting" && (
-        <div className="game__pause">
-          {conn.peerOffline ? "Ожидание соперника…" : "Переподключение…"}
-        </div>
-      )}
-      {online && conn?.status === "offline" && (
-        <div className="game__pause">Связь потеряна. Обновите страницу.</div>
-      )}
-      {online?.paused && conn?.status !== "reconnecting" && conn?.status !== "connecting" && (
-        <div className="game__pause">⏸ ПАУЗА — подождите соперника</div>
-      )}
-      {result && (
-        <div className="result">
-          <h2>
-            {result === team ? "Победа! " : "Поражение. "}
-            Победила команда {result === "DEF" ? "защитников" : "атакующих"}
-          </h2>
-          <button onClick={() => (onExit ? onExit() : location.reload())}>Вернуться в лобби</button>
-        </div>
-      )}
+      <GameOverlays online={!!online} conn={conn} paused={online?.paused} result={result} team={team} onExit={onExit} />
     </div>
   );
 }

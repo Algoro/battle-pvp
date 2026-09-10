@@ -12,10 +12,10 @@
 //
 // Чистый слой: perceive(state) -> Perception. Не мутирует состояние.
 
-import { FIELD, DX, DY, inBounds, cellIdx, tankPassable, isBrick, blocksBullet,
-  isEagleTile, tileCost, tileType, bulletSpeed, hitsLeft, dirTo, dist, lineClear,
-  cellOf, enemySpeedClass, isIce, onIceTile } from "./game-view.js";
-import { aStar, pathDirection, pathCost } from "./pathfind.js";
+import { DX, DY, inBounds, cellIdx, blocksBullet, bulletSpeed, hitsLeft, dist,
+  lineClear, cellOf, enemySpeedClass } from "./game-view.js";
+import { pathCost } from "./pathfind.js";
+import { RAM } from "../rom-contract.js";
 
 // --- параметры оценки угрозы (дизайн §2.2) ---
 export const THREAT_WEIGHTS = { speed: 0.30, los: 0.30, dist: 0.25, power: 0.10, path: 0.05 };
@@ -111,7 +111,7 @@ export class Perception {
         helmet: d.tank.helmet, stunned: d.tank.stunned, onIce: d.tank.onIce,
         cell: { col: pos.col, row: pos.row },
         bulletSpeed: bulletSpeed(d.tank.type),
-        busy: (this.state.mem[0xcc + i] & 0xf0) === 0x40,
+        busy: (this.state.mem[RAM.BULLET_STATUS + i] & 0xf0) === 0x40,
         distToEagle: eagle ? dist(pos, { col: eagle.col, row: eagle.row }) : Infinity,
         hasLosToEagle: eagle ? lineClear(this.field, pos, { col: eagle.col, row: eagle.row }) : false,
       };

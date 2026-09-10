@@ -1,0 +1,18 @@
+{
+  "name": "battle-city-pvp",
+  "private": true,
+  "description": "Battle City PvP — монорепозиторий (tooling: ESLint/Prettier)",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"**/*.{js,mjs,ts,tsx,json,md,yml}\"",
+    "format:check": "prettier --check \"backend/**/*.js\" \"netcode/**/*.js\" \"emulator-core/*.js\" \"emulator-core/io/**/*.js\" \"emulator-core/ai/**/*.js\" \"emulator-core/model/**/*.js\" \"frontend/src/**/*.{ts,tsx}\""
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.0.0"
+  }
+}

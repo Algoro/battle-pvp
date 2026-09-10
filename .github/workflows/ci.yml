@@ -24,6 +24,11 @@ jobs:
       - name: Prepare (генерирует emulator-core/src из сабмодуля jsnes)
         run: node scripts/prepare.mjs
 
+      - name: Root tooling + lint
+        run: |
+          npm install
+          npm run lint
+
       - name: Backend deps + tests
         run: |
           cd backend

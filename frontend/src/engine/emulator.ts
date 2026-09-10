@@ -1,7 +1,6 @@
 // emulator.ts — драйвер ядра в браузере: загрузка ROM, шаг кадра, рендер в canvas.
 // Импортирует детерминированное PvP-ядро (./emulator-core/pvp.js). Тип — any
 // (JS-ядро без деклараций); API стабильно и покрыто тестами в emulator-core.
-// @ts-nocheck
 import PvPNes from "../../emulator-core/pvp.js";
 
 export const SCREEN_W = 256;

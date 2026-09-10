@@ -1,4 +1,4 @@
-// sim/battle.js — ПОКАДРОВО-ВЕРНЫЙ порт вражеского боя (sub_C2E6_main_battle_script)
+// sim/battle.js — [TEST-ONLY, не рантайм] Покадрово-верный порт вражеского боя (sub_C2E6_main_battle_script)
 // для сверки симулятора с эмулятором. Целевой ROM: патченый PRNG (вариант B):
 //   $0F = ($0F*7 + frm_cnt_hi + frm_cnt_lo) & 0xFF   (sub_D44D без page-zero-микса)
 //
@@ -12,6 +12,7 @@
 //   C) полный цикл: движение (sub_DBF1), вражеский огонь (sub_E162), пули
 //      (sub_E604/E910/E70C), спавн (sub_DB48/E363), смерть/респавн, призы (sub_E972).
 import { FIELD, TILE, DX, DY, isBrick, readState } from "../model/game-view.js";
+import { movingFlag, standingFlag } from "../domain.js";
 import { canLead } from "./sim-model.js";
 import {
   DEFAULT_TYPE_VALUES, STAGE_TYPE_VALUES, STAGE_TYPE_COUNTS,
@@ -359,98 +360,107 @@ export class BattleSim {
     const hi = f & 0xf0;
     // Источник направления: враги — attControl, игроки — defControl (PvP net/AI).
     const netDir = t.team === "ATT" ? this._netDir(t) : this._defDir(t);
-    // респавн F0/E0
-    if (hi === 0xf0) { t.flag = f + 1; if ((t.flag & 0x0f) === 0x0e) t.flag = 0xe0; return; }
-    if (hi === 0xe0) {
-      t.flag = f + 1;
-      if ((t.flag & 0x0f) === 0x0e) {
-        // sub_E3B8 + tbl_E47E: игрок вверх 0xa0 (+шлем), враг вниз 0xa2 (+реальный тип).
-        if (t.team === "DEF") { t.flag = 0xa0; t.helmet = 3; }
-        else { t.flag = 0xa2; t.type = this._pickType(t); }
-      }
-      return;
-    }
-    // взрыв 0x10-0x70
-    if (hi >= 0x10 && hi <= 0x70) {
-      let flag = f - 1; t.flag = flag;
-      if ((flag & 0x0f) !== 0) return;
-      let next = (flag - 0x10) & 0xff;
-      if (next === 0) {
-        t.alive = false; t.flag = 0;
-        if (t.team === "ATT") this._onEnemyDead(t); else this._onPlayerDead(t);
-        return;
-      }
-      next = next === 0x10 ? (next | 0x06) : (next | 0x03);
-      t.flag = next;
-      return;
-    }
-    // follow-флаги (только враги): задать направление, не двигаться
-    if (hi === 0xb0) { t.flag = this._setFollow(t, 0x78, 0xd8); return; }
-    if (hi === 0xc0) { t.flag = this._setFollow(t, this.p2.x, this.p2.y); return; }
-    if (hi === 0xd0) { t.flag = this._setFollow(t, this.p1.x, this.p1.y); return; }
+    if (hi === 0xf0 || hi === 0xe0) return this._statusRespawn(t, f, hi);
+    if (hi >= 0x10 && hi <= 0x70) return this._statusExplode(t, f);
+    if (hi === 0xb0 || hi === 0xc0 || hi === 0xd0) return this._statusFollow(t, hi);
     // DEF без внешнего управления (defControl) — стоит на месте (не RNG-поворачивает).
     if (t.team === "DEF" && netDir === null && (hi === 0x90 || hi === 0xa0)) return;
-    // 0x80 пауза (для игрока sub_DB75 мог поставить 0x80 при отсутствии ввода)
-    if (hi === 0x80) {
-      // sub_DC52-DC68: на льду (plr_flag bit7) игрок в 0x80-состоянии СКОЛЬЗИТ —
-      // сразу в loc_DC97 (движение), без декремента флага.
-      if (t.team === "DEF" && (this.plrFlags[t.index] & 0x80) !== 0) {
-        const dir = f & 3;
-        t.dir = dir;
-        const n = canLead(t.x, t.y, dir, this.field) ? { x: t.x + DX[dir], y: t.y + DY[dir] } : null;
-        if (n) { t.x = n.x; t.y = n.y; }
-        t.flag = 0xa0 | dir;
-        return;
-      }
-      t.flag = (f - 4) & 0xff; if ((t.flag & 0x0c) === 0) t.flag = 0xa0 | (t.flag & 3); return;
+    if (hi === 0x80) return this._statusPause(t, f);
+    if (hi === 0x90) return this._statusTurn(t, f, netDir);
+    if (hi === 0xa0) return this._statusMove(t, f, netDir);
+  }
+
+  // Респавн F0/E0.
+  _statusRespawn(t, f, hi) {
+    if (hi === 0xf0) { t.flag = f + 1; if ((t.flag & 0x0f) === 0x0e) t.flag = 0xe0; return; }
+    t.flag = f + 1;
+    if ((t.flag & 0x0f) === 0x0e) {
+      // sub_E3B8 + tbl_E47E: игрок вверх 0xa0 (+шлем), враг вниз 0xa2 (+реальный тип).
+      if (t.team === "DEF") { t.flag = 0xa0; t.helmet = 3; }
+      else { t.flag = 0xa2; t.type = this._pickType(t); }
     }
-    // 0x90 поворот
-    if (hi === 0x90) {
-      // DEF (игрок): поворот только по вводу, RNG не тратим (управление ИИ/контроллером).
-      if (t.team === "DEF") {
-        if (netDir !== null) { t.dir = netDir; t.flag = 0xa0 | netDir; }
-        return;
-      }
-      const d = f & 3;
-      // суб-E72 вызывается только при rng&1==0 (RNG потребляется всегда).
-      if ((this.rng(`t90a${t.index}`) & 1) === 0) {
-        if (netDir !== null) { t.dir = netDir; t.flag = 0xa0 | netDir; return; } // sub_DE72_patched
-        const target = this._pickFollowFlag(t);
-        if (target !== null) t.flag = (t.flag & 3) | target; // sub_E420 сохраняет направление
-        return;
-      }
-      t.flag = 0xa0 | (((this.rng(`t90b${t.index}`) & 1) === 0) ? ((d + 3) & 3) : ((d + 1) & 3));
+  }
+
+  // Взрыв 0x10-0x70.
+  _statusExplode(t, f) {
+    const flag = f - 1;
+    t.flag = flag;
+    if ((flag & 0x0f) !== 0) return;
+    let next = (flag - 0x10) & 0xff;
+    if (next === 0) {
+      t.alive = false; t.flag = 0;
+      if (t.team === "ATT") this._onEnemyDead(t); else this._onPlayerDead(t);
       return;
     }
-    // 0xA0 движение
-    if (hi === 0xa0) {
-      // DEF (игрок): направление уже задано _defInput (sub_DB75); здесь только движение
-      // (sub_DC97). Без ввода _defInput ставит 0x80, поэтому сюда приходит 0xa0|dir.
-      if (t.team === "DEF") {
-        const dir = f & 3;
-        t.dir = dir;
-        const n = canLead(t.x, t.y, dir, this.field) ? { x: t.x + DX[dir], y: t.y + DY[dir] } : null;
-        if (n) { t.x = n.x; t.y = n.y; t.flag = 0xa0 | dir; this._emit({ op: "move", tank: t.index, x: t.x, y: t.y }); }
-        else { t.flag = 0xa0 | dir; } // заблокирован: игрок держит направление (sub_DC97 bra_DD29)
-        return;
-      }
-      let dir = f & 3;
+    next = next === 0x10 ? (next | 0x06) : (next | 0x03);
+    t.flag = next;
+  }
+
+  // follow-флаги (только враги): задать направление, не двигаться.
+  _statusFollow(t, hi) {
+    if (hi === 0xb0) { t.flag = this._setFollow(t, 0x78, 0xd8); return; }
+    if (hi === 0xc0) { t.flag = this._setFollow(t, this.p2.x, this.p2.y); return; }
+    t.flag = this._setFollow(t, this.p1.x, this.p1.y);
+  }
+
+  // 0x80 пауза (sub_DB75 мог поставить 0x80 при отсутствии ввода).
+  _statusPause(t, f) {
+    // sub_DC52-DC68: на льду игрок в 0x80-состоянии СКОЛЬЗИТ — сразу в loc_DC97.
+    if (t.team === "DEF" && (this.plrFlags[t.index] & 0x80) !== 0) {
+      const dir = f & 3;
       t.dir = dir;
-      if ((t.x & 7) === 0 && (t.y & 7) === 0 && (this.rng(`tA0${t.index}`) & 0x0f) === 0) {
-        // sub_DE72: net-управление (если ИИ держит направление) или follow/keep.
-        if (netDir !== null) { t.dir = netDir; t.flag = 0xa0 | netDir; return; }
-        const target = this._pickFollowFlag(t);
-        if (target !== null) t.flag = (t.flag & 3) | target; // sub_E420 сохраняет направление
-        return; // ретаргет без движения
-      }
       const n = canLead(t.x, t.y, dir, this.field) ? { x: t.x + DX[dir], y: t.y + DY[dir] } : null;
-      if (n) { t.x = n.x; t.y = n.y; t.dir = dir; t.flag = 0xa0 | dir; this._emit({ op: "move", tank: t.index, x: t.x, y: t.y }); return; }
-      if ((this.rng(`blk${t.index}`) & 3) === 0) {
-        const nd = (dir + 2) % 4; t.dir = nd;
-        t.flag = ((t.x & 7) === 0 && (t.y & 7) === 0) ? (0x90 | nd) : (0xa0 | nd);
-      } else {
-        t.flag = 0x88 | dir;
-      }
+      if (n) { t.x = n.x; t.y = n.y; }
+      t.flag = movingFlag(dir);
+      return;
+    }
+    t.flag = (f - 4) & 0xff;
+    if ((t.flag & 0x0c) === 0) t.flag = movingFlag(t.flag & 3);
+  }
+
+  // 0x90 поворот.
+  _statusTurn(t, f, netDir) {
+    if (t.team === "DEF") {
+      if (netDir !== null) { t.dir = netDir; t.flag = movingFlag(netDir); }
+      return;
+    }
+    const d = f & 3;
+    // sub_E72 вызывается только при rng&1==0 (RNG потребляется всегда).
+    if ((this.rng(`t90a${t.index}`) & 1) === 0) {
+      if (netDir !== null) { t.dir = netDir; t.flag = movingFlag(netDir); return; } // sub_DE72_patched
+      const target = this._pickFollowFlag(t);
+      if (target !== null) t.flag = (t.flag & 3) | target; // sub_E420 сохраняет направление
+      return;
+    }
+    t.flag = movingFlag((this.rng(`t90b${t.index}`) & 1) === 0 ? ((d + 3) & 3) : ((d + 1) & 3));
+  }
+
+  // 0xA0 движение.
+  _statusMove(t, f, netDir) {
+    // DEF: направление задано _defInput (sub_DB75); здесь только движение (sub_DC97).
+    if (t.team === "DEF") {
+      const dir = f & 3;
+      t.dir = dir;
+      const n = canLead(t.x, t.y, dir, this.field) ? { x: t.x + DX[dir], y: t.y + DY[dir] } : null;
+      if (n) { t.x = n.x; t.y = n.y; t.flag = movingFlag(dir); this._emit({ op: "move", tank: t.index, x: t.x, y: t.y }); }
+      else { t.flag = movingFlag(dir); } // заблокирован: игрок держит направление
+      return;
+    }
+    const dir = f & 3;
+    t.dir = dir;
+    if ((t.x & 7) === 0 && (t.y & 7) === 0 && (this.rng(`tA0${t.index}`) & 0x0f) === 0) {
+      if (netDir !== null) { t.dir = netDir; t.flag = movingFlag(netDir); return; }
+      const target = this._pickFollowFlag(t);
+      if (target !== null) t.flag = (t.flag & 3) | target; // sub_E420 сохраняет направление
+      return; // ретаргет без движения
+    }
+    const n = canLead(t.x, t.y, dir, this.field) ? { x: t.x + DX[dir], y: t.y + DY[dir] } : null;
+    if (n) { t.x = n.x; t.y = n.y; t.dir = dir; t.flag = movingFlag(dir); this._emit({ op: "move", tank: t.index, x: t.x, y: t.y }); return; }
+    if ((this.rng(`blk${t.index}`) & 3) === 0) {
+      const nd = (dir + 2) % 4; t.dir = nd;
+      t.flag = ((t.x & 7) === 0 && (t.y & 7) === 0) ? (0x90 | nd) : movingFlag(nd);
+    } else {
+      t.flag = standingFlag(dir);
     }
   }
 
@@ -893,6 +903,38 @@ export class BattleSim {
     this._rngLo = phase === "move" ? (this.c.gateFrmLo ?? this.c.frmCntLo) : (this.frame & 0xff);
   }
 
+  // Движение танков: индексы 7..0 (порядок RNG важен!).
+  _tanksMovePhase(gateFrmLo, clock) {
+    for (let idx = 7; idx >= 0; idx--) {
+      const t = this.tanks.find((x) => x.index === idx);
+      if (!t) continue;
+      if (t.team === "ATT") {
+        if (!enemyGate(t.flag, t.type, t.index, gateFrmLo, clock)) continue;
+        this._tankStatus(t);
+      } else if (t.team === "DEF") {
+        if (!playerGate(gateFrmLo)) continue;
+        this._tankStatus(t);
+      }
+    }
+  }
+
+  // Фаза огня: враги (RNG или net-fire) и DEF по фронту A (edge-trigger).
+  _firePhase() {
+    for (let i = 7; i >= 2; i--) {
+      const t = this.tanks.find((x) => x.index === i);
+      if (!t || !movementRange(t.flag)) continue;
+      if (this._netFire(i)) this._fireEnemy(t);
+      else if (this.rng(`fire${i}`) === 0) this._fireEnemy(t);
+    }
+    for (let i = 1; i >= 0; i--) {
+      const t = this.tanks.find((x) => x.index === i);
+      if (!t || t.team !== "DEF" || !movementRange(t.flag)) continue;
+      const fire = this._defFire(i);
+      if (fire && !this._prevDefFire[i]) this._fireDef(t);
+      this._prevDefFire[i] = fire;
+    }
+  }
+
   step() {
     this.events = [];
     this.c.frmCntLo = this.frame & 0xff;
@@ -921,17 +963,7 @@ export class BattleSim {
     this._defInput();
 
     // 2) движение танков (sub_DBF1): индексы 7..0 (порядок RNG важен!)
-    for (let idx = 7; idx >= 0; idx--) {
-      const t = this.tanks.find((x) => x.index === idx);
-      if (!t) continue;
-      if (t.team === "ATT") {
-        if (!enemyGate(t.flag, t.type, t.index, gateFrmLo, clock)) continue;
-        this._tankStatus(t);
-      } else if (t.team === "DEF") {
-        if (!playerGate(gateFrmLo)) continue;
-        this._tankStatus(t);
-      }
-    }
+    this._tanksMovePhase(gateFrmLo, clock);
 
     // 3) маркеры снять (sub_E1FA) — те же позиции, где ставили (до движения)
     this._clearMarkers();
@@ -946,27 +978,8 @@ export class BattleSim {
     // фаза огня/пуль: если игра сбросила $0B в 0 (sub_DE46), RNG читает 0.
     this._beginRngPhase("fire");
 
-    // 4) вражеский огонь (sub_E162): индексы 7..2
-    if (clock === 0) {
-      for (let i = 7; i >= 2; i--) {
-        const t = this.tanks.find((x) => x.index === i);
-        if (!t || !movementRange(t.flag)) continue;
-        // PvP net-огонь: если ИИ дал fire — стреляем (без RNG); иначе RNG-огонь (sub_E162).
-        if (this._netFire(i)) this._fireEnemy(t);
-        else if (this.rng(`fire${i}`) === 0) this._fireEnemy(t);
-      }
-      // огонь игроков (DEF): по фронту нажатия A (edge-trigger). Занятость слота
-      // проверяет сам _fireDef (b.alive) — на момент фазы огня (после взрыва пули)
-      // слот эмулятора уже мог освободиться (см. f2033 scan), defSlotBusy (пред-кадровый)
-      // это блокировал бы неверно.
-      for (let i = 1; i >= 0; i--) {
-        const t = this.tanks.find((x) => x.index === i);
-        if (!t || t.team !== "DEF" || !movementRange(t.flag)) continue;
-        const fire = this._defFire(i);
-        if (fire && !this._prevDefFire[i]) this._fireDef(t);
-        this._prevDefFire[i] = fire;
-      }
-    }
+    // 4) огонь (sub_E162 враги, кнопка A у DEF)
+    if (clock === 0) this._firePhase();
 
     // 5) спавн (sub_DB48)
     this._spawnEnemy();

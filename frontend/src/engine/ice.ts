@@ -3,7 +3,6 @@
 // домашних сетей). Для симметричного NAT задайте TURN через env:
 //   VITE_ICE_SERVERS='[{"urls":"stun:stun.l.google.com:19302"},
 //                      {"urls":"turn:turn.example.com:3478","username":"u","credential":"p"}]'
-// @ts-nocheck
 export function getIceServers(): RTCIceServer[] {
   const raw = (import.meta as any)?.env?.VITE_ICE_SERVERS;
   if (raw) {

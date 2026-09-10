@@ -10,31 +10,21 @@
 // Все движки (tactical/scan/lookahead) и тесты используют этот слой.
 
 import { RAM } from "../rom-contract.js";
+import {
+  DX, DY, DIR_BTN, isBrick, isSteel, isWater, isIce, isTree, isRoad,
+  tankPassable, blocksBullet, brickHealth, isEagleTile, bulletProperty, bulletSpeed, flyingBullet,
+  tankSpeed, isTankAlive, TANK_MOVING, TILE as TILE_ID,
+} from "../domain.js";
 
 export const FIELD = 32;
 export const TILE = 8;
 export const DEF_END = 2; // первые 2 танка — защитники
 
-// Направления (0=Up,1=Left,2=Down,3=Right — как в ASM)
-export const DX = [0, -1, 0, 1];
-export const DY = [-1, 0, 1, 0];
-export const DIR_BTN = [0x10, 0x40, 0x20, 0x80];
-
-// --- примитивы тайлов ---
+// Направления и примитивы тайлов — из domain.js (единый источник).
+export { DX, DY, DIR_BTN, isBrick, isSteel, isWater, isIce, isTree, isRoad, tankPassable, blocksBullet, brickHealth, isEagleTile, bulletProperty, bulletSpeed };
 export function inBounds(c, r) { return c >= 0 && r >= 0 && c < FIELD && r < FIELD; }
 export function cellIdx(c, r) { return r * FIELD + c; }
-export function tankPassable(v) { return v === 0x00 || (v >= 0x20 && v < 0x80); }
-// Разрушаемые кирпичи в runtime-буфере коллизий ($0400): 0x01-0x0F — все комбинации квадрантов
-// кирпича (0x0f целый, 0x0c/0x03/0x0a/0x05 — половины, 0x1/0x2/0x4/0x8 и их комбинации — мелкие),
-// плюс 0x13/0x14 (варианты стадий). Сталь 0x10/0x11 — НЕ разрушается (блокирует пули), это не кирпич.
-export function isBrick(v) { return (v >= 0x01 && v <= 0x0f) || v === 0x13 || v === 0x14; }
-export function blocksBullet(v) { return v !== 0 && !(v >= 0x20 && v < 0x80) && !isBrick(v); }
-export function isEagleTile(v) { return v >= 0xc8 && v <= 0xcb; }
 export function dist(a, b) { return Math.abs(a.col - b.col) + Math.abs(a.row - b.row); }
-
-// Прочность кирпича: сколько выстрелов нужно для разрушения (для «бить слабые стены»).
-// 0x0f — целый (2), повреждённые 0x0c/0x03/0x13/0x14 — ещё 1.
-export function brickHealth(v) { return v === 0x0f ? 2 : isBrick(v) ? 1 : 0; }
 
 // Кирпич = 4 квадранта (биты): bit0=TL(1), bit1=TR(2), bit2=BL(4), bit3=BR(8).
 // Пуля убирает ПОЛОВИНУ, обращённую к ней (по направлению), а если она уже пуста —
@@ -52,15 +42,8 @@ export function brickHit(tile, dir) {
   return { next: tile, pass: true }; // весь кирпич пуст — пуля проходит
 }
 
-// Класс скорости врага по типу (приближённо): 0x80=обычный, 0xA0=быстр.пули,
-// 0xC0=быстрый танк, 0xE0=бронированный. Игроки (type<0x80) — 1.0.
-export function enemySpeedClass(type) {
-  if (type < 0x80) return 1.0;
-  const base = type & 0xf0;
-  if (base === 0xc0) return 1.6;
-  if (base === 0xe0) return 0.8;
-  return 1.0;
-}
+// Класс скорости врага по типу (см. domain.tankSpeed).
+export function enemySpeedClass(type) { return tankSpeed(type); }
 export function dirTo(a, b) {
   if (a.row === b.row && a.col !== b.col) return b.col > a.col ? 3 : 1;
   if (a.col === b.col && a.row !== b.row) return b.row > a.row ? 2 : 0;
@@ -74,14 +57,9 @@ export function cellPassable(field, c, r) { return inBounds(c, r) && tankPassabl
 // --- классификация тайлов (значения из буфера коллизий $0400) ---
 // 0x12 = вода (танк не проходит, пуля пролетает), 0x21 = лёд (танк скользит),
 // 0x22 = деревья/кусты (скрывают, но проходимы), 0x10/0x11 = сталь.
-export const WATER_TILE = 0x12;
-export const ICE_TILE = 0x21;
-export const TREE_TILE = 0x22;
-export function isWater(v) { return v === WATER_TILE; }
-export function isIce(v) { return v === ICE_TILE; }
-export function isTree(v) { return v === TREE_TILE; }
-export function isSteel(v) { return v === 0x10 || v === 0x11; }
-export function isRoad(v) { return v >= 0x20 && v < 0x80 && v !== ICE_TILE && v !== TREE_TILE; }
+export const WATER_TILE = TILE_ID.WATER;
+export const ICE_TILE = TILE_ID.ICE;
+export const TREE_TILE = TILE_ID.TREE;
 
 // Семантический тип тайла (для стратегии): 'empty'|'brick'|'steel'|'water'|'tree'|'ice'|'road'.
 export function tileType(v) {
@@ -113,15 +91,7 @@ export function tileCostAt(field, c, r) { return inBounds(c, r) ? tileCost(field
 // На льду ли клетка (для скольжения/нестабильных манёвров).
 export function onIceTile(field, c, r) { return inBounds(c, r) && isIce(field[cellIdx(c, r)]); }
 
-// Скорость пули (px/кадр) по типу танка-стрелка. Обычные 2px; пули с property bit1
-// (типы 0x20/0x40/0x60/0xC0) — 4px (ofs_E051: sub_E063 ×2).
-export function bulletProperty(type) {
-  const hi = type & 0xf0;
-  if (hi === 0x60) return 3;
-  if (hi === 0xc0 || hi === 0x20 || hi === 0x40) return 1;
-  return 0;
-}
-export function bulletSpeed(type) { return (bulletProperty(type) & 0x01) ? 4 : 2; }
+
 
 // Оставшиеся жизни игрока (0..): port 0 — $0051, port 1 — $0052.
 export function playerLives(mem, port) { return mem[RAM.LIVES + port]; }
@@ -151,7 +121,7 @@ export function lineClear(field, a, b) {
 export const PRIZE_VALUE = { 0: 95, 1: 70, 2: 50, 3: 85, 4: 100, 5: 60 };
 export function prizeValue(id) { return PRIZE_VALUE[id] ?? 0; }
 
-function aliveFlag(flag) { const hi = flag & 0xf0; return hi >= 0x90 && hi <= 0xd0; }
+
 
 // ---------------------------------------------------------------------------
 // A. GameState
@@ -178,7 +148,7 @@ export class GameState {
         index: t, team: t < DEF_END ? "DEF" : "ATT", x, y, flag, type,
         dir: flag & 0x03,                          // направление взгляда (0..3)
         flashing: t >= DEF_END && (type & 0x04) !== 0,
-        alive: aliveFlag(flag), inField: aliveFlag(flag) && x < 255,
+        alive: isTankAlive(flag), inField: isTankAlive(flag) && x < 255,
         helmet: t < DEF_END && mem[RAM.HELMET + t] > 0,  // каска (неуязвимость, DEF)
         stunned: t < DEF_END && mem[RAM.STUN + t] > 0, // ошеломление (DEF)
         speedClass: enemySpeedClass(type),         // класс скорости врага
@@ -247,22 +217,22 @@ export function buildState({ field, tanks = [], bullets = [], prize = null, eagl
       for (let c = 0; c < field[r].length; c++) {
         const ch = field[r][c];
         const tile = ch === "E" ? 0xc8 : (TILE_CODE[ch] ?? 0x00);
-        mem[0x400 + r * 32 + c] = tile;
+        mem[RAM.FIELD + r * 32 + c] = tile;
       }
     }
   }
-  if (eagle) mem[0x400 + eagle.row * 32 + eagle.col] = 0xc8;
+  if (eagle) mem[RAM.FIELD + eagle.row * 32 + eagle.col] = TILE_ID.EAGLE_MIN;
   if (prize) { mem[RAM.PRIZE_ID] = prize.id; mem[RAM.PRIZE_X] = prize.x; mem[RAM.PRIZE_Y] = prize.y; }
   else mem[RAM.PRIZE_ID] = 0xff;
   // танки
   for (const tk of tanks) {
     const i = tk.i, x = tk.x ?? 255, y = tk.y ?? 255;
-    mem[0x90 + i] = x; mem[0x98 + i] = y; mem[0xa0 + i] = x === 255 ? 0 : 0xa0;
-    if (tk.type !== undefined) mem[0xa8 + i] = tk.type;
+    mem[RAM.TANK_X + i] = x; mem[RAM.TANK_Y + i] = y; mem[RAM.TANK_FLAG + i] = x === 255 ? 0 : TANK_MOVING;
+    if (tk.type !== undefined) mem[RAM.TANK_TYPE + i] = tk.type;
   }
   // пули
   for (const bl of bullets) {
-    mem[0xcc + bl.i] = bl.dir | 0x40; mem[0xb8 + bl.i] = bl.x; mem[0xc2 + bl.i] = bl.y;
+    mem[RAM.BULLET_STATUS + bl.i] = flyingBullet(bl.dir); mem[RAM.BULLET_X + bl.i] = bl.x; mem[RAM.BULLET_Y + bl.i] = bl.y;
   }
   return new GameState(mem);
 }

@@ -9,6 +9,7 @@
 //
 // Относительный путь: ./emulator-core/startup.js
 import { RAM, ROM } from "./rom-contract.js";
+import { starsToUpgrade } from "./domain.js";
 
 export function normalizeStars(n) {
   const v = Math.floor(Number(n) || 0);
@@ -75,7 +76,7 @@ export class StartupInjector {
       this.stage = null;
     }
     if (this.stars != null) {
-      const up = normalizeStars(this.stars) * 0x20; // 0x00/0x20/0x40/0x60
+      const up = starsToUpgrade(this.stars); // 0x00/0x20/0x40/0x60
       cpu.mem[RAM.TANK_UPGRADE] = up;
       cpu.mem[RAM.TANK_UPGRADE + 1] = up;
       this.stars = null;

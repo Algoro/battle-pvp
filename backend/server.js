@@ -39,7 +39,7 @@ const MIME = {
 function serveStatic(req, res) {
   if (!existsSync(DIST)) return json(res, 404, { error: "frontend not built (npm run build)" });
   const urlPath = decodeURIComponent(new URL(req.url, "http://x").pathname);
-  let file = urlPath === "/" ? "index.html" : urlPath;
+  const file = urlPath === "/" ? "index.html" : urlPath;
   let abs = join(DIST, file);
   // SPA fallback: неизвестные пути -> index.html
   if (!existsSync(abs) || !statSync(abs).isFile()) abs = join(DIST, "index.html");

@@ -23,3 +23,8 @@ test("schema: все типы из switch известны", () => {
     assert.ok(knownTypes().includes(t), `нет схемы для ${t}`);
   }
 });
+
+test("schema: каждому типу есть маршрут в relay", async () => {
+  const { routeIsComplete } = await import("../signaling/relay.js");
+  assert.strictEqual(routeIsComplete(), true);
+});

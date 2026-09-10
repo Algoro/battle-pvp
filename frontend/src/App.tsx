@@ -1,4 +1,5 @@
 // App.tsx — конечный автомат интерфейса: lobby (браузер/комната) -> game (solo/online).
+// Лобби-логика вынесена в useLobbyClient; здесь — экраны, матч и транспорт.
 import { useEffect, useRef, useState } from "react";
 import LobbyBrowser from "./components/LobbyBrowser";
 import LobbyRoom from "./components/LobbyRoom";
@@ -11,7 +12,8 @@ import { AudioOutput } from "./engine/audio";
 import { buildSoloInputs, isGameplayStarted, isTankAlive, BTN_START } from "./engine/game-state";
 import { bytesToBase64, base64ToBytes } from "./engine/b64";
 import NetClient, { Team } from "./engine/net";
-import LobbyClient, { LobbyState, ChatMessage, LobbySettings, MatchStart } from "./engine/lobby-client";
+import LobbyClient, { MatchStart } from "./engine/lobby-client";
+import { useLobbyClient } from "./engine/use-lobby";
 
 // Пустой VITE_BACKEND_URL => same-origin (SPA и API в одном контейнере/хосте).
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "";
@@ -65,6 +67,12 @@ export default function App() {
     (window as any).__bcAudio = audioRef.current;
   }
 
+  const [meId] = useState(loadId);
+  const [serverWinner, setServerWinner] = useState<Team | null>(null);
+  const resultSentRef = useRef(false);
+  const [specFrame, setSpecFrame] = useState(0);
+  const [specFinished, setSpecFinished] = useState<Team | null>(null);
+
   // Состояние соединения для UX (экран «Соединение…», режим, задержка, DESYNC).
   const [net, setNet] = useState<{
     status: "solo" | "connecting" | "online" | "reconnecting" | "offline";
@@ -75,27 +83,35 @@ export default function App() {
     peerOffline: boolean;
   }>({ status: "solo", mode: "", latency: 0, desyncs: 0, rollbacks: 0, peerOffline: false });
 
+  // Лобби-логика и состояние (хук); внешние события отдаются через getHandlers.
+  const L = useLobbyClient(meId, loadName() || "Игрок", () => ({
+    onMatchStart: (lc, m) => { startOnlineMatch(lc, m).catch((e) => L.setError(String(e?.message || e))); },
+    onSpectateUrl: (lc, matchId) => enterSpectate(lc, matchId),
+    onDisconnected: () => { setNet((s) => ({ ...s, status: "reconnecting" })); setPause(true); },
+    onReconnected: () => { renegotiate().catch(() => {}); },
+    onPeerLeft: () => { setNet((s) => ({ ...s, status: "reconnecting", peerOffline: true })); setPause(true); },
+    onPeerReconnected: () => { setNet((s) => ({ ...s, peerOffline: false })); renegotiate().catch(() => {}); },
+    onMatchFinished: (winner) => { setServerWinner((winner as Team) ?? null); setSpecFinished((winner as Team) ?? null); },
+    onSpectateData: (m) => {
+      const emu = emuRef.current;
+      if (!emu) return;
+      try { emu.loadState(base64ToBytes(m.data)); emu.draw(); setSpecFrame(m.frame); } catch { /* битый снапшот */ }
+    },
+  }), BACKEND);
+  const lcRef = L.lcRef;
+
   // События rollback-сессии -> состояние соединения.
   const handleNetEvent = (e: any) => {
     switch (e.type) {
-      case "latency":
-        setNet((s) => ({ ...s, latency: e.ms }));
-        break;
-      case "rollback":
-        setNet((s) => ({ ...s, rollbacks: s.rollbacks + 1 }));
-        break;
-      case "desync":
-        setNet((s) => ({ ...s, desyncs: s.desyncs + 1, status: "reconnecting" }));
-        break;
-      case "resync":
-        setNet((s) => ({ ...s, status: "online" }));
-        break;
+      case "latency": setNet((s) => ({ ...s, latency: e.ms })); break;
+      case "rollback": setNet((s) => ({ ...s, rollbacks: s.rollbacks + 1 })); break;
+      case "desync": setNet((s) => ({ ...s, desyncs: s.desyncs + 1, status: "reconnecting" })); break;
+      case "resync": setNet((s) => ({ ...s, status: "online" })); break;
       case "transport-closed":
         setNet((s) => ({ ...s, status: "reconnecting" }));
         if (lcRef.current?.isOpen?.()) renegotiate().catch(() => {});
         break;
-      default:
-        break;
+      default: break;
     }
   };
 
@@ -116,28 +132,12 @@ export default function App() {
       setNet((s) => ({ ...s, status: "online", mode, peerOffline: false }));
       setPause(false);
     } catch (e: any) {
-      setError(String(e?.message || e));
+      L.setError(String(e?.message || e));
       setNet((s) => ({ ...s, status: "offline" }));
     } finally {
       renegotiatingRef.current = false;
     }
   };
-
-  const [meId] = useState(loadId);
-  const [meName, setMeName] = useState(() => loadName() || "Игрок");
-  const lcRef = useRef<LobbyClient | null>(null);
-  const [lobbies, setLobbies] = useState<LobbyState[]>([]);
-  const [lobby, setLobby] = useState<LobbyState | null>(null);
-  const [globalChat, setGlobalChat] = useState<ChatMessage[]>([]);
-  const [roomChat, setRoomChat] = useState<ChatMessage[]>([]);
-  const [matchChat, setMatchChat] = useState<ChatMessage[]>([]);
-  const [showCreate, setShowCreate] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [serverWinner, setServerWinner] = useState<Team | null>(null);
-  const resultSentRef = useRef(false);
-  const [specFrame, setSpecFrame] = useState(0);
-  const [specFinished, setSpecFinished] = useState<Team | null>(null);
 
   // грузим ROM один раз
   useEffect(() => {
@@ -160,9 +160,8 @@ export default function App() {
     (window as any).__bc = emu;
   }
 
-  // Общий старт онлайн-матча: детерминированный сброс ядра (общий «кадр 0»),
-  // пометка человеческих танков, СИНХРОННЫЙ автостарт партии (порт 0 Start),
-  // затем negotiation + RollbackSession. Всё, кроме negotiation, идентично у обоих клиентов.
+  // Общий старт онлайн-матча: детерминированный сброс ядра, пометка танков,
+  // синхронный автостарт, negotiation + RollbackSession.
   const beginOnlineMatch = async (opts: {
     myTeam: Team;
     myPorts: number[];
@@ -176,25 +175,19 @@ export default function App() {
     const { myTeam, myPorts, opps } = opts;
     const emu = emuRef.current!;
 
-    // 1) детерминированный сброс → идентичное начальное состояние у обоих
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
-    // стартовая стадия (одинаковая у всех клиентов)
     emu.setStartStage(opts.stage ?? 1);
     emu.setStartStars(opts.defStars ?? 0);
-    // 2) человеческие танки (мои и соперников) — чтобы локальный ИИ за них не играл
     const mark = (team: Team, port: number) => (team === "DEF" ? emu.setHumanDefTank(port) : emu.setHumanTank(port));
     for (const p of myPorts) mark(myTeam, p);
     for (const o of opps) mark(o.team, o.port);
 
-    // 3) синхронный старт партии: кормим порт 0 Start каждые 30 кадров, пока игра не начнётся.
-    //    Последовательность детерминирована и одинакова у обоих клиентов → состояния сходятся.
     let started = false;
     for (let f = 1; f <= 1200 && !started; f++) {
       emu.stepFrame(buildSoloInputs({ port: 0, team: "DEF", frame: f, started: false, userButtons: 0, attTankAlive: true }));
       if (isGameplayStarted(emu.readMem(0x80))) started = true;
     }
 
-    // 4) транспорт (WebRTC/relay): со всеми соперниками сразу
     let transport: any = null;
     let mode = "";
     setNet((s) => ({ ...s, status: "connecting", mode: "", desyncs: 0, rollbacks: 0, peerOffline: false, latency: 0 }));
@@ -204,7 +197,6 @@ export default function App() {
       mode = r.mode || "";
     }
 
-    // 5) rollback-сессия
     myPortsRef.current = myPorts;
     myTeamRef.current = myTeam;
     matchIdRef.current = opts.matchId;
@@ -221,8 +213,8 @@ export default function App() {
     sessionRef.current = sess;
     setNet((s) => ({ ...s, status: transport ? "online" : "solo", mode: mode || (transport ? "online" : "solo") }));
     const primary = myPorts[0] ?? (myTeam === "DEF" ? 0 : 2);
-    setLobby(null);
-    setMatchChat([]);
+    L.setLobby(null);
+    L.setMatchChat([]);
     setScreen({ name: "game", mode: "online", team: myTeam, port: primary });
   };
 
@@ -244,7 +236,7 @@ export default function App() {
         createSession: (emu, transport, mp, rp, extra) => lc.createSession(emu, transport, mp, rp, handleNetEvent, extra),
       });
     } catch (e: any) {
-      setError(String(e?.message || e));
+      L.setError(String(e?.message || e));
     }
   };
 
@@ -254,7 +246,7 @@ export default function App() {
       if (!emuRef.current) { setTimeout(go, 100); return; } // ждём загрузки ROM
       setSpecFrame(0);
       setSpecFinished(null);
-      setMatchChat([]);
+      L.setMatchChat([]);
       setNet((s) => ({ ...s, status: "online", mode: "spectate" }));
       lc.spectate(matchId);
       setScreen({ name: "spectate", matchId });
@@ -262,84 +254,8 @@ export default function App() {
     go();
   };
 
-  // Лобби-клиент: один WS на всё лобби + хендофф в матч.
   useEffect(() => {
-    const lc = new LobbyClient(meId, loadName() || "Игрок");
-    lcRef.current = lc;
-    lc.onLobbies = setLobbies;
-    lc.onLobby = (l) => { setLobby(l); setBusy(false); };
-    lc.onChat = (m) =>
-      m.scope === "global"
-        ? setGlobalChat((p) => [...p.slice(-99), m])
-        : m.scope === "match"
-          ? setMatchChat((p) => [...p.slice(-99), m])
-          : setRoomChat((p) => [...p.slice(-99), m]);
-    lc.onChatHistory = (scope, _id, msgs) =>
-      scope === "global" ? setGlobalChat(msgs) : scope === "match" ? setMatchChat(msgs) : setRoomChat(msgs);
-    lc.onError = (e) => { setError(e); setBusy(false); };
-    lc.onKicked = () => { setError("Вас исключили из комнаты"); setLobby(null); setBusy(false); };
-    lc.onPaused = () => setPause(true);
-    lc.onResumed = () => setPause(false);
-    // Реконнект: при обрыве замираем, после возврата обе стороны пере-сопрягают транспорт.
-    lc.onDisconnected = () => {
-      setNet((s) => ({ ...s, status: "reconnecting" }));
-      setPause(true);
-    };
-    lc.onReconnected = () => { renegotiate().catch(() => {}); };
-    lc.onPeerLeft = () => {
-      setNet((s) => ({ ...s, status: "reconnecting", peerOffline: true }));
-      setPause(true);
-    };
-    lc.onPeerReconnected = () => {
-      setNet((s) => ({ ...s, peerOffline: false }));
-      renegotiate().catch(() => {});
-    };
-    // Согласованный конец матча от сервера (победитель определён и записан).
-    lc.onMatchFinished = (winner) => {
-      setServerWinner((winner as Team) ?? null);
-      setSpecFinished((winner as Team) ?? null);
-    };
-    // Наблюдатель: получаем снапшоты состояния и рисуем их.
-    lc.onSpectateStart = () => {};
-    lc.onSpectateData = (m) => {
-      const emu = emuRef.current;
-      if (!emu) return;
-      try {
-        emu.loadState(base64ToBytes(m.data));
-        emu.draw();
-        setSpecFrame(m.frame);
-      } catch { /* игнорируем битый снапшот */ }
-    };
-    lc.onMatchStart = (m) => { startOnlineMatch(lc, m).catch((e) => setError(String(e?.message || e))); };
-    lc.connect(BACKEND)
-      .then(() => {
-        // режим наблюдателя ?spectate=MATCHID
-        const specId = new URLSearchParams(location.search).get("spectate");
-        if (specId) { enterSpectate(lc, specId); return; }
-        // авто-вход по инвайт-ссылке ?lobby=CODE — только после открытия WS
-        const code = new URLSearchParams(location.search).get("lobby");
-        if (code) {
-          setBusy(true);
-          lc.join({ code })
-            .then(() => history.replaceState(null, "", location.pathname))
-            .catch((e) => { setError(String(e?.message || e)); setBusy(false); });
-        }
-      })
-      .catch(() => setError("Нет связи с сервером"));
-    return () => lc.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    // не затираем дефолтное имя, если оно задано через ?name= (мульти-игрок в одном браузере)
-    const urlName = new URLSearchParams(location.search).get("name");
-    if (!urlName) { try { localStorage.setItem("bc_playerName", meName); } catch {} }
-    if (lcRef.current) lcRef.current.name = meName;
-  }, [meName]);
-
-  useEffect(() => {
-    // Скрытие вкладки останавливает rAF у этого клиента → без паузы соперник «убежит»
-    // и rollback разъедется. Поэтому при фоне — пауза матча у ОБОИХ, при возврате — resume.
+    // Скрытие вкладки останавливает rAF → без паузы соперник «убежит» и rollback разъедется.
     const onVis = () => {
       const lc = lcRef.current;
       const mid = matchIdRef.current;
@@ -364,11 +280,11 @@ export default function App() {
   };
 
   const startQuickMatch = async (team: Team) => {
-    setBusy(true); setError(null);
+    L.setBusy(true); L.setError(null);
     try {
       const nc = new NetClient(BACKEND);
       nc.setCartridgeFingerprint(emuRef.current?.cartridgeFingerprint?.() ?? null);
-      const match = await nc.matchmake(meId, team, meName);
+      const match = await nc.matchmake(meId, team, L.meName);
       await nc.connect();
       nc.peerId = match.opponent;
       const oppTeam: Team = team === "DEF" ? "ATT" : "DEF";
@@ -383,14 +299,14 @@ export default function App() {
         createSession: (emu, transport, mp, rp, extra) => nc.createSession(emu, transport, mp, rp, extra),
       });
     } catch (e: any) {
-      setError(String(e?.message || e));
-      setBusy(false);
+      L.setError(String(e?.message || e));
+      L.setBusy(false);
     }
   };
 
   // Один игровой кадр онлайна: только МОИ порты (+ авто-респавн Start для ATT).
   const onlineAdvance = (buttons: number) => {
-    if (pausedRef.current) return; // пауза (вкладка в фоне / пауза соперника) — не шагаем
+    if (pausedRef.current) return; // пауза — не шагаем
     const sess = sessionRef.current;
     if (!sess) return;
     const emu = emuRef.current!;
@@ -402,8 +318,6 @@ export default function App() {
       }
     }
     sess.advanceFrame(myInputs);
-
-    // Наблюдатели: авторитет периодически рассылает полный снапшот состояния.
     if (isAuthorityRef.current && matchIdRef.current && sess.currentFrame > 0 && sess.currentFrame % 30 === 0) {
       try {
         const bytes = emuRef.current!.saveState();
@@ -421,7 +335,7 @@ export default function App() {
     resultSentRef.current = false;
     setPaused(false);
     setServerWinner(null);
-    setMatchChat([]);
+    L.setMatchChat([]);
     setNet({ status: "solo", mode: "", latency: 0, desyncs: 0, rollbacks: 0, peerOffline: false });
     lcRef.current?.clearMatchContext?.();
     setScreen({ name: "lobby" });
@@ -436,28 +350,12 @@ export default function App() {
     lcRef.current?.finishMatch?.(mid, (winner as Team) || null);
   };
 
-  // --- обработчики лобби ---
-  const lc = () => lcRef.current!;
-  const doCreate = async (name: string, settings: LobbySettings) => {
-    setBusy(true); setError(null);
-    try { await lc().create(settings, name); } catch (e: any) { setError(String(e?.message || e)); setBusy(false); }
-  };
-  const doJoin = async (lobbyId: string) => {
-    setBusy(true); setError(null);
-    try { await lc().join({ lobbyId }); } catch (e: any) { setError(String(e?.message || e)); setBusy(false); }
-  };
-  const doJoinCode = async (code: string) => {
-    setBusy(true); setError(null);
-    try { await lc().join({ code }); } catch (e: any) { setError(String(e?.message || e)); setBusy(false); }
-  };
-  const doLeave = () => { if (lobby) lc().leave(lobby.id); };
-
   if (screen.name === "spectate") {
     return (
       <SpectateView
         emulator={emuRef.current!}
         meId={meId}
-        chat={matchChat}
+        chat={L.matchChat}
         frame={specFrame}
         finished={specFinished}
         onSendChat={(text) => lcRef.current?.sendChat?.("match", text, screen.matchId)}
@@ -480,7 +378,7 @@ export default function App() {
         serverWinner={serverWinner}
         onExit={returnToLobby}
         onResult={screen.mode === "online" ? handleOnlineResult : undefined}
-        chat={screen.mode === "online" ? matchChat : undefined}
+        chat={screen.mode === "online" ? L.matchChat : undefined}
         meId={meId}
         audio={audioRef.current!}
         onSendChat={screen.mode === "online" ? (text) => { const mid = matchIdRef.current; if (mid) lcRef.current?.sendChat?.("match", text, mid); } : undefined}
@@ -493,44 +391,44 @@ export default function App() {
 
   return (
     <>
-      {lobby ? (
+      {L.lobby ? (
         <LobbyRoom
-          lobby={lobby}
+          lobby={L.lobby}
           meId={meId}
           emulator={emuRef.current}
-          error={error}
-          onLeave={doLeave}
-          onTeam={(t) => lc().setTeam(lobby.id, t)}
-          onReady={(r) => lc().setReady(lobby.id, r)}
-          onStart={() => lc().start(lobby.id)}
-          onKick={(id) => lc().kick(lobby.id, id)}
-          onSettings={(s) => lc().setSettings(lobby.id, s)}
-          chat={roomChat}
-          onSendChat={(text) => lc().sendChat("lobby", text, lobby.id)}
+          error={L.error}
+          onLeave={L.actions.leave}
+          onTeam={L.actions.team}
+          onReady={L.actions.ready}
+          onStart={L.actions.start}
+          onKick={L.actions.kick}
+          onSettings={L.actions.settings}
+          chat={L.roomChat}
+          onSendChat={L.actions.sendRoomChat}
         />
       ) : (
         <LobbyBrowser
-          lobbies={lobbies}
+          lobbies={L.lobbies}
           meId={meId}
           emulator={emuRef.current}
-          meName={meName}
-          onNameChange={setMeName}
-          error={error}
-          busy={busy}
-          onCreate={() => { setError(null); setShowCreate(true); }}
-          onJoin={doJoin}
-          onJoinCode={doJoinCode}
+          meName={L.meName}
+          onNameChange={L.setMeName}
+          error={L.error}
+          busy={L.busy}
+          onCreate={() => { L.setError(null); L.setShowCreate(true); }}
+          onJoin={L.actions.join}
+          onJoinCode={L.actions.joinCode}
           onQuickMatch={() => startQuickMatch("DEF")}
           onSolo={startSolo}
-          chat={globalChat}
-          onSendChat={(text) => lc().sendChat("global", text)}
+          chat={L.globalChat}
+          onSendChat={L.actions.sendGlobalChat}
         />
       )}
-      {showCreate && (
+      {L.showCreate && (
         <CreateRoomDialog
           emulator={emuRef.current}
-          onCancel={() => setShowCreate(false)}
-          onCreate={(name, settings) => { setShowCreate(false); doCreate(name, settings); }}
+          onCancel={() => L.setShowCreate(false)}
+          onCreate={(name, settings) => { L.setShowCreate(false); L.actions.create(name, settings); }}
         />
       )}
     </>

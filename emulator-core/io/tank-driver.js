@@ -19,8 +19,8 @@ export const HALF = 6;
 
 // Приращения (dx, dy) по направлению. Кодировка совпадает с флагом танка в ROM
 // (см. sub_E451/DBE9): 0=Up, 1=Left, 2=Down, 3=Right.
-export const DX = [0, -1, 0, 1]; // Up, Left, Down, Right
-export const DY = [-1, 0, 1, 0];
+import { DX, DY, tankPassable as runtimePassable } from "../domain.js";
+export { DX, DY, runtimePassable };
 
 // Проходимость runtime-тайла (буфер коллизий $0400). Зеркалит проверку ASM в
 // bank_FF sub_DBF1_tank_movement ($DCD5-$DCDD):
@@ -29,9 +29,7 @@ export const DY = [-1, 0, 1, 0];
 //   CMP #$20, BCC     -> A в 0x01..0x1F блокирует; A >= 0x20 проходимо
 // Итог: проходимы 0x00 и 0x20..0x7F; блокируют 0x01..0x1F и 0x80..0xFF.
 // Важно: 0x0f/0x15 (вода) НЕ проходимы для танков, а дорожные тайлы 0x20..0x7F проходимы.
-export function runtimePassable(tileId) {
-  return tileId === 0x00 || (tileId >= 0x20 && tileId < 0x80);
-}
+
 
 // Проходимость тайла по умолчанию: только 0 (пусто) проходим.
 export function defaultIsPassable(tileId) {
@@ -46,12 +44,6 @@ export function stagePassable(tileId) {
   return !STAGE_SOLID.has(tileId);
 }
 
-// Позиция танка -> тайл (колонка/строка), который перекрывает ведущая кромка.
-function tileOf(x, y) {
-  const col = Math.floor(x / TILE);
-  const row = Math.floor(y / TILE);
-  return { col, row };
-}
 
 // Можно ли разместить корпус танка (2*HALF+1 = 13x13) по центру (x,y).
 // Используется для canTurn/aiDirection.

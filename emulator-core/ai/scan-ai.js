@@ -23,6 +23,7 @@ import { readState, DX, DY, FIELD, inBounds, cellIdx, tankPassable, isBrick,
   blocksBullet, cellPassable, dist, dirTo, lineClear } from "../model/game-view.js";
 import { costField, UNREACHABLE } from "../model/pathfind.js";
 import { trajectoryCells } from "../model/perception.js";
+import { RAM } from "../rom-contract.js";
 
 // --- параметры ---
 const INTERCEPT_MIN = 2;   // мин. дистанция для перехвата пули выстрелом
@@ -31,7 +32,6 @@ const SPAWN_ROWS = 6;      // верхние ряды спавна: там не 
 const PURSUIT_RANGE = 14;  // радиус охоты за защитником
 const PRIZE_RANGE = 9;     // радиус, на котором идём за призом
 const BASE_COMMIT_RANGE = 11; // рядом с базой — всегда идём к ней (финальный рывок)
-const GUARD_RADIUS = 6;    // защитник: радиус «угрозы базе» (перехват)
 const GUARD_PRIZE_REACH = 12; // защитник: радиус сбора ценного приза
 const KILL_ZONE = 6;       // перекрёстный огонь: радиус вокруг базы для focus-fire
 const DEFEND_RADIUS = 15;  // защитник: вернуться к базе, если угроза и мы недалеко
@@ -39,7 +39,6 @@ const GUARD_HUNT_RANGE = 10; // при многих врагах защитни�
 // UNREACHABLE и costField — из общего слоя pathfind.js.
 
 const THREAT_PENALTY = 6;  // штраф за клетку под вражеской пулей
-const BRICK_COST = 3;      // стоимость «прострела» через кирпич (по сравнению с обходом)
 
 // Проходима ли клетка для шага танка (движение ИЛИ прострел кирпича).
 function stepPassable(f, c, r) {
@@ -198,7 +197,7 @@ function decideTank(bf, tank, mem, st, role) {
   const field = bf.field;
   const cell = tank.cell;
   const enemy = enemyTeamOf(role);
-  const ourBusy = (mem[0xcc + tank.index] & 0xf0) === 0x40;
+  const ourBusy = (mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   const incoming = bf.bullets
     .filter((b) => b.team === enemy && bulletPathHits(field, b, cell))
     .sort((a, b) => dist(a.cell, cell) - dist(b.cell, cell));

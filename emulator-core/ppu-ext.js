@@ -29,38 +29,38 @@ export class BattleCityPPU extends PPU {
   renderSpritesPartially(startscan, scancount, bgPri) {
     if (this.f_spVisibility !== 1) return;
 
-    let mmap = this.nes.mmap;
-    let ptTile = this.ptTile;
-    let buffer = this.buffer;
-    let sprPalette = this.sprPalette;
-    let pixrendered = this.pixrendered;
+    const mmap = this.nes.mmap;
+    const ptTile = this.ptTile;
+    const buffer = this.buffer;
+    const sprPalette = this.sprPalette;
+    const pixrendered = this.pixrendered;
 
     for (let scan = startscan; scan < startscan + scancount; scan++) {
       if (scan < 0 || scan >= 240) continue;
 
-      let count = this.scanlineSpriteCount[scan];
-      let oamBase = scan * 32;
+      const count = this.scanlineSpriteCount[scan];
+      const oamBase = scan * 32;
 
       for (let i = 0; i < count; i++) {
-        let sprY = this.scanlineSecondaryOAM[oamBase + i * 4 + 0];
-        let sprTile = this.scanlineSecondaryOAM[oamBase + i * 4 + 1];
-        let sprAttr = this.scanlineSecondaryOAM[oamBase + i * 4 + 2];
-        let sprX = this.scanlineSecondaryOAM[oamBase + i * 4 + 3];
+        const sprY = this.scanlineSecondaryOAM[oamBase + i * 4 + 0];
+        const sprTile = this.scanlineSecondaryOAM[oamBase + i * 4 + 1];
+        const sprAttr = this.scanlineSecondaryOAM[oamBase + i * 4 + 2];
+        const sprX = this.scanlineSecondaryOAM[oamBase + i * 4 + 3];
 
-        let vertFlip = (sprAttr >> 7) & 1;
-        let horiFlip = (sprAttr >> 6) & 1;
-        let priority = (sprAttr >> 5) & 1;
-        let palAdd = (sprAttr & 3) << 2;
+        const vertFlip = (sprAttr >> 7) & 1;
+        const horiFlip = (sprAttr >> 6) & 1;
+        const priority = (sprAttr >> 5) & 1;
+        const palAdd = (sprAttr & 3) << 2;
 
         if (priority !== bgPri) continue;
         if (this.f_spriteSize === 0) {
           // 8x8 sprites
-          let tileIndex = this.f_spPatternTable === 0 ? sprTile : sprTile + 256;
-          let sprBaseAddr = this.f_spPatternTable === 0 ? 0x0000 : 0x1000;
+          const tileIndex = this.f_spPatternTable === 0 ? sprTile : sprTile + 256;
+          const sprBaseAddr = this.f_spPatternTable === 0 ? 0x0000 : 0x1000;
 
           // Render only the one scanline row that falls on 'scan'
-          let dy = sprY + 1; // +1 because sprite Y in OAM is display line - 1
-          let fineY = scan - dy;
+          const dy = sprY + 1; // +1 because sprite Y in OAM is display line - 1
+          const fineY = scan - dy;
           if (fineY < 0 || fineY >= 8) continue;
 
           ptTile[tileIndex].render(
@@ -84,13 +84,13 @@ export class BattleCityPPU extends PPU {
         } else {
           // 8x16 sprites: tile index bit 0 selects pattern table ($0000/$1000),
           // top tile is (index & $FE), bottom tile is (index & $FE) + 1.
-          let sprBaseAddr = (sprTile & 1) !== 0 ? 0x1000 : 0x0000;
-          let topTileNum = sprTile & 0xfe;
+          const sprBaseAddr = (sprTile & 1) !== 0 ? 0x1000 : 0x0000;
+          const topTileNum = sprTile & 0xfe;
           // FIX (было `topTileNum - 1 + 256`): верхний тайл = (index & $FE).
-          let top = (sprTile & 1) !== 0 ? topTileNum + 256 : topTileNum;
+          const top = (sprTile & 1) !== 0 ? topTileNum + 256 : topTileNum;
 
-          let dy = sprY + 1;
-          let fineY = scan - dy;
+          const dy = sprY + 1;
+          const fineY = scan - dy;
           if (fineY < 0 || fineY >= 16) continue;
 
           // Determine which half (top/bottom) this scanline falls in

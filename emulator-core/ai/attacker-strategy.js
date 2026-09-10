@@ -7,7 +7,7 @@
 // на нём строить и атакующего. Логика намеренно простая: охотиться на ближайшего защитника,
 // уворачиваться от пуль, стрелять по линии.
 
-import { readState, DEF_END, DX, DY, inBounds, cellIdx, dist, lineClear, tankPassable, isBrick } from "../model/game-view.js";
+import { readState, DX, DY, inBounds, dist, lineClear } from "../model/game-view.js";
 import { perceive } from "../model/perception.js";
 import { steerTo } from "../model/steer.js";
 

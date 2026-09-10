@@ -1,0 +1,8 @@
+node_modules/
+dist/
+vendor/
+emulator-core/src/
+frontend/dist/
+rom/
+docs/
+*.md

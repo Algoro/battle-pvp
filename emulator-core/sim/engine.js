@@ -121,7 +121,7 @@ export class GameSim {
     }
     // ВЗРЫВ (0x10-0x70, ofs_DDEA): флаг — счётчик; низкий ниббл 0 -> -0x10, при 0 мёртв
     if (hi >= 0x10 && hi <= 0x70) {
-      let flag = f - 1;
+      const flag = f - 1;
       t.flag = flag;
       if ((flag & 0x0f) !== 0) return false;
       let next = (flag - 0x10) & 0xff;
@@ -210,7 +210,7 @@ export class GameSim {
       if (!this.tanks.includes(tank)) this.tanks.push(tank);
       state.count--;
       state.timer = state.interval;                           // reload timer
-      this._emit({ type: "enemySpawned", tank: idx, x: px, y: py, type: tank.type });
+      this._emit({ type: "enemySpawned", tank: idx, x: px, y: py, tankType: tank.type });
       return idx;
     }
     return -1;

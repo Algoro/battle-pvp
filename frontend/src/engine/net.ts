@@ -1,6 +1,5 @@
 // net.ts — браузерный сетевой клиент: matchmaking + WS-signaling + rollback.
 // Использует детерминированное ядро (emulator-core) и netcode (rollback).
-// @ts-nocheck
 import { RollbackSession } from "../../netcode/rollback/session.js";
 import { RelayTransport } from "../../netcode/transport/relay.js";
 import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
@@ -17,7 +16,7 @@ export interface MatchInfo {
 
 // Входит в комнату через backend: матчмейкинг + WS join + обмен signaling.
 export class NetClient {
-  private ws: WebSocket;
+  private ws!: WebSocket;
   public match: MatchInfo | null = null;
   public peerId: string | null = null;
   private onMsg?: (msg: any) => void;
@@ -75,14 +74,14 @@ export class NetClient {
   // Сопряжение WebRTC: обмен SDP/ICE через signaling. Возвращает WebRTCTransport
   // либо, при недоступности P2P, RelayTransport (fallback через backend).
   async negotiate(): Promise<{ transport: any; mode: "webrtc" | "relay" }> {
-    const dc = new Promise<WebRTCTransport>((resolve, reject) => {
+    const dc = new Promise<any>((resolve, reject) => {
       try {
         const pc = new RTCPeerConnection({ iceServers: getIceServers() });
         const ch = pc.createDataChannel("rollback");
         const t = new WebRTCTransport(ch);
         pc.onicecandidate = (e) =>
           e.candidate && this.send({ type: "signal", to: this.peerId, matchId: this.match!.matchId, data: { ice: e.candidate } });
-        pc.ondatachannel = (e) => { /* получатель */ };
+        pc.ondatachannel = () => { /* получатель */ };
         this.onMsg = (m) => {
           if (m.type === "signal") {
             if (m.data?.sdp) pc.setRemoteDescription(m.data.sdp).then(() => pc.createAnswer()).then((a) => pc.setLocalDescription(a)).then(() => this.send({ type: "signal", to: this.peerId, matchId: this.match!.matchId, data: { sdp: pc.localDescription } }));
@@ -106,7 +105,7 @@ export class NetClient {
     }
   }
 
-  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], extra: any = {}, onEvent?: (e: any) => void): RollbackSession {
+  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], extra: any = {}, onEvent?: (e: any) => void): any {
     return new RollbackSession({
       game: emu,
       transport,

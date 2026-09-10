@@ -18,25 +18,21 @@
 //    у которых нет сетевого ввода и которые не человеческие).
 //  - Минимум фолбэков: один путь решения на танк.
 // Относительный путь: ./emulator-core/ai/tactical-ai.js
-import { FIELD, TILE, DEF_END, DX, DY, inBounds, cellIdx, tankPassable, isBrick,
-  blocksBullet, cellPassable, dist, dirTo, cellOf, isEagleTile, readState,
+import { FIELD, DEF_END, DX, DY, inBounds, cellIdx, tankPassable,
+  blocksBullet, cellPassable, dist, dirTo, readState,
   lineClear, prizeValue, PRIZE_VALUE } from "../model/game-view.js";
 import { nearestCover as steerNearestCover } from "../model/steer.js";
 import { bfsDirection } from "../model/pathfind.js";
+import { DIR_BTN, isTankActive } from "../domain.js";
+import { RAM } from "../rom-contract.js";
 export { lineClear, prizeValue, PRIZE_VALUE };
 export { bfsDirection };
-
-const OPP = [2, 3, 0, 1];
-
-const ENEMY_START = 2;
-const ENEMY_END = 8;
 
 const LEAD = 2; // упреждение (клеток) для стрельбы по движущейся цели
 const PURSUIT_RANGE = 14; // радиус преследования DEF-танков (клеток)
 const DODGE_RADIUS = 6; // радиус (клеток), на котором танк реально уворачивается от пули
 const INTERCEPT_MIN = 4; // мин. дистанция (клеток) для перехвата пули выстрелом — иначе в упор уворачиваемся
 const PRIZE_RANGE = 8; // радиус (клеток), на котором защитник идёт собирать приз
-const HUNT_GUARD_RANGE = 10; // при многих врагах защитник гонится только за ближними
 
 // Максимальная дальность «безопасного» выстрела (клеток): пуля обязана упереться в
 // сплошной тайл (кирпич/сталь/орла/врага) в этом радиусе. Иначе в симуляторе пуля
@@ -48,15 +44,9 @@ const HUNT_GUARD_RANGE = 10; // при многих врагах защитни�
 // см. movementRange в sim/battle.js). Иначе DEF-ИИ не «видит» врагов в состоянии 0x80.
 function onField(t) {
   if (!t || t.x >= 255) return false;
-  const hi = t.flag & 0xf0;
-  return hi >= 0x80 && hi <= 0xd0;
+  return isTankActive(t.flag);
 }
 
-function aliveFlag(flag) {
-  const hi = flag & 0xf0;
-  return hi >= 0x90 && hi <= 0xd0;
-}
-const toCell = cellOf;
 
 // Укрытие: проходимая клетка рядом с препятствием.
 export function isCover(field, c, r) {
@@ -163,7 +153,7 @@ function allyNearLine(bf, from, to, selfIndex) {
 // и стоит на месте только когда стреляет через препятствие.
 export function decideTank(bf, tank, state, underThreat) {
   const cell = tank.cell;
-  const ourBusy = (bf.mem[0xcc + tank.index] & 0xf0) === 0x40;
+  const ourBusy = (bf.mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   // В верхних спавн-рядах танк не уворачивается/не прячется — иначе застрянет у
   // ворот под обстрелом. Сначала надо спуститься в поле, потом уклоняться.
   const inSpawn = cell.row < 6;
@@ -301,10 +291,8 @@ function clamp(v) { return v < 0 ? -1 : v > 0 ? 1 : 0; }
 // DEF-танки — активные защитники базы. Без их ИИ у атакующих нет реальных
 // противников, и охотничьи алгоритмы не раскрываются. Возвращает Map<port, buttons>
 // (кнопки для контроллера DEF: направление + A + Start для респавна).
-const BTN_START = 0x08, BTN_A = 0x01;
-const DIR_BTN = [0x10, 0x40, 0x20, 0x80]; // Up, Left, Down, Right
+const BTN_A = 0x01;
 const PRIZE_CHASE_THRESHOLD = 80; // ценные призы (граната/каска/звезда) — высший приоритет
-const GUARD_RADIUS = 5; // гард: радиус «угрозы базе» (перехват)
 const KILL_ZONE = 6; // перекрёстный огонь: радиус вокруг базы, где оба бьют по опасному
 
 // Решение защитника: ОХРАНЯЕТ базу. t0 держит левый фланг базы, t1 — правый.
@@ -488,7 +476,7 @@ export function planDefense(mem, frame, state = defState) {
   const bf = readBattlefield(mem);
   const out = new Map();
   const respawn = new Set(); // DEF-слоты, респавненные напрямую (без Start)
-  const started = mem[0x80] !== 0xff; // игра началась (enemies_left инициализирован)
+  const started = mem[RAM.ENEMIES_LEFT] !== 0xff; // игра началась (enemies_left инициализирован)
   // Отслеживаем скорость врагов, чтобы защитник не стрелял «вслепую» по цели, уходящей
   // вбок (промах = пуля за экран = слот пули заблокирован НАВСЕГДА).
   const ev = state.get("_ev") || { pos: new Map(), vel: new Map() };
@@ -511,11 +499,11 @@ export function planDefense(mem, frame, state = defState) {
     // ломать старт (во время меню танки в респавне 0xE6). БЕЗ Start: Start на порту
     // DEF тумблит паузу (ram_btn_press&Start), поэтому выставляем спавн напрямую,
     if (started && tank.flag === 0 && frame % 30 === 0) {
-      mem[0xa8 + t] = 0; // ram_tank_type
-      mem[0x90 + t] = PLAYER_SPAWN_X[t]; // ram_tank_pos_X
-      mem[0x98 + t] = PLAYER_SPAWN_Y[t]; // ram_tank_pos_Y
-      mem[0x6f + t] = 0; // ram_plr_stun_timer
-      mem[0xa0 + t] = 0xf0; // ram_tank_flags = con_tank_flag_respawn
+      mem[RAM.TANK_TYPE + t] = 0; // ram_tank_type
+      mem[RAM.TANK_X + t] = PLAYER_SPAWN_X[t]; // ram_tank_pos_X
+      mem[RAM.TANK_Y + t] = PLAYER_SPAWN_Y[t]; // ram_tank_pos_Y
+      mem[RAM.STUN + t] = 0; // ram_plr_stun_timer
+      mem[RAM.TANK_FLAG + t] = 0xf0; // ram_tank_flags = con_tank_flag_respawn
       respawn.add(t);
     } else if ((tank.flag & 0xf0) >= 0x80 && (tank.flag & 0xf0) <= 0xd0 && tank.x < 255) {
       // ВАЖНО: используем широкий диапазон «на поле» (0x80..0xd0), а не строгий
@@ -531,7 +519,7 @@ export function planDefense(mem, frame, state = defState) {
       // иначе выстрел происходит только ОДИН раз. Pulse: A зажат только когда слот
       // пули танка свободен (иначе не перезаряжается). Когда слот освобождается и
       // цель всё ещё на прицеле — A снова зажат → edge → следующий выстрел.
-      const busy = (bf.mem[0xcc + tank.index] & 0xf0) === 0x40;
+      const busy = (bf.mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
       const fire = d.fire && !busy;
       state.set(t, { held: st.held, prevDir: dir, fire });
       if (dir !== null) buttons |= DIR_BTN[dir];

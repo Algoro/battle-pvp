@@ -20,6 +20,7 @@ skip() { echo ""; echo "==================== [$1] ===================="; echo "[
 
 stage "gate:verify-environment" bash scripts/verify-environment.sh
 stage "prepare" node scripts/prepare.mjs
+stage "lint" npx eslint .
 
 if have_rom; then
   stage "emulator-core:test" bash -c 'cd emulator-core && node --test tests/*.test.js'

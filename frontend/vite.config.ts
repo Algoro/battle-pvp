@@ -32,8 +32,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL("./index.html", import.meta.url)),
-        demo: fileURLToPath(new URL("./demo.html", import.meta.url)),
-        "demo-sim": fileURLToPath(new URL("./demo-sim.html", import.meta.url)),
       },
     },
   },

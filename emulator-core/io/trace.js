@@ -2,6 +2,7 @@
 // Вынесено из PvPNes (декомпозиция god-объекта): ядро только вызывает event/detectDeaths.
 // Относительный путь: ./emulator-core/io/trace.js
 import { RAM } from "../rom-contract.js";
+import { isTankAlive } from "../domain.js";
 
 export class Tracer {
   constructor(cap = 500) {
@@ -29,7 +30,7 @@ export class Tracer {
     let now = 0;
     for (let t = 0; t < 8; t++) {
       const hi = mem[RAM.TANK_FLAG + t] & 0xf0;
-      if (hi >= 0x90 && hi <= 0xd0) now |= 1 << t;
+      if (isTankAlive(hi)) now |= 1 << t;
     }
     const died = this.prevAliveMask & ~now;
     for (let t = 0; t < 8; t++) {

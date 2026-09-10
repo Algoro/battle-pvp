@@ -42,7 +42,7 @@ export class BattleCityPAPU extends PAPU {
     const tnd = this.tnd_table;
     const dc = this.dcValue;
 
-    const dsp = this; // eslint-disable-line
+    const dsp = this;  
     const dcBlock = (value, prevKey, accKey) => {
       const diff = value - dsp[prevKey];
       dsp[prevKey] += diff;
@@ -51,22 +51,22 @@ export class BattleCityPAPU extends PAPU {
     };
 
     // --- левый канал: музыка ---
-    let sqL = (this.smpSquare1 * this.stereoPosLSquare1 + this.smpSquare2 * this.stereoPosLSquare2) >> 8;
-    let triL = (3 * this.smpTriangle * this.stereoPosLTriangle) >> 8;
+    const sqL = (this.smpSquare1 * this.stereoPosLSquare1 + this.smpSquare2 * this.stereoPosLSquare2) >> 8;
+    const triL = (3 * this.smpTriangle * this.stereoPosLTriangle) >> 8;
     let musicL = sq[clampIdx(sqL, sq.length)] + tnd[clampIdx(triL, tnd.length)] - dc;
     musicL = dcBlock(musicL, "gMusicPrevL", "gMusicAccL");
     // --- левый канал: эффекты ---
-    let ndL = ((smpNoise << 1) * this.stereoPosLNoise + this.smpDmc * this.stereoPosLDMC) >> 8;
+    const ndL = ((smpNoise << 1) * this.stereoPosLNoise + this.smpDmc * this.stereoPosLDMC) >> 8;
     let sfxL = tnd[clampIdx(ndL, tnd.length)];
     sfxL = dcBlock(sfxL, "gSfxPrevL", "gSfxAccL");
 
     // --- правый канал: музыка ---
-    let sqR = (this.smpSquare1 * this.stereoPosRSquare1 + this.smpSquare2 * this.stereoPosRSquare2) >> 8;
-    let triR = (3 * this.smpTriangle * this.stereoPosRTriangle) >> 8;
+    const sqR = (this.smpSquare1 * this.stereoPosRSquare1 + this.smpSquare2 * this.stereoPosRSquare2) >> 8;
+    const triR = (3 * this.smpTriangle * this.stereoPosRTriangle) >> 8;
     let musicR = sq[clampIdx(sqR, sq.length)] + tnd[clampIdx(triR, tnd.length)] - dc;
     musicR = dcBlock(musicR, "gMusicPrevR", "gMusicAccR");
     // --- правый канал: эффекты ---
-    let ndR = ((smpNoise << 1) * this.stereoPosRNoise + this.smpDmc * this.stereoPosRDMC) >> 8;
+    const ndR = ((smpNoise << 1) * this.stereoPosRNoise + this.smpDmc * this.stereoPosRDMC) >> 8;
     let sfxR = tnd[clampIdx(ndR, tnd.length)];
     sfxR = dcBlock(sfxR, "gSfxPrevR", "gSfxAccR");
 

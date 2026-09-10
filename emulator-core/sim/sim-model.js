@@ -5,7 +5,7 @@
 // Направления: 0=Up,1=Left,2=Down,3=Right (как в ASM).
 // Танк 13x13, RAM (x,y) — центр. Коллизия — передняя кромка из 2 точек
 // (canLead) + проверка клетки, куда войдёт кромка.
-import { FIELD, TILE, DX, DY, tankPassable, cellPassable } from "../model/game-view.js";
+import { TILE, DX, DY, cellPassable } from "../model/game-view.js";
 
 export const HALF = 6; // полуразмер корпуса (13x13)
 

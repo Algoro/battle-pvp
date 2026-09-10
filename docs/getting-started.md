@@ -65,6 +65,9 @@ docker run --rm -p 8080:8080 battle-city-pvp
 ## Тесты
 
 ```bash
+npm install                     # корневые dev-tools (ESLint/Prettier)
+npm run lint                    # статический анализ (ESLint)
+
 cd emulator-core && npm test
 cd netcode       && npm test
 cd backend       && npm test

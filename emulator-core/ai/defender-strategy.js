@@ -16,12 +16,13 @@
 
 import { readState, DEF_END, DX, DY, inBounds, cellIdx, isBrick, tankPassable,
   dist, lineClear } from "../model/game-view.js";
-import { perceive, enemyClass } from "../model/perception.js";
+import { perceive } from "../model/perception.js";
 import { pathCost } from "../model/pathfind.js";
 import { steerTo, nearestCover as nearestCoverShared } from "../model/steer.js";
 
-const BTN_START = 0x08, BTN_A = 0x01;
-const DIR_BTN = [0x10, 0x40, 0x20, 0x80];
+const BTN_A = 0x01;
+import { DIR_BTN, isTankActive } from "../domain.js";
+import { RAM } from "../rom-contract.js";
 
 // --- параметры (дизайн §2.2, §3, §8) — настраиваемый CFG для оптимизации весов/констант ---
 // Дефолт = лучший по перебору ПОСЛЕ интеграции fine-grid (scripts/strategy-sweep.csv, «после»):
@@ -101,8 +102,7 @@ const dirToBtn = (d) => DIR_BTN[d];
 // Полностью ли жив/двигается танк (широкий диапазон 0x80..0xd0, как план).
 function onField(t) {
   if (!t || t.x >= 255) return false;
-  const hi = t.flag & 0xf0;
-  return hi >= 0x80 && hi <= 0xd0;
+  return isTankActive(t.flag);
 }
 
 // Клетки, которые в ближайшие кадры пройдут вражеские пули (для уворота/avoid).
@@ -176,8 +176,6 @@ function tankState(state, t) {
 // Выбор лучшего врага для задействования (utility цели).
 // Включает: угрозу базе, близость, мигающего (1 хит = бонус), анти-декой.
 function bestTarget(perc, tank) {
-  const base = perc.base;
-  const field = perc.field;
   let best = null, bestScore = -Infinity;
   const enemies = perc.enemies;
   for (const e of enemies) {
@@ -187,7 +185,7 @@ function bestTarget(perc, tank) {
     const otherLos = enemies.some((o) => o !== e && o.tank.inField && o.hasLosToBase);
     if (!(dBase < cfg.decoyRadius || !otherLos)) continue;
     const dTank = dist(tank.cell, e.cell);
-    let score = e.threatToBase * cfg.wThreat
+    const score = e.threatToBase * cfg.wThreat
               + (e.flashing ? cfg.wFlash : 0)
               - dTank * cfg.wTankDist
               - dBase * cfg.wBaseDist;
@@ -209,8 +207,6 @@ function uEngage(perc, tank, target) {
 // к базе (bonusThreatRadius) И имеет LOS на базу. Если такой враг есть — коридор базы под
 // угрозой, приз не берём.
 function bonusSafeWindow(perc) {
-  const base = perc.base;
-  const baseCell = { col: base.col, row: base.row };
   for (const e of perc.enemies) {
     if (!e.tank.inField) continue;
     if (e.distToBase <= cfg.bonusThreatRadius && e.hasLosToBase) return false;
@@ -285,7 +281,7 @@ function decideTank(perc, tank, st, frame) {
   const cell = tank.cell;
   const base = perc.base;
   const baseCell = { col: base.col, row: base.row };
-  const ourBusy = (perc.state.mem[0xcc + tank.index] & 0xf0) === 0x40;
+  const ourBusy = (perc.state.mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   const threatCells = enemyThreatCells(perc);
 
   // --- 0. COUNTER_SHOT (реактивный, наивысший приоритет) ---
@@ -315,7 +311,6 @@ function decideTank(perc, tank, st, frame) {
     && (b.cell.col === cell.col || b.cell.row === cell.row));
 
   // --- 1. DEFEND_BASE: база под прямой угрозой → оба сходятся к ближайшему к базе врагу
-  const baseThreat = perc.enemies.filter((e) => e.distToBase <= cfg.baseThreatRadius);
   const target = bestTarget(perc, tank);
   const dBaseSelf = dist(cell, baseCell);
 
@@ -483,7 +478,7 @@ export function strategyDefense(mem, frame, state = new Map()) {
   const perc = perceive(bf, { threat: cfg.threat });
   const out = new Map();
   const respawn = new Set();
-  const started = mem[0x80] !== 0xff;
+  const started = mem[RAM.ENEMIES_LEFT] !== 0xff;
 
   for (let t = 0; t < DEF_END; t++) {
     const tank = bf.tanks[t];
@@ -492,11 +487,11 @@ export function strategyDefense(mem, frame, state = new Map()) {
 
     if (started && tank.flag === 0 && frame % 30 === 0) {
       // респавн мёртвого танка напрямую (без Start — иначе пауза)
-      mem[0xa8 + t] = 0;
-      mem[0x90 + t] = PLAYER_SPAWN_X[t];
-      mem[0x98 + t] = PLAYER_SPAWN_Y[t];
-      mem[0x6f + t] = 0;
-      mem[0xa0 + t] = 0xf0;
+      mem[RAM.TANK_TYPE + t] = 0;
+      mem[RAM.TANK_X + t] = PLAYER_SPAWN_X[t];
+      mem[RAM.TANK_Y + t] = PLAYER_SPAWN_Y[t];
+      mem[RAM.STUN + t] = 0;
+      mem[RAM.TANK_FLAG + t] = 0xf0;
       respawn.add(t);
       st.fsm = "PATROL"; st.prevDir = null; st.prevGoalDist = undefined;
     } else if (onField(tank)) {

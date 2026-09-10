@@ -28,9 +28,15 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
 - **`rom-contract.js`** — единый источник правды по адресам RAM/ROM (было разбросано
   тысячи «магических» чисел). Используется ядром, моделью ИИ, симом, патчингом.
   Контрольные байты проверяются `assertRomContract()` (`startup.js`).
+- **`domain.js`** — семантика домена: направления (`DIR_VEC`, `DIR_BTN`, `btnToDir`),
+  флаги танков (`isTankAlive/Active`, `movingFlag`), тайлы (`isBrick/Steel`, `tankPassable`),
+  пули (`isBulletFlying`), апгрейд (`starsToUpgrade`). Убирает дубли и «магию» вида `0xa0|dir`.
+- **Enforcement** (`tests/no-magic-addresses.test.js`): запрет сырых RAM/ROM-адресов вне
+  `rom-contract/domain/startup` — регрессии «магии» ловятся в CI.
 - **`startup.js`** — декларативный boot/apply API стартовых опций (стадия, звёзды):
   один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
-- **`io/trace.js`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта).
+- **`io/trace.js`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта);
+  `stepFrame` разбит на `_resetNetZone/_readInputs/_applyAttAIDecisions`.
 - **`ai/rollforward.js`** — предсказание будущего на **реальном эмуляторе** (saveState +
   прокрутка), сертифицировано тестом; основа для отказа от отдельной JS-модели (`sim/*`).
 - **Golden-сертификация** (`tests/golden-replay.test.js`): golden-хэш ядра, сходимость
@@ -59,3 +65,5 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
   неиспользуемой зоне `$EF75–$EFFF`; адреса оригинального кода не сдвигаются.
 - **Отпечаток картриджа** (`cartridgeFingerprint`) в handshake — матч только с идентичными патчами.
 - **Транспорт**: WebRTC (P2P) с relay-fallback; полносвязная сеть для N игроков.
+- **Frontend**: лобби-логика вынесена в хук `use-lobby.ts` (App — экраны/матч);
+  `relay` использует диспетчер-таблицу вместо большого `switch`.

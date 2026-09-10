@@ -8,7 +8,36 @@
 // Относительный путь: ./backend/signaling/relay.js
 import { TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
 import { startLobbyMatch } from "../lobby/lobby.js";
-import { validateMessage } from "./schema.js";
+import { validateMessage, knownTypes } from "./schema.js";
+
+// Диспетчер WS-сообщений: тип -> имя обработчика (заменяет большой switch).
+const ROUTES = {
+  join: "_onJoin",
+  signal: "_onSignal",
+  "relay.data": "_onRelayData",
+  start: "_onStart",
+  finish: "_onFinish",
+  pause: "_onPause",
+  resume: "_onResume",
+  spectate: "_onSpectate",
+  "spectate.data": "_onSpectateData",
+  "spectate.leave": "_onSpectateLeave",
+  "lobby.subscribe": "_onLobbySubscribe",
+  "lobby.create": "_onLobbyCreate",
+  "lobby.join": "_onLobbyJoin",
+  "lobby.leave": "_onLobbyLeave",
+  "lobby.team": "_onLobbyTeam",
+  "lobby.ready": "_onLobbyReady",
+  "lobby.settings": "_onLobbySettings",
+  "lobby.kick": "_onLobbyKick",
+  "lobby.start": "_onLobbyStart",
+  "chat.send": "_onChatSend",
+};
+
+// Все типы из схемы обязаны иметь маршрут (проверяется тестом).
+export function routeIsComplete() {
+  return knownTypes().every((t) => typeof ROUTES[t] === "string");
+}
 
 const MAX_PAYLOAD = 256 * 1024;
 const MAX_SIGNAL = 64 * 1024; // SDP/ICE не должны быть больше
@@ -66,54 +95,12 @@ export class RelayServer {
       this._send(ws, { type: "error", error: v.error });
       return;
     }
-    switch (msg.type) {
-      // --- матч ---
-      case "join":
-        return this._onJoin(ws, msg);
-      case "signal":
-        return this._onSignal(ws, msg);
-      case "relay.data":
-        return this._onRelayData(ws, msg);
-      case "start":
-        return this._onStart(ws, msg);
-      case "finish":
-        return this._onFinish(ws, msg);
-      case "pause":
-        return this._onPause(ws, msg);
-      case "resume":
-        return this._onResume(ws, msg);
-      // --- наблюдатели (spectator) ---
-      case "spectate":
-        return this._onSpectate(ws, msg);
-      case "spectate.data":
-        return this._onSpectateData(ws, msg);
-      case "spectate.leave":
-        return this._onSpectateLeave(ws, msg);
-      // --- лобби ---
-      case "lobby.subscribe":
-        return this._onLobbySubscribe(ws, msg);
-      case "lobby.create":
-        return this._onLobbyCreate(ws, msg);
-      case "lobby.join":
-        return this._onLobbyJoin(ws, msg);
-      case "lobby.leave":
-        return this._onLobbyLeave(ws, msg);
-      case "lobby.team":
-        return this._onLobbyTeam(ws, msg);
-      case "lobby.ready":
-        return this._onLobbyReady(ws, msg);
-      case "lobby.settings":
-        return this._onLobbySettings(ws, msg);
-      case "lobby.kick":
-        return this._onLobbyKick(ws, msg);
-      case "lobby.start":
-        return this._onLobbyStart(ws, msg);
-      // --- чат ---
-      case "chat.send":
-        return this._onChatSend(ws, msg);
-      default:
-        this._send(ws, { type: "error", error: "unknown-type" });
+    const handler = ROUTES[msg.type];
+    if (!handler) {
+      this._send(ws, { type: "error", error: `unknown-type: ${msg.type}` });
+      return;
     }
+    return this[handler](ws, msg);
   }
 
   // ===================== МАТЧ (существующее) =====================

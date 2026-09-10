@@ -1,6 +1,5 @@
 // lobby-client.ts — браузерный клиент лобби: WS-протокол (список игр, комната, чат) +
 // хендофф в матч (negotiation WebRTC/relay -> RollbackSession).
-// @ts-nocheck
 import { RollbackSession } from "../../netcode/rollback/session.js";
 import { RelayTransport } from "../../netcode/transport/relay.js";
 import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
@@ -23,7 +22,7 @@ export interface MatchStart { matchId: string; peers: { playerId: string; team: 
 
 // Клиент лобби поверх одного WS-соединения. События — через колбэки.
 export class LobbyClient {
-  private ws: WebSocket;
+  private ws!: WebSocket;
   public playerId: string;
   public name: string;
 
@@ -197,7 +196,7 @@ export class LobbyClient {
   async negotiate(peerId: string, matchId: string): Promise<{ transport: any; mode: "webrtc" | "relay" }> {
     const iAmOfferer = this.playerId < peerId;
     const pc = new RTCPeerConnection({ iceServers: getIceServers() });
-    const dc = new Promise<WebRTCTransport>((resolve) => {
+    const dc = new Promise<any>((resolve) => {
       const finish = (ch: RTCDataChannel) => {
         const t = new WebRTCTransport(ch);
         ch.onopen = () => resolve(t);
@@ -238,7 +237,7 @@ export class LobbyClient {
     }
   }
 
-  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], onEvent?: (e: any) => void, extra: any = {}): RollbackSession {
+  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], onEvent?: (e: any) => void, extra: any = {}): any {
     return new RollbackSession({ game: emu, transport, myPorts, remotePorts, onEvent, window: 120, ...extra });
   }
 

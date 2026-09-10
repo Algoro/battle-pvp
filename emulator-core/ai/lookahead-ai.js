@@ -15,22 +15,20 @@
 //     - simulateAction() — лёгкая модель будущего на H кадров;
 //     - utility() — оценка действия;
 //     - decideTank() — выбор лучшего действия.
-import { readState, DX, DY, FIELD, inBounds, cellIdx, tankPassable, isBrick, blocksBullet, brickHealth } from "../model/game-view.js";
+import { readState, DX, DY, inBounds, cellIdx, tankPassable, isBrick, blocksBullet, brickHealth } from "../model/game-view.js";
 import { costField, UNREACHABLE } from "../model/pathfind.js";
+import { RAM } from "../rom-contract.js";
 // --- параметры модели ---
 const BULLET_SPEED = 2;   // px/кадр (откалибровано по игре)
 const HORIZON = 8;        // глубина предсказания (кадров)
 const HIT_RADIUS = 9;     // px — радиус попадания пули в танк
-const SPAWN_ROWS = 6;     // верхние ряды спавна: там не уворачиваемся
 const HIT_PENALTY = 110;  // штраф за попадание в танк (меньше — агрессивнее)
 const INTERCEPT_REWARD = 80; // + за перехват вражеской пули
 const KILL_REWARD = 200;  // + за убийство защитника (агрессия)
 const BREAK_REWARD = 45;  // + за разрушение кирпича
 const BASE_WEIGHT = 1.5;  // вес прогресса к базе
 const KILL_ZONE = 6;      // перекрёстный огонь: радиус вокруг базы для focus-fire
-const LOOK_GUARD_RANGE = 10; // при многих врагах защитник гонится только за ближними
 // UNREACHABLE — из общего слоя pathfind.js.
-const BRICK_COST = 3;
 const THREAT_PENALTY = 6;
 const NO_PROGRESS_FRAMES = 20;
 const DETOUR_FRAMES = 24;
@@ -192,7 +190,7 @@ function resolveFire(st, wantFire, ourBusy) {
 function decideTank(bf, tank, mem, st, role, subRole) {
   const field = bf.field;
   const enemy = enemyTeamOf(role);
-  const ourBusy = (mem[0xcc + tank.index] & 0xf0) === 0x40;
+  const ourBusy = (mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   const cell = { col: tank.cell.col, row: tank.cell.row };
 
   // 1. ПЕРЕХВАТ: летящая в нас пуля по линии, можем стрелять — стреляем в неё.
