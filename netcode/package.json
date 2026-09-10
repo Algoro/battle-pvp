@@ -1,0 +1,11 @@
+{
+  "name": "battlecity-netcode",
+  "version": "0.1.0",
+  "description": "Rollback netcode (GGPO-подход) для Battle City PvP: бинарный протокол фрейма ввода, транспорт WebRTC/relay/local, desync detection.",
+  "type": "module",
+  "main": "index.js",
+  "license": "Apache-2.0",
+  "scripts": {
+    "test": "node ../scripts/prepare.mjs && node --test tests/*.test.js"
+  }
+}

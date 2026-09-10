@@ -1,0 +1,4 @@
+[submodule "vendor/jsnes"]
+	path = vendor/jsnes
+	url = https://github.com/bfirsh/jsnes.git
+	shallow = true

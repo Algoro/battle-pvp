@@ -1,0 +1,4 @@
+# Служебные/генерируемые файлы backend (не в git)
+node_modules/
+data/*.sqlite
+data/*.sqlite-*

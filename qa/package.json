@@ -1,0 +1,15 @@
+{
+  "name": "battlecity-qa",
+  "version": "0.1.0",
+  "description": "Автотесты: ASM-патчи (headless-эмуляция), netcode (джиттер/потери), sync-test режим, нагрузка комнат, e2e Playwright.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node ../scripts/prepare.mjs && node --test tests/*.test.js",
+    "e2e": "node ../scripts/prepare.mjs && playwright test",
+    "e2e:online": "node ../scripts/prepare.mjs && playwright test -c playwright.online.config.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

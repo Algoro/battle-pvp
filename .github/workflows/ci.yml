@@ -1,0 +1,42 @@
+# CI для Battle City PvP.
+# ROM-зависимые тесты в CI не запускаются (оригинальный ROM не публикуется).
+# Здесь: сборка фронта, тесты backend, тип-чек. Локально полный набор — scripts/ci.sh.
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Prepare (генерирует emulator-core/src из сабмодуля jsnes)
+        run: node scripts/prepare.mjs
+
+      - name: Backend deps + tests
+        run: |
+          cd backend
+          npm install
+          npm test
+
+      - name: Emulator-core deps (тип-чек границ модулей)
+        run: |
+          cd emulator-core
+          npm install --ignore-scripts || true
+
+      - name: Frontend build (tsc + vite)
+        run: |
+          cd frontend
+          npm install
+          npm run build

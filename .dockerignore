@@ -1,0 +1,22 @@
+# Контекст Docker-сборки
+**/node_modules
+**/dist
+frontend/dist
+backend/data
+.vscode
+.idea
+.git
+.gitignore
+**/*.sqlite
+**/*.sqlite-*
+
+# генерируется scripts/prepare.mjs
+emulator-core/src
+rom/disasm
+frontend/public/rom/battle_city.nes
+
+# не нужно в образе
+docs
+rom/patches
+rom/build
+rom/tests

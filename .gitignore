@@ -1,0 +1,43 @@
+# Зависимости
+node_modules/
+.npm/
+
+# Сборка
+dist/
+frontend/dist/
+*.tsbuildinfo
+
+# Данные рантайма
+backend/data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Артефакты тестов
+qa/test-results/
+playwright-report/
+*.log
+
+# Генерируемая копия jsnes (создаётся из сабмодуля vendor/jsnes: scripts/prepare.mjs)
+emulator-core/src/
+emulator-core/.jsnes-stamp
+emulator-core/.jsnes-lock
+
+# ROM и производные бинарники (авторские права; подложить свой оригинал)
+*.nes
+*.chr
+*.ram.nl
+rom/disasm/incbin/
+
+# Инструменты/редакторы
+.DS_Store
+.kilo/
+.playwright-mcp/
+.vscode/
+.idea/
+
+# Секреты/локальное окружение
+.env
+.env.*
+!.env.example

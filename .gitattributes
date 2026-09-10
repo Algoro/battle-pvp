@@ -1,0 +1,15 @@
+* text=auto eol=lf
+
+*.nes   binary
+*.chr   binary
+*.wasm  binary
+*.png   binary
+*.jpg   binary
+
+*.md    text
+*.js    text
+*.mjs   text
+*.ts    text
+*.tsx   text
+*.json  text
+*.yml   text

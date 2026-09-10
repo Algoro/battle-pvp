@@ -1,0 +1,15 @@
+{
+  "name": "battlecity-backend",
+  "version": "0.1.0",
+  "description": "Matchmaking, лобби/комнаты, WebRTC-signaling relay, персистентность матчей (SQLite) для Battle City PvP.",
+  "type": "module",
+  "main": "server.js",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ws": "^8.21.3"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/*.test.js"
+  }
+}

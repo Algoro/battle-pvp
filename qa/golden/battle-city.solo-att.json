@@ -1,0 +1,128 @@
+{
+  "hashes": [
+    {
+      "frame": 1,
+      "hash": "eda6e650"
+    },
+    {
+      "frame": 61,
+      "hash": "672ca3bf"
+    },
+    {
+      "frame": 121,
+      "hash": "1e9ad453"
+    },
+    {
+      "frame": 181,
+      "hash": "e1fd7b40"
+    },
+    {
+      "frame": 241,
+      "hash": "08516837"
+    },
+    {
+      "frame": 301,
+      "hash": "78206684"
+    },
+    {
+      "frame": 361,
+      "hash": "c7b03684"
+    },
+    {
+      "frame": 421,
+      "hash": "883486b2"
+    },
+    {
+      "frame": 481,
+      "hash": "a602c61e"
+    },
+    {
+      "frame": 541,
+      "hash": "62f137d0"
+    },
+    {
+      "frame": 601,
+      "hash": "3a7c84c7"
+    },
+    {
+      "frame": 661,
+      "hash": "9c01f7b3"
+    },
+    {
+      "frame": 721,
+      "hash": "b267f83d"
+    },
+    {
+      "frame": 781,
+      "hash": "72d73574"
+    },
+    {
+      "frame": 841,
+      "hash": "68b1aa19"
+    },
+    {
+      "frame": 901,
+      "hash": "d9535780"
+    },
+    {
+      "frame": 961,
+      "hash": "36ae6e58"
+    },
+    {
+      "frame": 1021,
+      "hash": "8da2a7c3"
+    },
+    {
+      "frame": 1081,
+      "hash": "774cd250"
+    },
+    {
+      "frame": 1141,
+      "hash": "48c710a4"
+    },
+    {
+      "frame": 1201,
+      "hash": "2973ad46"
+    },
+    {
+      "frame": 1261,
+      "hash": "c11ea6c8"
+    },
+    {
+      "frame": 1321,
+      "hash": "26173ac4"
+    },
+    {
+      "frame": 1381,
+      "hash": "4d44a27b"
+    },
+    {
+      "frame": 1441,
+      "hash": "96991671"
+    },
+    {
+      "frame": 1501,
+      "hash": "093cd675"
+    },
+    {
+      "frame": 1561,
+      "hash": "4731337a"
+    },
+    {
+      "frame": 1621,
+      "hash": "fca02dd5"
+    },
+    {
+      "frame": 1681,
+      "hash": "68be8ea2"
+    },
+    {
+      "frame": 1741,
+      "hash": "604cc536"
+    }
+  ],
+  "finalHash": "3b5e5a15",
+  "frameCount": 1800,
+  "frames": 1800,
+  "snapshotEvery": 60
+}

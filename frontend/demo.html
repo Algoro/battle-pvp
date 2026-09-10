@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Battle City — демо: asm-атакующие vs plan-защитники</title>
+    <style>
+      body { background: #111; color: #eee; font-family: monospace; display: flex; gap: 20px; align-items: flex-start; padding: 20px; }
+      canvas { image-rendering: pixelated; border: 2px solid #444; width: 512px; height: 480px; }
+      .side { max-width: 340px; }
+      h1 { font-size: 16px; }
+      #hud { background: #222; padding: 10px; border-radius: 6px; white-space: pre-wrap; }
+      p { font-size: 12px; line-height: 1.5; color: #aaa; }
+    </style>
+  </head>
+  <body>
+    <canvas id="screen"></canvas>
+    <div class="side">
+      <h1>Живой матч: asm-атакующие vs plan-защитники</h1>
+      <div id="hud">Загрузка…</div>
+      <p>
+        Полный детерминированный матч. Атакующие — оригинальный ASM-ИИ,
+        защитники — наш plan-ИИ (роли гард/рейдер, перекрёстный огонь,
+        охота, приоритет мигающих, уворот, C/D/B/E). Без управления игроком.
+      </p>
+    </div>
+    <script type="module" src="/src/demo.ts"></script>
+  </body>
+</html>
