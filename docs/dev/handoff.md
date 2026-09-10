@@ -1477,3 +1477,27 @@ emulator-core **177/177** (+3 теста `state-nametable.test.js`), netcode **5
 - `bash scripts/ci.sh`: pass=7 fail=0 (emulator-core 192, netcode 14, qa 30, backend 25,
   frontend build).
 - Online E2E 2/2; контейнер собран из сабмодуля и отдаёт оригинальный ROM (:8080).
+
+---
+
+# §28. Лицензионная чистота и совместимость
+
+## Решения
+- **Основная лицензия — Apache-2.0 для всего проекта.** Корневой `LICENSE` заменён на
+  Apache-2.0; `NOTICE` (атрибуция jsnes + дисклеймер о правах Bandai Namco);
+  `license: Apache-2.0` во всех `package.json` (включая frontend/qa).
+- **jsnes (Apache-2.0)**: не модифицируется; при распространении сборки сохраняются
+  уведомления — `LICENSE`, `NOTICE`, а также `frontend/public/THIRD_PARTY.txt` (копируется
+  в `dist` и отдаётся сервером `/THIRD_PARTY.txt`).
+- **Дизассемблер**: источник — `cyneprepou4uk/NES-Games-Disassembly` (**без лицензии**),
+  поэтому копия из репо удалена и подключена **sparse-сабмодулем** `vendor/nes-disasm`
+  (только `Battle City`). `rom/disasm/` генерируется (`prepare.mjs`) и в `.gitignore`.
+- **ROM**: не распространяется; патчи только в памяти; `rom/original/` в `.gitignore`
+  (кроме README). Публикация Docker-образов с ROM запрещена (README/THIRD_PARTY).
+- **Товарный знак**: добавлен дисклеймер о неаффилированности с Bandai Namco.
+
+## Проверки
+- `bash scripts/ci.sh`: pass=7 fail=0; online E2E 2/2; Docker собирается, отдаёт
+  `/THIRD_PARTY.txt` (200) и оригинальный ROM (sha1 941ad7ca…).
+- Совместимость зависимостей: все пермиссивные (MIT/Apache-2.0), copyleft нет.
+- Коммит: `licensing: Apache-2.0 everywhere, remove disasm copy (submodule), add NOTICE/disclaimers`.
