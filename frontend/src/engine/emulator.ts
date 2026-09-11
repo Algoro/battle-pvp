@@ -23,6 +23,7 @@ export class EmulatorDriver {
   private audio: any = null; // AudioOutput (устанавливается из App)
   private startStage = 1; // стартовая стадия (1..35)
   private startStars = 0; // стартовые звёзды DEF (0..3)
+  private startPistol = false; // стартовое супер-оружие DEF (аналог 4-й звезды)
   public onFrame?: (frame: number) => void;
 
   // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
@@ -39,6 +40,13 @@ export class EmulatorDriver {
   setStartStars(stars: number) {
     this.startStars = Math.max(0, Math.min(3, Math.floor(stars) || 0));
     this.nes?.setStartStars?.(this.startStars);
+    return this;
+  }
+
+  // Стартовое супер-оружие «пистолет» для DEF (аналог 4-й звезды).
+  setStartPistol(on: boolean) {
+    this.startPistol = !!on;
+    this.nes?.setStartPistol?.(this.startPistol);
     return this;
   }
 
@@ -71,6 +79,7 @@ export class EmulatorDriver {
     this.nes.loadROM(bytes);
     this.nes.setStartStage(this.startStage);
     this.nes.setStartStars(this.startStars);
+    this.nes.setStartPistol(this.startPistol);
     return this;
   }
 
@@ -83,6 +92,7 @@ export class EmulatorDriver {
     this.nes.loadROM(this.romBytes);
     this.nes.setStartStage(this.startStage);
     this.nes.setStartStars(this.startStars);
+    this.nes.setStartPistol(this.startPistol);
     return this;
   }
 

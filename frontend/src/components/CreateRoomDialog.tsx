@@ -19,6 +19,7 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
   const [requireReady, setRequireReady] = useState(false);
   const [stage, setStage] = useState(1);
   const [defStars, setDefStars] = useState(0);
+  const [defPistol, setDefPistol] = useState(false);
 
   return (
     <div className="modal" onClick={onCancel}>
@@ -46,14 +47,14 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
         </label>
         <div className="modal__field">
           <StageSelect emulator={emulator ?? null} stage={stage} onChange={setStage} previewSize={140} />
-          <StarsSelect stars={defStars} onChange={setDefStars} />
+          <StarsSelect stars={defStars} onChange={setDefStars} pistol={defPistol} onPistolChange={setDefPistol} />
         </div>
         <p className="modal__hint">Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».</p>
         <div className="modal__actions">
           <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
           <button
             className="btn btn--primary"
-            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars })}
+            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol })}
           >
             Создать
           </button>

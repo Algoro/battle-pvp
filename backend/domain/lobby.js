@@ -35,6 +35,7 @@ export function normalizeSettings(s = {}) {
     fillBots: s.fillBots !== false,       // пустые слоты добивает ИИ (иначе старт невозможен без людей)
     stage: clampInt(s.stage, 1, 35, 1),   // стартовая стадия (1..35)
     defStars: clampInt(s.defStars, 0, 3, 0), // стартовые звёзды команды DEF (0..3)
+    defPistol: !!s.defPistol,             // стартовое супер-оружие DEF (аналог 4-й звезды)
   };
 }
 

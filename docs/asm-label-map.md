@@ -70,9 +70,30 @@
 | ram_net_enemy_fire | `$01E1` | edge выстрела |
 | ram_net_enemy_respawn | `$01E7` | edge респавна |
 | ram_net_match_state | `$01ED` | состояние матча |
+| ram_pistol | `$01EE` | 2 байта: 1 = DEF-игрок владеет супер-оружием |
+| ram_pistol_ammo | `$01F0` | 2 байта: остаток супер-выстрелов |
+
+Зона `$01DB–$01F7` свободна: `ram_ppu_buffer` (`$0180`) заканчивается на `$01DA`
+(максимальный `ram_buffer_index` = `$5A` по замерам геймплея).
+
+## Призы (bonus)
+
+| id | Метка | Эффект |
+|---|---|---|
+| 0 | ofs_bonus_E9F0_00_helmet | каска |
+| 1 | ofs_bonus_E9F5_01_clock | заморозка |
+| 2 | ofs_bonus_E9FB_02_shovel | укрепление базы |
+| 3 | ofs_bonus_EA07_03_star | апгрейд (4-я звезда = супер-оружие) |
+| 4 | ofs_bonus_EA17_04_grenade | взрыв врагов |
+| 5 | ofs_bonus_EA3E_05_tank | жизнь |
+| 6 | ofs_bonus_EA48_06_RTS → sub_grant_super_weapon | **пистолет** (супер-оружие) |
+
+Графика призов: тайны `0x81 + id*4`; пистолет — `0x99–0x9C`. Таблица выпадения
+`tbl_E8FA_bonus` (`$E8FA`), подбор — `sub_E972_try_to_pick_up_bonus` (`$E972`).
 
 ## Патчи
 
-Хуки строго равного размера (`JMP`/`JSR` + NOP-пады), новый код — в неиспользуемой зоне
-`$EF75–$EFFF`. Дескрипторы и линкер — `emulator-core/patching/` (`patches/pvp.js`).
+Хуки строго равного размера (`JMP`/`JSR` + NOP-пады), новый код — в неиспользуемых зонах
+`$EF75–$EFFF` (pvp) и `$FF50–$FFF9` (pistol). Дескрипторы и линкер —
+`emulator-core/patching/` (`patches/pvp.js`, `patches/pistol.js`).
 Проверка воспроизведения: `node scripts/extract-patches.mjs --check`.

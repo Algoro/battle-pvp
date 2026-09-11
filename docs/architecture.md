@@ -33,8 +33,10 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
   пули (`isBulletFlying`), апгрейд (`starsToUpgrade`). Убирает дубли и «магию» вида `0xa0|dir`.
 - **Enforcement** (`tests/no-magic-addresses.test.js`): запрет сырых RAM/ROM-адресов вне
   `rom-contract/domain/startup` — регрессии «магии» ловятся в CI.
-- **`startup.js`** — декларативный boot/apply API стартовых опций (стадия, звёзды):
-  один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
+- **`startup.js`** — декларативный boot/apply API стартовых опций (стадия, звёзды,
+  супер-оружие `setStartPistol`): один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
+- **`patching/patches/pistol.js`** — приз «пистолет» (выпадение/подбор/4-я звезда/сброс);
+  эффект луча — в JS (`pvp.js`, `_fireRailgun`/`_renderBeamFx`). См. `docs/pistol-powerup-plan.md`.
 - **`io/trace.js`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта);
   `stepFrame` разбит на `_resetNetZone/_readInputs/_applyAttAIDecisions`.
 - **`ai/rollforward.js`** — предсказание будущего на **реальном эмуляторе** (saveState +

@@ -180,7 +180,7 @@ async function handleHttp(req, res, ctx) {
       const r = startMatch(lobby, { rooms: ctx.rooms, store: ctx.store, chat: ctx.chat });
       if (!r.ok) return json(res, 400, { error: r.error });
       ctx.lobbies.remove(lobby.id);
-      return json(res, 200, { matchId: r.room.id, peers: r.peers, stage: r.stage, defStars: r.defStars });
+      return json(res, 200, { matchId: r.room.id, peers: r.peers, stage: r.stage, defStars: r.defStars, defPistol: r.defPistol });
     }
     return json(res, 404, { error: "unknown-action" });
   }

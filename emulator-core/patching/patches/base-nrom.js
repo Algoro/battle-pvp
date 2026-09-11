@@ -29,6 +29,9 @@ export const baseNrom = {
     ram_net_enemy_fire: 0x01e1,
     ram_net_enemy_respawn: 0x01e7,
     ram_net_enemy_state: 0x01ed,
+    // --- супер-оружие «пистолет» (продолжение свободной зоны после net) ---
+    ram_pistol: 0x01ee, // 2 байта: 1 = игрок владеет супер-оружием
+    ram_pistol_ammo: 0x01f0, // 2 байта: остаток супер-выстрелов
     // --- метки оригинального кода ---
     bra_DDE4: 0xdde4,
     bra_DB4F: 0xdb4f,

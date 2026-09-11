@@ -130,7 +130,12 @@ export default function LobbyRoom({
                 onChange={(stage) => onSettings({ stage })}
                 previewSize={140}
               />
-              <StarsSelect stars={lobby.settings.defStars || 0} onChange={(defStars) => onSettings({ defStars })} />
+              <StarsSelect
+                stars={lobby.settings.defStars || 0}
+                onChange={(defStars) => onSettings({ defStars })}
+                pistol={!!lobby.settings.defPistol}
+                onPistolChange={(defPistol) => onSettings({ defPistol })}
+              />
             </div>
           </div>
         )}

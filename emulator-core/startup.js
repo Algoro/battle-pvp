@@ -9,7 +9,7 @@
 //
 // Относительный путь: ./emulator-core/startup.js
 import { RAM, ROM } from "./rom-contract.js";
-import { starsToUpgrade } from "./domain.js";
+import { starsToUpgrade, UPGRADE, PISTOL_SHOTS } from "./domain.js";
 
 export function normalizeStars(n) {
   const v = Math.floor(Number(n) || 0);
@@ -39,6 +39,7 @@ export class StartupInjector {
     this.emu = emu;
     this.stage = null; // 1..35 или null
     this.stars = null; // 0..3 или null
+    this.pistol = null; // true/false или null (супер-оружие на старте)
   }
 
   setStage(stage) {
@@ -53,9 +54,17 @@ export class StartupInjector {
     return this;
   }
 
+  // Стартовое супер-оружие для DEF (аналог «4-й звезды»). true включает,
+  // false/null — выключает (значение применяется на старте партии вместе со звёздами).
+  setPistol(on) {
+    this.pistol = on == null ? null : !!on;
+    this.install();
+    return this;
+  }
+
   // Установить хук (идемпотентно; безопасно вызывать после reset()).
   install() {
-    if (this.stage == null && this.stars == null) return this;
+    if (this.stage == null && this.stars == null && this.pistol == null) return this;
     if (this._installed) return this; // хук уже стоит на текущем CPU
     this._installed = true;
     // REG_PC в этом ядре указывает на опкод+1, поэтому DRAW_STAGE -> DRAW_STAGE+1.
@@ -80,6 +89,18 @@ export class StartupInjector {
       cpu.mem[RAM.TANK_UPGRADE] = up;
       cpu.mem[RAM.TANK_UPGRADE + 1] = up;
       this.stars = null;
+    }
+    if (this.pistol != null) {
+      if (this.pistol) {
+        // «4-я звезда»: максимальный апгрейд + супер-оружие для обоих DEF-танков.
+        cpu.mem[RAM.TANK_UPGRADE] = UPGRADE.MAX;
+        cpu.mem[RAM.TANK_UPGRADE + 1] = UPGRADE.MAX;
+        cpu.mem[RAM.PISTOL] = 1;
+        cpu.mem[RAM.PISTOL + 1] = 1;
+        cpu.mem[RAM.PISTOL_AMMO] = PISTOL_SHOTS;
+        cpu.mem[RAM.PISTOL_AMMO + 1] = PISTOL_SHOTS;
+      }
+      this.pistol = null;
     }
   }
 }

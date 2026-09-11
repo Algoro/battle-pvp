@@ -18,7 +18,7 @@ const ROM = readFileSync(join(__dirname, "..", "..", "rom", "original", "_battle
 
 // Golden-хэш ядра: ROM (original) + патч "pvp" + детерминированный сценарий, ИИ ВЫКЛ.
 // Меняйте только осознанно (изменение ядра/патча/степпинга).
-const GOLDEN_HASH = "34e8ff73";
+const GOLDEN_HASH = "1bb47e2f";
 
 function makeEmu() {
   const emu = new PvPNes({ patchSet: "pvp", attAI: "off", defAI: "off", sampleRate: 0 });

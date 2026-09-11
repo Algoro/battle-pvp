@@ -39,12 +39,20 @@ export const RAM = {
   CLOCK_TIMER: 0x0100, // ram_clock_timer: >0 — враги заморожены
   TANK_UPGRADE: 0x0101, // ram_tank_upgrade (+port), шаги 0x20: 0x00/0x20/0x40/0x60
   FIELD: 0x0400, // буфер поля 32x32 тайлов (0x0400..0x07FF)
+  SFX_BONUS_PICKUP: 0x0306, // ram_sfx_bonus_pickup
+  SFX_EXPLOSION_PLAYER: 0x0307, // ram_sfx_explosion_player
+  SFX_EXPLOSION_ENEMY: 0x030a, // ram_sfx_explosion_enemy
+  SFX_EXPLOSION_HQ: 0x030b, // ram_sfx_explosion_hq
+  SFX_SHOT: 0x030f, // ram_sfx_shot
 
   // сетевая RAM-зона PvP (см. patching/patches/base-nrom.js)
   NET_DIR: 0x01db, // 6 байт: направление ATT (0=Up,1=Left,2=Down,3=Right, FF=нет)
   NET_FIRE: 0x01e1, // 6 байт: edge выстрела
   NET_RESPAWN: 0x01e7, // 6 байт: edge респавна
   NET_STATE: 0x01ed, // 1 байт: состояние матча
+  // супер-оружие «пистолет» (rom-патч pistol, 2 игрока DEF)
+  PISTOL: 0x01ee, // 2 байта: 1 = владеет супер-оружием
+  PISTOL_AMMO: 0x01f0, // 2 байта: остаток супер-выстрелов
 };
 
 export const FIELD_SIZE = 32;

@@ -126,6 +126,10 @@ export function flyingBullet(dir) { return BULLET.FLYING | (dir & 3); }
 // Апгрейд DEF-танка (ram_tank_upgrade): шаги 0x20, максимум 0x60 (3 звезды).
 // ---------------------------------------------------------------------------
 export const UPGRADE = { STEP: 0x20, MAX: 0x60, MAX_STARS: 3 };
+// Супер-оружие «пистолет»: N выстрелов при подборе/старте.
+export const PISTOL_SHOTS = 3;
+// Полуширина луча в тайлах: ширина = 2*HALF+1 (HALF=1 -> 3 тайла).
+export const PISTOL_BEAM_HALF = 1;
 export function starsToUpgrade(stars) {
   const n = Math.max(0, Math.min(UPGRADE.MAX_STARS, Math.floor(Number(stars) || 0)));
   return n * UPGRADE.STEP;
@@ -139,5 +143,5 @@ export default {
   TANK_TYPE, tankHits, tankSpeed, bulletProperty, bulletSpeed,
   TILE, isBrick, isSteel, isWater, isIce, isTree, isEagleTile, tankPassable, isRoad, blocksBullet, brickHealth,
   BULLET, isBulletFlying, bulletDir, flyingBullet,
-  UPGRADE, starsToUpgrade, upgradeToStars,
+  UPGRADE, starsToUpgrade, upgradeToStars, PISTOL_SHOTS, PISTOL_BEAM_HALF,
 };

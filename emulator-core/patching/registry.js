@@ -5,6 +5,7 @@ import { composeSets } from "./descriptor.js";
 import { PatchError, PatchErrorCode } from "./errors.js";
 import { baseNrom } from "./patches/base-nrom.js";
 import { pvp } from "./patches/pvp.js";
+import { pistol } from "./patches/pistol.js";
 
 const SETS = new Map();
 
@@ -26,7 +27,7 @@ export function listPatchSets() {
 }
 
 // Встроенные наборы.
-registerPatchSet("pvp", composeSets(baseNrom, pvp));
+registerPatchSet("pvp", composeSets(baseNrom, pvp, pistol));
 registerPatchSet("base", composeSets(baseNrom));
 
-export { baseNrom, pvp };
+export { baseNrom, pvp, pistol };

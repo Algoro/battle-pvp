@@ -8,7 +8,7 @@ const teamIds = (room) => [...room.teams[TEAM_DEF], ...room.teams[TEAM_ATT]];
 
 /**
  * Создать матч из лобби, записать его в хранилище и очистить чат лобби.
- * @returns {{ok:true, room:object, peers:Array, stage:number, defStars:number}|{ok:false,error:string}}
+ * @returns {{ok:true, room:object, peers:Array, stage:number, defStars:number, defPistol:boolean}|{ok:false,error:string}}
  */
 export function startMatch(lobby, { rooms, store, chat }) {
   const res = startLobbyMatch(lobby, rooms);
@@ -16,7 +16,14 @@ export function startMatch(lobby, { rooms, store, chat }) {
   const { room, peers } = res;
   store.ensureMatch(room.id, teamIds(room));
   if (chat) chat.clear(lobby.id);
-  return { ok: true, room, peers, stage: lobby.settings.stage || 1, defStars: lobby.settings.defStars || 0 };
+  return {
+    ok: true,
+    room,
+    peers,
+    stage: lobby.settings.stage || 1,
+    defStars: lobby.settings.defStars || 0,
+    defPistol: !!lobby.settings.defPistol,
+  };
 }
 
 /** Завершить матч: зафиксировать победителя и записать в хранилище. */

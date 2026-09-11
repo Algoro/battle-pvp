@@ -35,7 +35,7 @@ test("patching: набор 'pvp' на оригинале побайтово во
   const rom = prgOf(ORIG);
   const report = applyPatchSet(rom, "pvp");
   assert.strictEqual(report.fingerprint, prgFingerprintOf(PATCHED), "отпечаток PRG не совпал");
-  assert.strictEqual(report.fingerprint, "94cb0636");
+  assert.strictEqual(report.fingerprint, "d370108f");
   // побайтовое сравнение PRG
   for (let b = 0; b < rom.romCount; b++) {
     for (let i = 0; i < 16384; i++) {

@@ -97,11 +97,12 @@ export class MatchController {
   }
 
   // --- локальная игра ---
-  startSolo(team: Team, stage = 1, stars = 0): void {
+  startSolo(team: Team, stage = 1, stars = 0, pistol = false): void {
     const emu = this.deps.emu();
     if (!emu) return;
     emu.setStartStage(stage);
     emu.setStartStars(stars);
+    emu.setStartPistol?.(pistol);
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     if (team === "ATT") emu.setHumanTank(2);
     if (team === "DEF") emu.setHumanDefTank(0);
@@ -127,6 +128,7 @@ export class MatchController {
       matchId: start.matchId,
       stage: start.stage ?? 1,
       defStars: start.defStars ?? 0,
+      defPistol: !!start.defPistol,
       opps,
       negotiate: () =>
         opps.length > 1 && gateway.negotiateAll
@@ -162,6 +164,7 @@ export class MatchController {
     matchId: string;
     stage: number;
     defStars: number;
+    defPistol?: boolean;
     opps: OnlineOpponent[];
     negotiate: () => Promise<NegotiatedTransport>;
   }): Promise<void> {
@@ -171,6 +174,7 @@ export class MatchController {
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     emu.setStartStage(opts.stage);
     emu.setStartStars(opts.defStars);
+    emu.setStartPistol?.(!!opts.defPistol);
     const mark = (team: Team, port: number) =>
       team === "DEF" ? emu.setHumanDefTank(port) : emu.setHumanTank(port);
     for (const p of opts.myPorts) mark(opts.myTeam, p);

@@ -14,7 +14,7 @@ interface Props {
   onJoinCode: (code: string) => void;
   onCreate: () => void;
   onQuickMatch: () => void;
-  onSolo: (team: "DEF" | "ATT", stage: number, stars: number) => void;
+  onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean) => void;
   chat: ChatMessage[];
   onSendChat: (text: string) => void;
   meId: string;
@@ -30,6 +30,7 @@ export default function LobbyBrowser({
   const [code, setCode] = useState("");
   const [soloStage, setSoloStage] = useState(1);
   const [soloStars, setSoloStars] = useState(0);
+  const [soloPistol, setSoloPistol] = useState(false);
 
   return (
     <div className="lobby">
@@ -51,12 +52,12 @@ export default function LobbyBrowser({
           <div className="browser__bar">
             <button className="btn btn--primary" onClick={onCreate} disabled={busy}>＋ Создать игру</button>
             <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars)} disabled={busy}>Соло 🛡</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars)} disabled={busy}>Соло ⚔</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol)} disabled={busy}>Соло 🛡</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol)} disabled={busy}>Соло ⚔</button>
           </div>
           <div className="browser__stage">
             <StageSelect emulator={emulator ?? null} stage={soloStage} onChange={setSoloStage} previewSize={140} />
-            <StarsSelect stars={soloStars} onChange={setSoloStars} />
+            <StarsSelect stars={soloStars} onChange={setSoloStars} pistol={soloPistol} onPistolChange={setSoloPistol} />
           </div>
 
           <div className="browser__join">
