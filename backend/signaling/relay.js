@@ -382,10 +382,10 @@ export class RelayServer {
       lobby.state = "open";
       return this._send(this.sockets.get(lobby.hostPlayerId), { type: "error", error: res.error });
     }
-    const { room, peers, stage, defStars, defPistol } = res;
+    const { room, peers, stage, defStars, defPistol, features } = res;
     for (const p of lobby.players.values()) this.sockets.set(p.playerId, p.socket || this.sockets.get(p.playerId));
 
-    const payload = { type: "match.start", matchId: room.id, peers, stage, defStars, defPistol };
+    const payload = { type: "match.start", matchId: room.id, peers, stage, defStars, defPistol, features };
     for (const p of lobby.players.values()) this._send(p.socket, payload);
 
     this.lobbies.remove(lobby.id);

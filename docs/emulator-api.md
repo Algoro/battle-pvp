@@ -31,7 +31,8 @@ emu.patching;                        // отчёт применения патч
 | `patching` | Отчёт применения патчей после `loadROM` при `patchSet`: `{ fingerprint, applied, routines }`. |
 | `setStartStage(stage)` | Стартовая стадия партии (1..35), внедряется детерминированно. |
 | `setStartStars(stars)` | Стартовые звёзды команды DEF (0..3) — апгрейд танка (`ram_tank_upgrade`). |
-| `setStartPistol(on)` | Стартовое супер-оружие DEF (аналог 4-й звезды): максимум звёзд + пистолет (`ram_pistol`/`ram_pistol_ammo`). |
+| `setStartPistol(on)` | Стартовое супер-оружие DEF (аналог 4-й звезды): максимум звёзд + пистолет (`ram_pistol`/`ram_pistol_ammo`). No-op без фичи `pistol`. |
+| `setPatchFeatures(features)` | Включённые опциональные фичи-патчи (`["pistol"]`), применяются при следующем `reset()`. См. `docs/optional-patches.md`. |
 | `getStage(stage)` / `getStageBlocks(stage)` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
 | `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |

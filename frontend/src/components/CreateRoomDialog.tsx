@@ -4,6 +4,7 @@ import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
 import type { LobbySettings } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
+import { OPTIONAL_FEATURES } from "../features";
 
 interface Props {
   onCreate: (name: string, settings: LobbySettings) => void;
@@ -20,6 +21,13 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
   const [stage, setStage] = useState(1);
   const [defStars, setDefStars] = useState(0);
   const [defPistol, setDefPistol] = useState(false);
+  const [features, setFeatures] = useState<string[]>([]);
+  const toggleFeature = (id: string) =>
+    setFeatures((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      if (!next.includes("pistol")) setDefPistol(false);
+      return next;
+    });
 
   return (
     <div className="modal" onClick={onCancel}>
@@ -47,14 +55,28 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
         </label>
         <div className="modal__field">
           <StageSelect emulator={emulator ?? null} stage={stage} onChange={setStage} previewSize={140} />
-          <StarsSelect stars={defStars} onChange={setDefStars} pistol={defPistol} onPistolChange={setDefPistol} />
+          <StarsSelect
+            stars={defStars}
+            onChange={setDefStars}
+            pistol={defPistol}
+            onPistolChange={features.includes("pistol") ? setDefPistol : undefined}
+          />
+        </div>
+        <div className="modal__field">
+          <span>Опциональные патчи:</span>
+          {OPTIONAL_FEATURES.map((f) => (
+            <label key={f.id} className="modal__check" title={f.description}>
+              <span>{f.title}</span>
+              <input type="checkbox" checked={features.includes(f.id)} onChange={() => toggleFeature(f.id)} />
+            </label>
+          ))}
         </div>
         <p className="modal__hint">Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».</p>
         <div className="modal__actions">
           <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
           <button
             className="btn btn--primary"
-            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol })}
+            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol, features })}
           >
             Создать
           </button>

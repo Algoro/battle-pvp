@@ -23,6 +23,7 @@ export function startMatch(lobby, { rooms, store, chat }) {
     stage: lobby.settings.stage || 1,
     defStars: lobby.settings.defStars || 0,
     defPistol: !!lobby.settings.defPistol,
+    features: [...(lobby.settings.features || [])],
   };
 }
 

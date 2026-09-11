@@ -35,13 +35,29 @@ test("patching: набор 'pvp' на оригинале побайтово во
   const rom = prgOf(ORIG);
   const report = applyPatchSet(rom, "pvp");
   assert.strictEqual(report.fingerprint, prgFingerprintOf(PATCHED), "отпечаток PRG не совпал");
-  assert.strictEqual(report.fingerprint, "d370108f");
+  assert.strictEqual(report.fingerprint, "94cb0636");
+  assert.deepStrictEqual(report.features, []); // база без опциональных фич
   // побайтовое сравнение PRG
   for (let b = 0; b < rom.romCount; b++) {
     for (let i = 0; i < 16384; i++) {
       assert.strictEqual(rom.rom[b][i], PATCHED[16 + b * 16384 + i], `PRG diff @bank${b}+0x${i.toString(16)}`);
     }
   }
+});
+
+test("patching: опциональные фичи меняют набор и fingerprint; неизвестная фича отвергается", () => {
+  const repCore = applyPatchSet(prgOf(ORIG), "pvp");
+  const repPistol = applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["pistol"] });
+  assert.deepStrictEqual(repPistol.features, ["pistol"]);
+  assert.notStrictEqual(repPistol.fingerprint, repCore.fingerprint, "fingerprint должен зависеть от фич");
+  // канонизация: порядок/дубли не влияют
+  const repAgain = applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["pistol", "pistol"] });
+  assert.strictEqual(repAgain.fingerprint, repPistol.fingerprint);
+  // неизвестная фича
+  assert.throws(
+    () => applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["nope"] }),
+    (e) => e instanceof PatchError && e.code === "PATCH_BAD_SET",
+  );
 });
 
 test("patching: неверная база отвергается (BASE_MISMATCH)", () => {

@@ -11,6 +11,7 @@
 // Относительный путь: ./backend/domain/lobby.js
 import { TEAM_DEF, TEAM_ATT, normalizeTeam } from "./teams.js";
 import { systemClock } from "./clock.js";
+import { normalizeFeatures } from "./features.js";
 
 export const DEFAULT_LOBBY_TTL_MS = 10 * 60 * 1000; // 10 минут простоя
 export const MIN_DEF_SLOTS = 1;
@@ -36,6 +37,7 @@ export function normalizeSettings(s = {}) {
     stage: clampInt(s.stage, 1, 35, 1),   // стартовая стадия (1..35)
     defStars: clampInt(s.defStars, 0, 3, 0), // стартовые звёзды команды DEF (0..3)
     defPistol: !!s.defPistol,             // стартовое супер-оружие DEF (аналог 4-й звезды)
+    features: normalizeFeatures(s.features), // включённые опциональные фичи-патчи
   };
 }
 

@@ -244,7 +244,7 @@ export default function App() {
           onJoin={L.actions.join}
           onJoinCode={L.actions.joinCode}
           onQuickMatch={() => startQuickMatch("DEF")}
-          onSolo={(team, stage, stars, pistol) => match.controller.startSolo(team, stage, stars, pistol)}
+          onSolo={(team, stage, stars, pistol, features) => match.controller.startSolo(team, stage, stars, pistol, features)}
           chat={L.globalChat}
           onSendChat={L.actions.sendGlobalChat}
         />

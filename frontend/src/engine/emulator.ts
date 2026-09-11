@@ -24,6 +24,7 @@ export class EmulatorDriver {
   private startStage = 1; // стартовая стадия (1..35)
   private startStars = 0; // стартовые звёзды DEF (0..3)
   private startPistol = false; // стартовое супер-оружие DEF (аналог 4-й звезды)
+  private patchFeatures: string[] = []; // включённые опциональные фичи (pistol, ...)
   public onFrame?: (frame: number) => void;
 
   // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
@@ -50,6 +51,14 @@ export class EmulatorDriver {
     return this;
   }
 
+  // Включённые опциональные фичи (канонизируются). Применяются при следующем reset()/loadROM.
+  setPatchFeatures(features: string[]) {
+    this.patchFeatures = [...new Set((features || []).map(String).filter(Boolean))].sort();
+    return this;
+  }
+
+  getPatchFeatures(): string[] { return [...this.patchFeatures]; }
+
   getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
   getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }
   // Пиксели CHR-тайла ФОНА (64 значения 0..3). В Battle City BG pattern table — $1000
@@ -62,6 +71,7 @@ export class EmulatorDriver {
   private coreConfig(): any {
     return {
       ...this.aiConfig,
+      features: this.patchFeatures,
       onAudioSampleGroup: (group: "music" | "sfx", l: number, r: number) => this.audio?.pushGroup(group, l, r),
     };
   }

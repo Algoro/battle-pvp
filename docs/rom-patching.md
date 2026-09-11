@@ -16,16 +16,18 @@ createMapper().loadROM()  → cpu.mem  → исполнение
 
 ## Что меняется
 
-Набор `pvp` = база + модуль `pvp` + модуль `pistol`:
+Базовый набор `pvp` = база + модуль `pvp` (сетевой PvP). Игровые патчи — **опциональные
+фичи** (`features: ["pistol"]`, см. `docs/optional-patches.md`): собираются поверх базы,
+fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+pistol` = `d370108f`.
 
-**Модуль `pvp`** (сетевой PvP):
+**Модуль `pvp` (база, сетевой PvP):**
 - **6 хуков равного размера** (JMP/JSR + NOP-пады), чтобы адреса оригинального кода не сдвигались:
   PRNG `$D45A`, спавн `$DB48`, направление `$DDD4`, цель `$DE72`, поворот `$DE84`, огонь `$E171`;
 - **6 новых рутин** в неиспользуемой зоне `$EF75–$EFF6` (была заполнена `$FF`):
   сетевой ввод ATT, per-player респавн и обёртки;
 - **сетевой RAM-зоны** `$01DB–$01ED` (`ram_net_enemy_dir/fire/respawn/state`).
 
-**Модуль `pistol`** (приз «пистолет»; правила получения в ROM):
+**Фича `pistol`** (опционально; приз «пистолет», правила получения в ROM):
 - **выпадение** `tbl_E8FA_bonus[6]`: `$04` → `$06` (приз реально появляется);
 - **подбор** `tbl_E9E2_bonus_pickup_handler[6]`: `$EA48` (`RTS`) → `sub_grant_super_weapon`;
 - **4-я звезда** (хук `$EA07`) → `sub_star_pickup`: при `upgrade == 0x60` выдаёт супер-оружие;
@@ -33,9 +35,11 @@ createMapper().loadROM()  → cpu.mem  → исполнение
 - **RAM** `$01EE` (`ram_pistol`) / `$01F0` (`ram_pistol_ammo`), рутины в `$FF50–$FFF9`.
 - Сам **эффект луча** (hitscan: уничтожение тайлов, танков, пуль, базы) исполняет
   JS-ядро `PvPNes` (фаза 3 плана): правила получения — в ROM, эффект — детерминированно
-  в `stepFrame`, состояние в RAM → rollback-safe. См. `docs/pistol-powerup-plan.md`.
+  в `stepFrame`, состояние в RAM → rollback-safe. См. `docs/pistol-powerup-plan.md`
+  и `docs/optional-patches.md`.
 
-Полный разбор — `docs/asm-label-map.md`; отпечаток пропатченного PRG — `d370108f`.
+Полный разбор — `docs/asm-label-map.md`. Отпечатки: база `pvp` — `94cb0636`,
+`pvp+pistol` — `d370108f`.
 
 ## Модуль `emulator-core/patching/`
 
@@ -49,7 +53,7 @@ createMapper().loadROM()  → cpu.mem  → исполнение
 | `patches/base-nrom.js` | база (mapper0, 1×16 КБ, FNV PRG `b8a818c1`, sha1 ROM) + символы + свободная зона |
 | `patches/pvp.js` | сетевые патчи (рутины токенами + хуки) |
 | `patches/pistol.js` | приз «пистолет»: выпадение/подбор/4-я звезда/сброс |
-| `registry.js` | именованные наборы (`pvp` = base+pvp+pistol, `base`) |
+| `registry.js` | именованные наборы (`pvp` = base+pvp, `base`) + реестр опциональных фич |
 
 ## Инварианты и защита
 

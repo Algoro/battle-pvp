@@ -14,7 +14,7 @@ const ROM = readFileSync(join(__dirname, "..", "..", "rom", "original", "_battle
 
 // Быстрый старт: автозапуск и ожидание живого DEF-танка 0.
 function boot() {
-  const emu = new PvPNes({ patchSet: "pvp", attAI: "off", defAI: "off" });
+  const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"], attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
   for (let f = 1; f <= 1500; f++) {
     emu.stepFrame([{ port: 0, buttons: f % 30 === 0 ? BTN.Start : 0 }]);
@@ -31,7 +31,7 @@ function boot() {
 const idle = (emu, n = 1) => { for (let i = 0; i < n; i++) emu.stepFrame([{ port: 0, buttons: 0 }]); };
 
 test("пistol: приз id 6 выпадает (таблица tbl_E8FA_bonus изменена)", () => {
-  const emu = new PvPNes({ patchSet: "pvp" });
+  const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"] });
   emu.loadROM(ROM);
   // tbl_E8FA_bonus[6] в CPU-адресе 0xE900 (банк $C000)
   assert.strictEqual(emu.cpu.mem[0xe900], 0x06, "шестая запись таблицы должна быть пистолетом");
@@ -160,7 +160,7 @@ test("пistol: save/load вокруг выстрела эквивалентен 
   const inputsAt = (i) => [{ port: 0, buttons: i === 0 ? BTN.A : (i % 7 === 0 ? BTN.Up : 0) }];
   const N = 40;
 
-  const a = new PvPNes({ patchSet: "pvp" });
+  const a = new PvPNes({ patchSet: "pvp", features: ["pistol"] });
   a.loadROM(ROM);
   a.loadState(start);
   const hashesA = [];
@@ -171,7 +171,7 @@ test("пistol: save/load вокруг выстрела эквивалентен 
     if (i === 10) snapMid = a.saveState();
   }
 
-  const b = new PvPNes({ patchSet: "pvp" });
+  const b = new PvPNes({ patchSet: "pvp", features: ["pistol"] });
   b.loadROM(ROM);
   b.loadState(start);
   const hashesB = [];
@@ -212,7 +212,7 @@ test("pistol: на разрушенных клетках рисуется ани
 });
 
 test("pistol: стартовая опция setStartPistol выдаёт оружие и максимум звёзд", () => {
-  const emu = new PvPNes({ patchSet: "pvp", attAI: "off", defAI: "off" });
+  const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"], attAI: "off", defAI: "off" });
   emu.setStartPistol(true);
   emu.loadROM(ROM);
   for (let f = 1; f <= 1500; f++) {
@@ -225,7 +225,7 @@ test("pistol: стартовая опция setStartPistol выдаёт оруж
 });
 
 test("pistol: без опции старта оружия нет", () => {
-  const emu = new PvPNes({ patchSet: "pvp", attAI: "off", defAI: "off" });
+  const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"], attAI: "off", defAI: "off" });
   emu.setStartPistol(false);
   emu.loadROM(ROM);
   for (let f = 1; f <= 1500; f++) {

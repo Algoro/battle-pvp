@@ -97,12 +97,14 @@ export class MatchController {
   }
 
   // --- локальная игра ---
-  startSolo(team: Team, stage = 1, stars = 0, pistol = false): void {
+  startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = []): void {
     const emu = this.deps.emu();
     if (!emu) return;
+    const feats = [...features];
+    emu.setPatchFeatures?.(feats);
     emu.setStartStage(stage);
     emu.setStartStars(stars);
-    emu.setStartPistol?.(pistol);
+    emu.setStartPistol?.(pistol && feats.includes("pistol"));
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     if (team === "ATT") emu.setHumanTank(2);
     if (team === "DEF") emu.setHumanDefTank(0);
@@ -129,6 +131,7 @@ export class MatchController {
       stage: start.stage ?? 1,
       defStars: start.defStars ?? 0,
       defPistol: !!start.defPistol,
+      features: start.features ?? [],
       opps,
       negotiate: () =>
         opps.length > 1 && gateway.negotiateAll
@@ -165,16 +168,19 @@ export class MatchController {
     stage: number;
     defStars: number;
     defPistol?: boolean;
+    features?: string[];
     opps: OnlineOpponent[];
     negotiate: () => Promise<NegotiatedTransport>;
   }): Promise<void> {
     const emu = this.deps.emu();
     if (!emu) throw new Error("эмулятор не загружен");
 
+    const feats = [...(opts.features || [])];
+    emu.setPatchFeatures?.(feats);
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     emu.setStartStage(opts.stage);
     emu.setStartStars(opts.defStars);
-    emu.setStartPistol?.(!!opts.defPistol);
+    emu.setStartPistol?.(!!opts.defPistol && feats.includes("pistol"));
     const mark = (team: Team, port: number) =>
       team === "DEF" ? emu.setHumanDefTank(port) : emu.setHumanTank(port);
     for (const p of opts.myPorts) mark(opts.myTeam, p);
@@ -338,6 +344,12 @@ export class MatchController {
   // Возврат в лобби без перезагрузки страницы.
   clear(): void {
     this.lobbyGateway()?.clearMatchContext?.();
+    // Вернуть базовый набор патчей (сеть/fingerprint) и пересоздать ядро.
+    const emu = this.deps.emu();
+    if (emu) {
+      emu.setPatchFeatures?.([]);
+      emu.reset?.({ attAI: "lookahead", defAI: "plan", defMode: "active" });
+    }
     this.clearRuntime();
     this.deps.onPaused(false);
     this.deps.onWinner(null);

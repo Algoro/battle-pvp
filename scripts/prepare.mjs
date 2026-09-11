@@ -26,7 +26,7 @@ const ORIG = join(root, "rom", "original", "_battle_city.nes");
 const PATCHED = join(root, "rom", "disasm", "_battle_city.nes");
 const FRONT_ROM = join(root, "frontend", "public", "rom", "battle_city.nes");
 const ORIG_SHA1 = "941ad7ca825e3f86407472113aad00520cb45783";
-const PRG_FNV = "d370108f";
+const PRG_FNV = "94cb0636";
 
 function walk(dir, base = dir) {
   const out = [];

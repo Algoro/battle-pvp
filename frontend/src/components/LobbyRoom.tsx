@@ -4,6 +4,7 @@ import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
+import { OPTIONAL_FEATURES } from "../features";
 import type { ChatMessage, LobbyState, LobbySettings, Team } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
 
@@ -134,8 +135,28 @@ export default function LobbyRoom({
                 stars={lobby.settings.defStars || 0}
                 onChange={(defStars) => onSettings({ defStars })}
                 pistol={!!lobby.settings.defPistol}
-                onPistolChange={(defPistol) => onSettings({ defPistol })}
+                onPistolChange={
+                  (lobby.settings.features || []).includes("pistol")
+                    ? (defPistol) => onSettings({ defPistol })
+                    : undefined
+                }
               />
+            </div>
+            <div className="room__features">
+              <span className="room__settings-label">Патчи:</span>
+              {OPTIONAL_FEATURES.map((f) => (
+                <label key={f.id} className="room__toggle" title={f.description}>
+                  <input
+                    type="checkbox"
+                    checked={(lobby.settings.features || []).includes(f.id)}
+                    onChange={(e) => {
+                      const cur = lobby.settings.features || [];
+                      const next = e.target.checked ? [...cur, f.id] : cur.filter((x) => x !== f.id);
+                      onSettings({ features: next, ...(next.includes("pistol") ? {} : { defPistol: false }) });
+                    }}
+                  /> {f.title}
+                </label>
+              ))}
             </div>
           </div>
         )}

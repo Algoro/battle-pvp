@@ -6,6 +6,7 @@ import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
 import type { ChatMessage, LobbyState } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
+import { OPTIONAL_FEATURES } from "../features";
 
 interface Props {
   lobbies: LobbyState[];
@@ -14,7 +15,7 @@ interface Props {
   onJoinCode: (code: string) => void;
   onCreate: () => void;
   onQuickMatch: () => void;
-  onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean) => void;
+  onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean, features: string[]) => void;
   chat: ChatMessage[];
   onSendChat: (text: string) => void;
   meId: string;
@@ -31,6 +32,7 @@ export default function LobbyBrowser({
   const [soloStage, setSoloStage] = useState(1);
   const [soloStars, setSoloStars] = useState(0);
   const [soloPistol, setSoloPistol] = useState(false);
+  const [soloFeatures, setSoloFeatures] = useState<string[]>([]);
 
   return (
     <div className="lobby">
@@ -52,12 +54,34 @@ export default function LobbyBrowser({
           <div className="browser__bar">
             <button className="btn btn--primary" onClick={onCreate} disabled={busy}>＋ Создать игру</button>
             <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol)} disabled={busy}>Соло 🛡</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol)} disabled={busy}>Соло ⚔</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло 🛡</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло ⚔</button>
           </div>
           <div className="browser__stage">
             <StageSelect emulator={emulator ?? null} stage={soloStage} onChange={setSoloStage} previewSize={140} />
-            <StarsSelect stars={soloStars} onChange={setSoloStars} pistol={soloPistol} onPistolChange={setSoloPistol} />
+            <StarsSelect
+              stars={soloStars}
+              onChange={setSoloStars}
+              pistol={soloPistol}
+              onPistolChange={soloFeatures.includes("pistol") ? setSoloPistol : undefined}
+            />
+            <div className="browser__features">
+              {OPTIONAL_FEATURES.map((f) => (
+                <label key={f.id} className="browser__feature" title={f.description}>
+                  <input
+                    type="checkbox"
+                    checked={soloFeatures.includes(f.id)}
+                    onChange={() => {
+                      setSoloFeatures((prev) => {
+                        const next = prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id];
+                        if (!next.includes("pistol")) setSoloPistol(false);
+                        return next;
+                      });
+                    }}
+                  /> {f.title}
+                </label>
+              ))}
+            </div>
           </div>
 
           <div className="browser__join">

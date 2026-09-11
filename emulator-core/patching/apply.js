@@ -21,7 +21,7 @@ import { resolvePatchSet } from "./registry.js";
  * @param {object|string} setOrName — дескриптор набора или его имя ("pvp")
  */
 export function applyPatchSet(loadedRom, setOrName) {
-  const set = typeof setOrName === "string" ? resolvePatchSet(setOrName) : setOrName;
+  const set = resolvePatchSet(setOrName);
   validateSet(set);
 
   const image = new RomImage(loadedRom);
@@ -78,6 +78,7 @@ export function applyPatchSet(loadedRom, setOrName) {
   return {
     setId: set.id,
     version: set.version || 1,
+    features: set.features || [],
     fingerprint: image.fingerprint(),
     applied,
     routines: linker.used.map((u) => ({ ...u })),

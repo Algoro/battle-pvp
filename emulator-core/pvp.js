@@ -17,6 +17,7 @@ import ROM from "./src/rom.js";
 import BattleCityPPU from "./ppu-ext.js";
 import BattleCityPAPU from "./papu-ext.js";
 import { applyPatchSet } from "./patching/apply.js";
+import { canonicalFeatures } from "./patching/registry.js";
 import { encodeState, decodeState } from "./io/state-codec.js";
 import { readStage, readStageBlocks, STAGE_COUNT, normalizeStage } from "./io/stage-data.js";
 import { stepTank, runtimePassable, DX as TANK_DX, DY as TANK_DY } from "./io/tank-driver.js";
@@ -141,6 +142,8 @@ class PvPNes extends NES {
     // совпадали. value: число (фикс.) или массив (цикл). null — выключено.
     this._rngInjection = null;
     this._rngIdx = 0;
+    // Включённые опциональные фичи (канонизированный список). См. patching/registry.js.
+    this._features = canonicalFeatures(opts?.features || []);
     // Мозг защитников: "plan" — planDefense (по умолчанию), "scan" / "lookahead" —
     // те же движки, что и у атакующих, но с ролью "def".
     this._defAI = opts?.defAI ?? "plan";
@@ -161,7 +164,12 @@ class PvPNes extends NES {
     }
     this.patching = null;
     if (this.opts.patchSet) {
-      this.patching = applyPatchSet(this.rom, this.opts.patchSet);
+      const spec =
+        this.opts.patchSet && typeof this.opts.patchSet === "object" && this.opts.patchSet.base !== undefined
+          ? this.opts.patchSet
+          : { base: this.opts.patchSet, features: this.opts.features || [] };
+      this.patching = applyPatchSet(this.rom, spec);
+      this._features = this.patching.features || this._features;
     }
     this.reset();
     this.mmap = this.rom.createMapper();
@@ -177,6 +185,16 @@ class PvPNes extends NES {
     this.ppu = new BattleCityPPU(this);
     this.papu = new BattleCityPAPU(this);
     this._startup?.reinstall();
+  }
+
+  /** Включена ли опциональная фича. */
+  hasFeature(id) {
+    return this._features.includes(id);
+  }
+
+  /** Канонический список включённых фич. */
+  getFeatures() {
+    return [...this._features];
   }
 
   // Гейт аудио: true — onAudioSample не вызывается (переигровка при откате/resync).
@@ -203,8 +221,9 @@ class PvPNes extends NES {
   }
 
   // Стартовое супер-оружие «пистолет» для DEF (аналог 4-й звезды). См. startup.js.
+  // No-op, если фича «pistol» не включена.
   setStartPistol(on) {
-    this._startup.setPistol(on);
+    if (this.hasFeature("pistol")) this._startup.setPistol(on);
     return this;
   }
 
@@ -500,6 +519,7 @@ for (const t of this.humanTanks) {
 
   // После кадра: если игрок DEF с супер-оружием нажал огонь — исполнить луч.
   _applyPistolPostFrame(mem) {
+    if (!this.hasFeature("pistol")) return; // фича выключена — луч недоступен
     if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
     const stage = mem[RAM.STAGE];
     if (stage < 1 || stage > 35) return;
