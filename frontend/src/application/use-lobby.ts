@@ -3,7 +3,7 @@
 // Внешние события (матч, реконнект, spectator) отдаются через getHandlers() — так хук
 // не зависит от порядка определения функций в App и не держит устаревшие замыкания.
 import { useEffect, useRef, useState } from "react";
-import LobbyClient, { LobbyState, ChatMessage, LobbySettings } from "./lobby-client";
+import LobbyClient, { LobbyState, ChatMessage, LobbySettings } from "../engine/lobby-client";
 
 export interface LobbyHandlers {
   onMatchStart: (lc: LobbyClient, m: any) => void;

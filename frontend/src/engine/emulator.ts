@@ -2,14 +2,13 @@
 // Импортирует детерминированное PvP-ядро (./emulator-core/pvp.js). Тип — any
 // (JS-ядро без деклараций); API стабильно и покрыто тестами в emulator-core.
 import PvPNes from "../../emulator-core/pvp.js";
+import type { FrameInput } from "../ports";
+
+// FrameInput — доменный тип ввода: единое определение в ports.ts, ре-экспорт для совместимости.
+export type { FrameInput };
 
 export const SCREEN_W = 256;
 export const SCREEN_H = 240;
-
-export interface FrameInput {
-  port: number;
-  buttons: number;
-}
 
 // Обёртка над PvPNes для браузера.
 export class EmulatorDriver {

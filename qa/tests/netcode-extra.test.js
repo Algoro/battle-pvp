@@ -5,8 +5,8 @@ import assert from "node:assert";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import runSync from "../sync-mode.js";
-import { RoomManager, TEAM_DEF, TEAM_ATT } from "../../backend/matchmaking/rooms.js";
-import { Matchmaker } from "../../backend/matchmaking/matchmaker.js";
+import { RoomManager, TEAM_DEF, TEAM_ATT } from "../../backend/domain/room.js";
+import { Matchmaker } from "../../backend/domain/matchmaker.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = join(__dirname, "..", "..", "rom", "disasm", "_battle_city.nes");

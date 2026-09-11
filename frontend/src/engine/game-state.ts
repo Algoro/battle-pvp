@@ -2,12 +2,10 @@
 // Без DOM/React/эмулятора: принимает значения из RAM и возвращает решения.
 // Единый источник истины для фронта (GameCanvas) и тестов (qa, unit).
 // Относительный путь: ./frontend/src/engine/game-state.ts
-export type Team = "DEF" | "ATT";
+import type { FrameInput, Team } from "../ports";
 
-export interface FrameInput {
-  port: number;
-  buttons: number;
-}
+// Team/FrameInput — доменные типы: единое определение в ports.ts, ре-экспорт для совместимости.
+export type { FrameInput, Team };
 
 // con_btn Start (совпадает с ROM).
 export const BTN_START = 0x08;

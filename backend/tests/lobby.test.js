@@ -2,10 +2,11 @@
 // Запуск: node --test tests/lobby.test.js
 import { test } from "node:test";
 import assert from "node:assert";
-import { Lobby, LobbyManager, normalizeSettings } from "../lobby/lobby.js";
-import { ChatManager } from "../lobby/chat.js";
+import { Lobby, LobbyManager, normalizeSettings } from "../domain/lobby.js";
+import { ChatManager } from "../domain/chat.js";
 import { Store } from "../persistence/store.js";
-import { TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
+import { SqliteChatRepository } from "../persistence/chat-repository.js";
+import { TEAM_DEF, TEAM_ATT } from "../domain/room.js";
 import { createApp } from "../server.js";
 import { WebSocket } from "ws";
 
@@ -175,7 +176,7 @@ test("интеграция WS: subscribe -> create -> join -> ready -> chat -> s
 }, { timeout: 15000 });
 
 test("Room: лимиты по командам — DEF максимум 2, ATT до 6", async () => {
-  const { Room } = await import("../matchmaking/rooms.js");
+  const { Room } = await import("../domain/room.js");
   const room = new Room();
   for (let i = 0; i < 2; i++) assert.strictEqual(room.join("d" + i, TEAM_DEF, null, null).ok, true);
   assert.strictEqual(room.join("d2", TEAM_DEF, null, null).ok, false, "3-й DEF не должен влезать");
@@ -208,14 +209,15 @@ test("Lobby: shouldAutoStart — полное лобби + все ready", () => 
   assert.strictEqual(lobby.shouldAutoStart(), true);
 });
 
-test("ChatManager: история чата персистится в SQLite", () => {
+test("ChatManager: история чата персистится через порт ChatRepository (SQLite)", () => {
   const store = new Store(":memory:");
-  const cm = new ChatManager({ store });
+  const repository = new SqliteChatRepository(store);
+  const cm = new ChatManager({ repository });
   cm.send("global", null, { playerId: "p1", name: "P1", text: "привет", ts: 1 });
   cm.send("match", "m1", { playerId: "p2", name: "P2", text: "в бой", ts: 2 });
 
   // новый менеджер (пустая память) читает историю из БД
-  const cm2 = new ChatManager({ store });
+  const cm2 = new ChatManager({ repository });
   const g = cm2.getHistory("global", null);
   assert.strictEqual(g.length, 1);
   assert.strictEqual(g[0].text, "привет");
@@ -262,7 +264,7 @@ test("интеграция WS: авто-старт при полном лобб�
 }, { timeout: 15000 });
 
 test("Room.join: некорректная команда/playerId не роняет и не добавляет", async () => {
-  const { Room } = await import("../matchmaking/rooms.js");
+  const { Room } = await import("../domain/room.js");
   const room = new Room();
   assert.strictEqual(room.join("x", "HACK", null, null).ok, false);
   assert.strictEqual(room.join("x", undefined, null, null).ok, false);
@@ -271,8 +273,8 @@ test("Room.join: некорректная команда/playerId не роня�
 });
 
 test("cartridgeFingerprint: лобби не стартует при разных наборах патчей", async () => {
-  const { startLobbyMatch } = await import("../lobby/lobby.js");
-  const { RoomManager } = await import("../matchmaking/rooms.js");
+  const { startLobbyMatch } = await import("../domain/lobby.js");
+  const { RoomManager } = await import("../domain/room.js");
   const lobby = new Lobby({ hostPlayerId: "h", settings: { defSlots: 1, attSlots: 1 } });
   lobby.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null, fingerprint: "aaaa" });
   lobby.join({ playerId: "a", name: "A", team: TEAM_ATT, sessionId: null, socket: null, fingerprint: "bbbb" });
@@ -292,8 +294,8 @@ test("cartridgeFingerprint: лобби не стартует при разных
 });
 
 test("matchmaker: пары только с одинаковым отпечатком картриджа", async () => {
-  const { Matchmaker } = await import("../matchmaking/matchmaker.js");
-  const { RoomManager } = await import("../matchmaking/rooms.js");
+  const { Matchmaker } = await import("../domain/matchmaker.js");
+  const { RoomManager } = await import("../domain/room.js");
   const mm = new Matchmaker(new RoomManager());
   assert.strictEqual(mm.add("d1", TEAM_DEF, null, "A").queued, true);
   assert.strictEqual(mm.add("a1", TEAM_ATT, null, "B").queued, true, "разные картриджи не спариваются");
@@ -331,3 +333,19 @@ test("интеграция WS: выбранная стадия передаёт�
   await new Promise((r) => setTimeout(r, 50));
   await app.close();
 }, { timeout: 15000 });
+
+test("Lobby.join: без явного team игрок идёт в ATT (регрессия DEF-full)", () => {
+  // DEF-слот занят хостом; игрок без team должен попасть в ATT, а не быть отклонён.
+  const lobby = new Lobby({ hostPlayerId: "h", settings: { defSlots: 1, attSlots: 1 } });
+  lobby.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null });
+  const r = lobby.join({ playerId: "a", name: "A", sessionId: null, socket: null });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.team, TEAM_ATT);
+  assert.strictEqual(r.port, 2);
+
+  // setTeam с некорректным значением также уводит в ATT (историческое правило).
+  const s = lobby.setTeam("a", undefined);
+  assert.strictEqual(s.ok, true);
+  assert.strictEqual(s.team, TEAM_ATT);
+  assert.strictEqual(lobby.setTeam("h", "HACK").ok, false, "хост не может в переполненный ATT");
+});

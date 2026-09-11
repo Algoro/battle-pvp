@@ -4,8 +4,10 @@ import { RollbackSession } from "../../netcode/rollback/session.js";
 import { RelayTransport } from "../../netcode/transport/relay.js";
 import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
 import { getIceServers } from "./ice";
+import type { Team } from "../ports";
 
-export type Team = "DEF" | "ATT";
+// Тим — доменный тип: единое определение в ports.ts, здесь ре-экспорт для компонентов.
+export type { Team };
 
 export interface MatchInfo {
   matchId: string;
@@ -105,7 +107,8 @@ export class NetClient {
     }
   }
 
-  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], extra: any = {}, onEvent?: (e: any) => void): any {
+  // Сигнатура согласована с LobbyClient/MatchGateway: onEvent идёт до extra.
+  createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], onEvent?: (e: any) => void, extra: any = {}): any {
     return new RollbackSession({
       game: emu,
       transport,

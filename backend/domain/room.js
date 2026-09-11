@@ -1,30 +1,33 @@
-// rooms.js — лобби/комнаты: 2 команды (DEF 1-2, ATT 1-2), TTL, реконнект.
-// Правила симметричные: разница только в спавн-позициях (см. reports).
+// room.js — матч-комната: 2 команды (DEF 1-2, ATT 1-6), TTL, реконнект, spectator.
+// Домен: не знает о транспорте/БД/фреймворках (сокеты хранятся как непрозрачные ссылки).
 //
-// Относительный путь: ./backend/matchmaking/rooms.js
+// Относительный путь: ./backend/domain/room.js
+import { TEAM_DEF, TEAM_ATT, MAX_TEAM_SIZE, isTeam } from "./teams.js";
+import { systemClock } from "./clock.js";
 
-export const TEAM_DEF = "DEF";
-export const TEAM_ATT = "ATT";
-export const MAX_PER_TEAM = 2; // совместимость (DEF-лимит)
-// Движок: DEF-танки 0,1 (2 слота), ATT — порты 2..7 (до 6 слотов).
-export const MAX_TEAM_SIZE = { [TEAM_DEF]: 2, [TEAM_ATT]: 6 };
+export { TEAM_DEF, TEAM_ATT, MAX_TEAM_SIZE };
 export const DEFAULT_ROOM_TTL_MS = 5 * 60 * 1000; // 5 минут простоя
 export const RECONNECT_WINDOW_MS = 30 * 1000; // 30 сек на реконнект
 
 let counter = 0;
 
 export class Room {
-  constructor(ttlMs = DEFAULT_ROOM_TTL_MS) {
-    this.id = `m_${(counter++).toString(36)}_${Date.now().toString(36)}`;
+  constructor(ttlMs = DEFAULT_ROOM_TTL_MS, clock = systemClock) {
+    this.clock = clock;
+    this.id = `m_${(counter++).toString(36)}_${this.now().toString(36)}`;
     this.ttlMs = ttlMs;
     this.state = "lobby"; // lobby | playing | finished
     this.teams = { [TEAM_DEF]: [], [TEAM_ATT]: [] }; // [{playerId, sessionId, socket}]
     this.players = new Map(); // playerId -> {team, sessionId, socket, disconnectedAt}
     this.spectators = new Map(); // playerId -> {playerId, socket, joinedAt}
     this.cartridgeFingerprint = null; // отпечаток пропатченного PRG (netcode-инвариант)
-    this.createdAt = Date.now();
-    this.lastActive = Date.now();
+    this.createdAt = this.now();
+    this.lastActive = this.now();
     this.winner = null;
+  }
+
+  now() {
+    return this.clock.now();
   }
 
   get playerCount() {
@@ -40,23 +43,23 @@ export class Room {
   }
 
   join(playerId, team, sessionId, socket) {
-    if (team !== TEAM_DEF && team !== TEAM_ATT) return { ok: false, error: "bad-team" };
+    if (!isTeam(team)) return { ok: false, error: "bad-team" };
     if (!playerId) return { ok: false, error: "playerId required" };
     // реконнект: игрок уже в комнате
     if (this.players.has(playerId)) {
       const p = this.players.get(playerId);
       p.socket = socket;
       p.disconnectedAt = null;
-      this.lastActive = Date.now();
+      this.lastActive = this.now();
       return { ok: true, reconnected: true, room: this, port: this.portFor(playerId) };
     }
-    if (this.teams[team].length >= (MAX_TEAM_SIZE[team] ?? MAX_PER_TEAM)) {
+    if (this.teams[team].length >= MAX_TEAM_SIZE[team]) {
       return { ok: false, error: `team ${team} full` };
     }
     const entry = { playerId, sessionId, team, socket, disconnectedAt: null };
     this.teams[team].push(entry);
     this.players.set(playerId, entry);
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return { ok: true, reconnected: false, room: this, port: this.portFor(playerId) };
   }
 
@@ -65,20 +68,20 @@ export class Room {
     if (!p) return;
     this.teams[p.team] = this.teams[p.team].filter((x) => x.playerId !== playerId);
     this.players.delete(playerId);
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
   }
 
   // Пометить игрока отключённым (ожидание реконнекта).
   disconnect(playerId) {
     const p = this.players.get(playerId);
-    if (p) p.disconnectedAt = Date.now();
+    if (p) p.disconnectedAt = this.now();
   }
 
   // Наблюдатель (spectator): не занимает слот, не участвует во вводе.
   spectate(playerId, socket) {
     if (!playerId) return { ok: false, error: "playerId required" };
-    this.spectators.set(playerId, { playerId, socket, joinedAt: Date.now() });
-    this.lastActive = Date.now();
+    this.spectators.set(playerId, { playerId, socket, joinedAt: this.now() });
+    this.lastActive = this.now();
     return { ok: true };
   }
 
@@ -105,7 +108,7 @@ export class Room {
   start(force = false) {
     if (this.state === "lobby" && (force || this.playerCount >= 2)) {
       this.state = "playing";
-      this.lastActive = Date.now();
+      this.lastActive = this.now();
       return true;
     }
     return false;
@@ -114,23 +117,28 @@ export class Room {
   finish(winnerTeam) {
     this.state = "finished";
     this.winner = winnerTeam;
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
   }
 
   // Активна ли комната (не завершена и не истёк TTL).
-  isActive(now = Date.now()) {
+  isActive(now = this.now()) {
     return this.state !== "finished" && now - this.lastActive < this.ttlMs;
   }
 }
 
 export class RoomManager {
-  constructor({ ttlMs = DEFAULT_ROOM_TTL_MS } = {}) {
+  constructor({ ttlMs = DEFAULT_ROOM_TTL_MS, clock = systemClock } = {}) {
     this.rooms = new Map();
     this.ttlMs = ttlMs;
+    this.clock = clock;
+  }
+
+  now() {
+    return this.clock.now();
   }
 
   createRoom() {
-    const room = new Room(this.ttlMs);
+    const room = new Room(this.ttlMs, this.clock);
     this.rooms.set(room.id, room);
     return room;
   }
@@ -145,7 +153,7 @@ export class RoomManager {
   }
 
   // Прибрать истёкшие комнаты.
-  cleanup(now = Date.now()) {
+  cleanup(now = this.now()) {
     for (const [id, room] of this.rooms) {
       if (!room.isActive(now)) this.rooms.delete(id);
     }

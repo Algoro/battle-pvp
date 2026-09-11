@@ -5,8 +5,10 @@ import { RelayTransport } from "../../netcode/transport/relay.js";
 import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
 import { MultiTransport } from "../../netcode/transport/multi.js";
 import { getIceServers } from "./ice";
+import type { Team } from "../ports";
 
-export type Team = "DEF" | "ATT";
+// Тим — доменный тип: единое определение в ports.ts, здесь ре-экспорт для компонентов.
+export type { Team };
 
 export interface LobbyPlayer {
   id: string; name: string; team: Team; ready: boolean; host: boolean; port: number; online: boolean;

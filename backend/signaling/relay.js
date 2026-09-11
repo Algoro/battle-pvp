@@ -6,8 +6,9 @@
 // `match.start` (хендофф в бой).
 //
 // Относительный путь: ./backend/signaling/relay.js
-import { TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
-import { startLobbyMatch } from "../lobby/lobby.js";
+import { TEAM_DEF, TEAM_ATT } from "../domain/teams.js";
+import { startMatch, finishMatch } from "../application/match-lifecycle.js";
+import { sendChat, chatHistory } from "../application/chat.js";
 import { validateMessage, knownTypes } from "./schema.js";
 
 // Диспетчер WS-сообщений: тип -> имя обработчика (заменяет большой switch).
@@ -45,10 +46,10 @@ const MAX_SIGNAL = 64 * 1024; // SDP/ICE не должны быть больше
 export class RelayServer {
   /**
    * @param {import('ws').WebSocketServer} wss
-   * @param {import('../matchmaking/rooms.js').RoomManager} rooms
+   * @param {import('../domain/room.js').RoomManager} rooms
    * @param {import('../persistence/store.js').Store} store
-   * @param {import('../lobby/lobby.js').LobbyManager} [lobbies]
-   * @param {import('../lobby/chat.js').ChatManager} [chat]
+   * @param {import('../domain/lobby.js').LobbyManager} [lobbies]
+   * @param {import('../domain/chat.js').ChatManager} [chat]
    */
   constructor(wss, rooms, store, lobbies = null, chat = null) {
     this.wss = wss;
@@ -130,7 +131,7 @@ export class RelayServer {
       this._broadcastToRoom(room, { type: "peer.reconnected", playerId });
       // история чата матча (SQLite + память)
       if (this.chat) {
-        this._send(ws, { type: "chat.history", scope: "match", id: matchId, messages: this.chat.getHistory("match", matchId) });
+        this._send(ws, { type: "chat.history", scope: "match", id: matchId, messages: chatHistory(this.chat, "match", matchId) });
       }
     }
     this._broadcastRoom(room);
@@ -225,9 +226,7 @@ export class RelayServer {
   _onFinish(ws, { matchId, winner }) {
     const room = this.rooms.getRoom(matchId);
     if (!room) return;
-    room.finish(winner);
-    this.store.ensureMatch(room.id, [...room.teams[TEAM_DEF], ...room.teams[TEAM_ATT]]);
-    this.store.finishMatch(room.id, winner);
+    finishMatch(room, winner, { store: this.store });
     // согласованный конец матча: оба клиента получают победителя и возвращаются в лобби
     this._broadcastToRoom(room, { type: "match.finished", winner });
     this._broadcastRoom(room);
@@ -271,11 +270,11 @@ export class RelayServer {
     for (const ws of this.lobbySubscribers) this._send(ws, payload);
   }
 
-  _onLobbySubscribe(ws, { chatHistory = true } = {}) {
+  _onLobbySubscribe(ws, { chatHistory: withChatHistory = true } = {}) {
     this.lobbySubscribers.add(ws);
     this._send(ws, this._lobbyListPayload());
-    if (chatHistory && this.chat) {
-      this._send(ws, { type: "chat.history", scope: "global", id: null, messages: this.chat.getHistory("global", null) });
+    if (withChatHistory && this.chat) {
+      this._send(ws, { type: "chat.history", scope: "global", id: null, messages: chatHistory(this.chat, "global", null) });
     }
   }
 
@@ -308,7 +307,7 @@ export class RelayServer {
     this.sockets.set(playerId, ws);
     this._send(ws, { type: "lobby.joined", lobbyId: lobby.id, code: lobby.code, port: res.port, team: res.team });
     if (this.chat) {
-      this._send(ws, { type: "chat.history", scope: "lobby", id: lobby.id, messages: this.chat.getHistory("lobby", lobby.id) });
+      this._send(ws, { type: "chat.history", scope: "lobby", id: lobby.id, messages: chatHistory(this.chat, "lobby", lobby.id) });
     }
     this._broadcastLobby(lobby);
     this._broadcastLobbyList();
@@ -378,19 +377,17 @@ export class RelayServer {
 
   // Общий запуск: используется ручным стартом хоста и авто-стартом.
   _startLobby(lobby) {
-    const res = startLobbyMatch(lobby, this.rooms);
+    const res = startMatch(lobby, { rooms: this.rooms, store: this.store, chat: this.chat });
     if (!res.ok) {
       lobby.state = "open";
       return this._send(this.sockets.get(lobby.hostPlayerId), { type: "error", error: res.error });
     }
-    const { room, peers } = res;
+    const { room, peers, stage, defStars } = res;
     for (const p of lobby.players.values()) this.sockets.set(p.playerId, p.socket || this.sockets.get(p.playerId));
-    this.store.ensureMatch(room.id, [...room.teams[TEAM_DEF], ...room.teams[TEAM_ATT]]);
 
-    const payload = { type: "match.start", matchId: room.id, peers, stage: lobby.settings.stage || 1, defStars: lobby.settings.defStars || 0 };
+    const payload = { type: "match.start", matchId: room.id, peers, stage, defStars };
     for (const p of lobby.players.values()) this._send(p.socket, payload);
 
-    if (this.chat) this.chat.clear(lobby.id);
     this.lobbies.remove(lobby.id);
     this._broadcastLobbyList();
   }
@@ -412,8 +409,8 @@ export class RelayServer {
       const matchId = id || ws.matchId;
       const room = this.rooms.getRoom(matchId);
       if (!room) return this._send(ws, { type: "error", error: "match-not-found" });
-      const res = this.chat.send("match", matchId, { playerId, name: this._playerName(playerId), text });
-      if (res.error) return this._send(ws, { type: "error", error: `chat-${res.error}` });
+      const res = sendChat(this.chat, { scope: "match", id: matchId, playerId, name: this._playerName(playerId), text });
+      if (!res.ok) return this._send(ws, { type: "error", error: res.error });
       this._broadcastToRoom(room, { type: "chat", ...res.message });
       return;
     }
@@ -425,8 +422,8 @@ export class RelayServer {
       if (!lobby) return this._send(ws, { type: "error", error: "lobby-not-found" });
       name = lobby.players.get(playerId)?.name || name;
     }
-    const res = this.chat.send(scope, scope === "global" ? null : lobbyId, { playerId, name, text });
-    if (res.error) return this._send(ws, { type: "error", error: `chat-${res.error}` });
+    const res = sendChat(this.chat, { scope, id: scope === "global" ? null : lobbyId, playerId, name, text });
+    if (!res.ok) return this._send(ws, { type: "error", error: res.error });
     const payload = { type: "chat", ...res.message };
     if (scope === "global") {
       for (const client of this.wss.clients) this._send(client, payload);

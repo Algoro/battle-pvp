@@ -1,13 +1,16 @@
 // lobby.js — лобби (pre-game): создание, ожидание живых игроков, настраиваемые слоты.
 //
 // Модель B: Lobby — отдельная сущность до старта; при старте создаётся Match (Room из
-// matchmaking/rooms.js), куда копируются игроки. Пустые слоты добивает ИИ (движок умеет).
+// domain/room.js), куда копируются игроки. Пустые слоты добивает ИИ (движок умеет).
 //
 // Физические границы движка: DEF — танки 0,1 (порты $4016/$4017), ATT — танки 2..7
 // (NET_DIR/NET_FIRE, 6 байт). Поэтому: DEF 1..2, ATT 1..6.
 //
-// Относительный путь: ./backend/lobby/lobby.js
-import { TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
+// Домен: не знает о транспорте/БД/фреймворках. Стартовая стадия/звёзды — чистые данные.
+//
+// Относительный путь: ./backend/domain/lobby.js
+import { TEAM_DEF, TEAM_ATT, normalizeTeam } from "./teams.js";
+import { systemClock } from "./clock.js";
 
 export const DEFAULT_LOBBY_TTL_MS = 10 * 60 * 1000; // 10 минут простоя
 export const MIN_DEF_SLOTS = 1;
@@ -71,17 +74,22 @@ function cleanName(name, max) {
 }
 
 export class Lobby {
-  constructor({ hostPlayerId, name, settings, ttlMs = DEFAULT_LOBBY_TTL_MS } = {}) {
-    this.id = `l_${(lobbyCounter++).toString(36)}_${Date.now().toString(36)}`;
+  constructor({ hostPlayerId, name, settings, ttlMs = DEFAULT_LOBBY_TTL_MS, clock = systemClock } = {}) {
+    this.clock = clock;
+    this.id = `l_${(lobbyCounter++).toString(36)}_${this.now().toString(36)}`;
     this.code = makeCode();
     this.name = cleanName(name, MAX_LOBBY_NAME_LEN);
     this.hostPlayerId = hostPlayerId;
     this.settings = normalizeSettings(settings);
     this.players = new Map(); // playerId -> {playerId,name,team,ready,host,sessionId,socket,disconnectedAt,joinedAt}
     this.state = "open"; // open | starting | closed
-    this.createdAt = Date.now();
-    this.lastActive = Date.now();
+    this.createdAt = this.now();
+    this.lastActive = this.now();
     this.ttlMs = ttlMs;
+  }
+
+  now() {
+    return this.clock.now();
   }
 
   get playerCount() { return this.players.size; }
@@ -108,10 +116,10 @@ export class Lobby {
       existing.disconnectedAt = null;
       if (name) existing.name = cleanName(name, MAX_NAME_LEN);
       if (fingerprint) existing.fingerprint = fingerprint;
-      this.lastActive = Date.now();
+      this.lastActive = this.now();
       return { ok: true, reconnected: true, port: this.portFor(playerId), team: existing.team };
     }
-    const t = team === TEAM_DEF ? TEAM_DEF : TEAM_ATT;
+    const t = normalizeTeam(team);
     if (this.teamCount(t) >= this.teamCap(t)) return { ok: false, error: `team ${t} full` };
     const entry = {
       playerId,
@@ -123,10 +131,10 @@ export class Lobby {
       socket,
       fingerprint: fingerprint || null,
       disconnectedAt: null,
-      joinedAt: Date.now(),
+      joinedAt: this.now(),
     };
     this.players.set(playerId, entry);
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return { ok: true, reconnected: false, port: this.portFor(playerId), team: t };
   }
 
@@ -151,13 +159,13 @@ export class Lobby {
       if (next) { this.hostPlayerId = next.playerId; next.host = true; }
     }
     if (this.players.size === 0) this.state = "closed";
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return true;
   }
 
   disconnect(playerId) {
     const p = this.players.get(playerId);
-    if (p) p.disconnectedAt = Date.now();
+    if (p) p.disconnectedAt = this.now();
   }
 
   reconnect(playerId, socket) {
@@ -165,19 +173,19 @@ export class Lobby {
     if (!p) return false;
     p.socket = socket;
     p.disconnectedAt = null;
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return true;
   }
 
   setTeam(playerId, team) {
     const p = this.players.get(playerId);
     if (!p) return { ok: false, error: "not-in-lobby" };
-    const t = team === TEAM_DEF ? TEAM_DEF : TEAM_ATT;
+    const t = normalizeTeam(team);
     if (p.team === t) return { ok: true, team: t };
     if (this.teamCount(t) >= this.teamCap(t)) return { ok: false, error: `team ${t} full` };
     p.team = t;
     p.ready = false;
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return { ok: true, team: t };
   }
 
@@ -185,7 +193,7 @@ export class Lobby {
     const p = this.players.get(playerId);
     if (!p) return { ok: false, error: "not-in-lobby" };
     p.ready = !!ready;
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return { ok: true, ready: p.ready };
   }
 
@@ -197,7 +205,7 @@ export class Lobby {
       return { ok: false, error: "slots-below-occupied" };
     }
     this.settings = next;
-    this.lastActive = Date.now();
+    this.lastActive = this.now();
     return { ok: true, settings: next };
   }
 
@@ -224,7 +232,7 @@ export class Lobby {
     return true;
   }
 
-  isActive(now = Date.now()) {
+  isActive(now = this.now()) {
     return this.state !== "closed" && now - this.lastActive < this.ttlMs;
   }
 
@@ -255,13 +263,18 @@ export class Lobby {
 }
 
 export class LobbyManager {
-  constructor({ ttlMs = DEFAULT_LOBBY_TTL_MS } = {}) {
+  constructor({ ttlMs = DEFAULT_LOBBY_TTL_MS, clock = systemClock } = {}) {
     this.lobbies = new Map();
     this.ttlMs = ttlMs;
+    this.clock = clock;
+  }
+
+  now() {
+    return this.clock.now();
   }
 
   create(opts) {
-    const lobby = new Lobby({ ...opts, ttlMs: this.ttlMs });
+    const lobby = new Lobby({ ...opts, ttlMs: this.ttlMs, clock: this.clock });
     this.lobbies.set(lobby.id, lobby);
     return lobby;
   }
@@ -280,7 +293,7 @@ export class LobbyManager {
 
   remove(id) { this.lobbies.delete(id); }
 
-  cleanup(now = Date.now()) {
+  cleanup(now = this.now()) {
     for (const [id, l] of this.lobbies) if (!l.isActive(now)) this.lobbies.delete(id);
   }
 

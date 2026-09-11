@@ -12,12 +12,14 @@
 // Относительный путь: ./backend/server.js
 import { createServer } from "node:http";
 import { WebSocketServer } from "ws";
-import { RoomManager, TEAM_DEF, TEAM_ATT } from "./matchmaking/rooms.js";
-import { Matchmaker } from "./matchmaking/matchmaker.js";
+import { RoomManager, TEAM_DEF } from "./domain/room.js";
+import { Matchmaker } from "./domain/matchmaker.js";
 import { RelayServer } from "./signaling/relay.js";
 import { Store } from "./persistence/store.js";
-import { LobbyManager, startLobbyMatch } from "./lobby/lobby.js";
-import { ChatManager } from "./lobby/chat.js";
+import { SqliteChatRepository } from "./persistence/chat-repository.js";
+import { LobbyManager } from "./domain/lobby.js";
+import { startMatch } from "./application/match-lifecycle.js";
+import { ChatManager } from "./domain/chat.js";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -57,7 +59,7 @@ export function createApp({ dbPath } = {}) {
   const rooms = new RoomManager();
   const matchmaker = new Matchmaker(rooms);
   const lobbies = new LobbyManager();
-  const chat = new ChatManager({ store });
+  const chat = new ChatManager({ repository: new SqliteChatRepository(store) });
   const http = createServer((req, res) => handleHttp(req, res, { store, rooms, matchmaker, lobbies, chat }));
   const wss = new WebSocketServer({ server: http, path: "/ws" });
   new RelayServer(wss, rooms, store, lobbies, chat);
@@ -175,12 +177,10 @@ async function handleHttp(req, res, ctx) {
     }
     if (req.method === "POST" && action === "start") {
       if (!lobby.canStart(body.playerId)) return json(res, 400, { error: "cannot-start" });
-      const r = startLobbyMatch(lobby, ctx.rooms);
+      const r = startMatch(lobby, { rooms: ctx.rooms, store: ctx.store, chat: ctx.chat });
       if (!r.ok) return json(res, 400, { error: r.error });
-      ctx.store.ensureMatch(r.room.id, [...r.room.teams[TEAM_DEF], ...r.room.teams[TEAM_ATT]]);
-      ctx.chat.clear(lobby.id);
       ctx.lobbies.remove(lobby.id);
-      return json(res, 200, { matchId: r.room.id, peers: r.peers, stage: lobby.settings.stage || 1, defStars: lobby.settings.defStars || 0 });
+      return json(res, 200, { matchId: r.room.id, peers: r.peers, stage: r.stage, defStars: r.defStars });
     }
     return json(res, 404, { error: "unknown-action" });
   }

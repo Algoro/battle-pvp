@@ -28,17 +28,14 @@ import {
   decodeSnapshotChunk,
   encodeSnapshot,
 } from "../protocol/frame.js";
+import { systemClock } from "../ports.js";
 
 export const HASH_INTERVAL = 30; // сверка хэша каждые 30 кадров
 export const PING_INTERVAL = 60; // ping каждые 60 кадров
 export const PING_TIMEOUT = 600; // нет pong — считаем соперника недоступным (10 c)
 export const DEFAULT_REDUNDANCY = 4; // сколько последних кадров дублировать в каждом пакете
 
-// 32-битные монотонные миллисекунды для измерения RTT (Date.now() не влезает в uint32).
-function now32() {
-  const t = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
-  return t >>> 0;
-}
+
 
 export class RollbackSession {
   /**
@@ -60,6 +57,7 @@ export class RollbackSession {
     this.myPorts = opts.myPorts;
     this.remotePorts = opts.remotePorts;
     this.onEvent = opts.onEvent || (() => {});
+    this.clock = opts.clock || systemClock; // порт Clock (детерминируемое время)
     this.window = opts.window || 120;
     this.confirmDelay = opts.confirmDelay || 20; // кадров до «подтверждения» (сверка хэша)
     // Разреженные чекпоинты состояний: сохраняем полный saveState() не каждый кадр,
@@ -163,6 +161,11 @@ export class RollbackSession {
     return h;
   }
 
+  // Монотонные 32-битные миллисекунды из порта Clock (для RTT).
+  _now32() {
+    return this.clock.now() >>> 0;
+  }
+
   advanceFrame(myInputs) {
     // Догон после resync: доводим счётчик до кадра соперника (пропущенные кадры
     // симулируем с предсказанием; реальные вводы исправят их через rollback).
@@ -214,7 +217,7 @@ export class RollbackSession {
 
   _sendPing(f) {
     const seq = this.pingSeq++;
-    this.transport.send(encodePing(seq, now32()));
+    this.transport.send(encodePing(seq, this._now32()));
     this._lastPingFrame = f;
   }
 
@@ -361,7 +364,7 @@ export class RollbackSession {
   _onPong({ t }) {
     this.lastPongFrame = this.currentFrame;
     this.peerUnresponsive = false;
-    const rtt = now32() - (t >>> 0);
+    const rtt = this._now32() - (t >>> 0);
     // защита от некорректных/огромных значений
     if (rtt >= 0 && rtt < 60000) {
       this.latency = rtt;

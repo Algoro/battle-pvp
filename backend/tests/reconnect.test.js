@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import { createApp } from "../server.js";
-import { TEAM_ATT, TEAM_DEF } from "../matchmaking/rooms.js";
+import { TEAM_ATT, TEAM_DEF } from "../domain/room.js";
 import { WebSocket } from "ws";
 
 const J = (x) => JSON.parse(x.toString());

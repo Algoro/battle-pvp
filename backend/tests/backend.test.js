@@ -2,8 +2,8 @@
 // Запуск: node --test tests/backend.test.js
 import { test } from "node:test";
 import assert from "node:assert";
-import { RoomManager, TEAM_DEF, TEAM_ATT } from "../matchmaking/rooms.js";
-import { Matchmaker } from "../matchmaking/matchmaker.js";
+import { RoomManager, TEAM_DEF, TEAM_ATT } from "../domain/room.js";
+import { Matchmaker } from "../domain/matchmaker.js";
 import { Store } from "../persistence/store.js";
 import { createApp } from "../server.js";
 import { WebSocket } from "ws";
