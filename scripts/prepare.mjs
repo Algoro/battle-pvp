@@ -15,7 +15,7 @@ import {
 import { createHash } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join, relative } from "node:path";
-import { applyPatchSet } from "../emulator-core/patching/apply.js";
+import { applyPatchSet } from "../emulator-core/patching/apply.ts";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const JSNES_SRC = join(root, "vendor", "jsnes", "src");

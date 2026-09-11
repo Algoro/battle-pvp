@@ -19,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Prepare (генерирует emulator-core/src из сабмодуля jsnes)
         run: node scripts/prepare.mjs
@@ -28,6 +28,9 @@ jobs:
         run: |
           npm install
           npm run lint
+
+      - name: Typecheck (tsc --noEmit по netcode/backend/emulator-core/frontend)
+        run: npm run typecheck
 
       - name: Backend deps + tests
         run: |

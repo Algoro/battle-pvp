@@ -1,7 +1,7 @@
 #!/bin/bash
 # =============================================================================
 # verify-environment.sh — проверка окружения Battle City PvP.
-# Обязательно: git, node >= 20, npm, сабмодуль vendor/jsnes.
+# Обязательно: git, node >= 23.6 (нативный type stripping .ts), npm, сабмодуль vendor/jsnes.
 # Опционально: оригинальный ROM (нужен для тестов и запуска), emcc (сборка wasm).
 # Относительный путь: ./scripts/verify-environment.sh
 # =============================================================================
@@ -21,8 +21,15 @@ check() {
 
 echo "==> Обязательные инструменты"
 check git
-check node
 check npm
+# Node >= 23.6: нативный type stripping исполняет .ts без сборки.
+node_major="${NODE_MAJOR:-$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)}"
+node_minor="${NODE_MINOR:-$(node -p 'process.versions.node.split(".")[1]' 2>/dev/null || echo 0)}"
+if [ "$node_major" -gt 23 ] || { [ "$node_major" -eq 23 ] && [ "$node_minor" -ge 6 ]; }; then
+  printf "  [OK]   %-10s %s\n" "node" "$(node --version) (type stripping)"
+else
+  printf "  [FAIL] %-10s %s (< 23.6: нет нативного type stripping)\n" "node" "$(node --version 2>/dev/null || echo 'NOT FOUND')"; FAIL=1
+fi
 
 echo
 echo "==> jsnes (сабмодуль)"

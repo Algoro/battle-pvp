@@ -6,9 +6,9 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
-    "test": "node ../scripts/prepare.mjs && node --test tests/*.test.js",
+    "test": "node ../scripts/prepare.mjs && node --disable-warning=ExperimentalWarning --test tests/*.test.ts",
     "e2e": "node ../scripts/prepare.mjs && playwright test",
-    "e2e:online": "node ../scripts/prepare.mjs && playwright test -c playwright.online.config.js"
+    "e2e:online": "node ../scripts/prepare.mjs && playwright test -c playwright.online.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.1"

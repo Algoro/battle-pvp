@@ -12,6 +12,8 @@ export default defineConfig({
   // (TS резолвит их как обычные относительные, Vite — через эти алиасы).
   resolve: {
     alias: [
+      { find: /^@netcode/, replacement: r("../netcode") },
+      { find: /^@core/, replacement: r("../emulator-core") },
       { find: /^\.\.\/\.\.\/emulator-core/, replacement: r("../emulator-core") },
       { find: /^\.\.\/\.\.\/netcode/, replacement: r("../netcode") },
     ],

@@ -10,8 +10,8 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import ROM from "../emulator-core/src/rom.js";
-import { applyPatchSet } from "../emulator-core/patching/apply.js";
-import { RomImage } from "../emulator-core/patching/rom-image.js";
+import { applyPatchSet } from "../emulator-core/patching/apply.ts";
+import { RomImage } from "../emulator-core/patching/rom-image.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");

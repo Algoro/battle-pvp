@@ -4,15 +4,24 @@
   "description": "Battle City PvP — монорепозиторий (tooling: ESLint/Prettier)",
   "type": "module",
   "license": "Apache-2.0",
+  "engines": {
+    "node": ">=23.6"
+  },
   "scripts": {
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "tsc -p netcode && tsc -p backend && tsc -p emulator-core && tsc -p frontend",
     "format": "prettier --write \"**/*.{js,mjs,ts,tsx,json,md,yml}\"",
-    "format:check": "prettier --check \"backend/**/*.js\" \"netcode/**/*.js\" \"emulator-core/*.js\" \"emulator-core/io/**/*.js\" \"emulator-core/ai/**/*.js\" \"emulator-core/model/**/*.js\" \"frontend/src/**/*.{ts,tsx}\""
+    "format:check": "prettier --check \"backend/**/*.ts\" \"netcode/**/*.ts\" \"emulator-core/**/*.ts\" \"qa/**/*.ts\" \"frontend/src/**/*.{ts,tsx}\""
   },
   "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/ws": "^8.18.1",
     "eslint": "^9.0.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
     "globals": "^15.0.0",
-    "prettier": "^3.0.0"
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0"
   }
 }

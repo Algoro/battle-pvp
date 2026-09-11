@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import PvPNes, { BTN } from "../emulator-core/pvp.js";
+import PvPNes, { BTN } from "../emulator-core/pvp.ts";
 const emu = new PvPNes(); emu.loadROM(readFileSync("/home/am.krepkov/git/network_battle/rom/disasm/_battle_city.nes"));
 // перехватим stepFrame: задаём всем живым врагам follow_HQ (0xB0) + направление вниз,
 // оставляя NET_DIR=FF (ASM ведёт через bra_DDE4)

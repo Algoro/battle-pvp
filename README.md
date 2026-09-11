@@ -49,11 +49,11 @@ flowchart LR
 
 ## Стек
 
-- Эмулятор: jsnes (сабмодуль), надстройка — JavaScript/Node.
+- Эмулятор: jsnes (сабмодуль), надстройка — TypeScript/Node (нативный type stripping, без сборки).
 - Netcode: бинарный протокол, WebRTC DataChannel + WS-relay.
 - Backend: Node.js (`ws`), SQLite.
 - Frontend: React + TypeScript + Vite.
-- Тесты: `node --test`, Playwright (e2e).
+- Тесты: `node --test` (`.test.ts`), Playwright (e2e); проверка типов — `npm run typecheck`.
 
 ## Быстрый старт
 

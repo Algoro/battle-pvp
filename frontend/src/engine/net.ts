@@ -1,8 +1,8 @@
 // net.ts — браузерный сетевой клиент: matchmaking + WS-signaling + rollback.
 // Использует детерминированное ядро (emulator-core) и netcode (rollback).
-import { RollbackSession } from "../../netcode/rollback/session.js";
-import { RelayTransport } from "../../netcode/transport/relay.js";
-import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
+import { RollbackSession } from "@netcode/rollback/session.ts";
+import { RelayTransport } from "@netcode/transport/relay.ts";
+import { WebRTCTransport } from "@netcode/transport/webrtc.ts";
 import { getIceServers } from "./ice";
 import type { Team } from "../ports";
 

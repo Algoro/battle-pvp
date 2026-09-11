@@ -3,10 +3,11 @@
   "version": "0.1.0",
   "description": "Детерминированное ядро Battle City PvP поверх НЕИЗМЕННОГО jsnes: input-mux, save/load state, getFrameHash, in-memory патчи оригинального ROM.",
   "type": "module",
-  "main": "pvp.js",
+  "main": "pvp.ts",
   "license": "Apache-2.0",
   "scripts": {
-    "test": "node ../scripts/prepare.mjs && node --test tests/*.test.js",
+    "test": "node ../scripts/prepare.mjs && node --disable-warning=ExperimentalWarning --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit",
     "build:wasm": "bash wasm/build-wasm.sh"
   }
 }

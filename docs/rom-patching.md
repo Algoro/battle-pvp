@@ -62,7 +62,7 @@ fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+
 - **Свободная зона**: рутины размещаются только в «пустых» (`$FF`) диапазонах.
 - **Пересечения/переполнение**: `PATCH_OVERLAP` / `PATCH_NO_SPACE`.
 - **Атомарность**: пока все проверки не пройдены, ничего не пишется.
-- **Guard-тест** `emulator-core/tests/jsnes-pristine.test.js` следит, что jsnes не тронут.
+- **Guard-тест** `emulator-core/tests/jsnes-pristine.test.ts` следит, что jsnes не тронут.
 
 ## Как добавить патч
 

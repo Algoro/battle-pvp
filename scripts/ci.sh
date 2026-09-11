@@ -18,14 +18,21 @@ stage() {
 }
 skip() { echo ""; echo "==================== [$1] ===================="; echo "[$1] SKIP ($2)"; SKIP=$((SKIP+1)); }
 
+# Корневые dev-tools (eslint/tsc) нужны для стадий lint/typecheck.
+if [ ! -x node_modules/.bin/tsc ] || [ ! -x node_modules/.bin/eslint ]; then
+  echo "[bootstrap] npm install (корневые dev-tools: eslint, typescript, typescript-eslint)"
+  npm install || true
+fi
+
 stage "gate:verify-environment" bash scripts/verify-environment.sh
 stage "prepare" node scripts/prepare.mjs
 stage "lint" npx eslint .
+stage "typecheck" npm run typecheck
 
 if have_rom; then
-  stage "emulator-core:test" bash -c 'cd emulator-core && node --test tests/*.test.js'
-  stage "netcode:test"       bash -c 'cd netcode && node --test tests/*.test.js'
-  stage "qa:test"            bash -c 'cd qa && node --test tests/*.test.js'
+  stage "emulator-core:test" bash -c 'cd emulator-core && node --disable-warning=ExperimentalWarning --test tests/*.test.ts'
+  stage "netcode:test"       bash -c 'cd netcode && node --disable-warning=ExperimentalWarning --test tests/*.test.ts'
+  stage "qa:test"            bash -c 'cd qa && node --disable-warning=ExperimentalWarning --test tests/*.test.ts'
 else
   skip "emulator-core:test" "нет rom/original/_battle_city.nes"
   skip "netcode:test" "нет rom/original/_battle_city.nes"

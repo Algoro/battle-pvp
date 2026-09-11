@@ -65,11 +65,11 @@
 - Свободные (`0xFF`) зоны PRG: **`$EF75–$EFFF`** (занята патчем `pvp`),
   **`$FF50–$FFF9` (170 байт)**, `$D3DD–$D3FF` (35), `$FD46–$FD4F` (10).
 - Потребители: `scripts/prepare.mjs` (собирает `rom/disasm/_battle_city.nes`,
-  константа `PRG_FNV = 94cb0636`), `emulator-core/tests/patching.test.js`
-  (fingerprint `94cb0636`), `qa/tests/asm-patch.test.js`,
-  `emulator-core/tests/golden-replay.test.js` (`GOLDEN_HASH = 34e8ff73`),
-  `qa/golden-state.js`, `emulator-core/tests/no-magic-addresses.test.js` (regex адресов),
-  `emulator-core/rom-contract.js` (единый источник RAM/ROM).
+  константа `PRG_FNV = 94cb0636`), `emulator-core/tests/patching.test.ts`
+  (fingerprint `94cb0636`), `qa/tests/asm-patch.test.ts`,
+  `emulator-core/tests/golden-replay.test.ts` (`GOLDEN_HASH = 34e8ff73`),
+  `qa/golden-state.js`, `emulator-core/tests/no-magic-addresses.test.ts` (regex адресов),
+  `emulator-core/rom-contract.ts` (единый источник RAM/ROM).
 - JS-ядро `PvPNes` (`emulator-core/pvp.js`): `loadROM` → `applyPatchSet`;
   `stepFrame` = `_readInputs` → ИИ → `_applyHumanPreFrame` → `frame()` →
   `_applyHumanPostFrame` → `_unstuckTanks`; `saveState/loadState` кодируют **всю RAM
@@ -186,16 +186,16 @@
 - `emulator-core/patching/patches/pistol.js` — новый патч (рутины + хуки + free-зоны).
 - `emulator-core/patching/patches/base-nrom.js` — символы/`free` (если добавляем зоны).
 - `emulator-core/patching/registry.js` — композиция `pvp + pistol`.
-- `emulator-core/rom-contract.js` — новые RAM (`PISTOL`/`AMMO`), при необходимости
+- `emulator-core/rom-contract.ts` — новые RAM (`PISTOL`/`AMMO`), при необходимости
   `AI_READ_RANGES`.
 - `emulator-core/pvp.js` — доступ к новым адресам через `RAM.*`, обновить doc
   `spawnBonus` (id 6 = пистолет), при необходимости тестовые хелперы.
-- `emulator-core/tests/no-magic-addresses.test.js` — добавить базовые адреса в regex.
+- `emulator-core/tests/no-magic-addresses.test.ts` — добавить базовые адреса в regex.
 - `scripts/prepare.mjs` — `PRG_FNV` (новый fingerprint).
-- `emulator-core/tests/patching.test.js` — ожидаемый fingerprint.
-- `emulator-core/tests/golden-replay.test.js` — `GOLDEN_HASH`.
+- `emulator-core/tests/patching.test.ts` — ожидаемый fingerprint.
+- `emulator-core/tests/golden-replay.test.ts` — `GOLDEN_HASH`.
 - `qa/golden-state.js` + `qa/golden/` — пересоздать эталон.
-- `qa/tests/asm-patch.test.js` (или новый `pistol.test.js`) — функциональные тесты.
+- `qa/tests/asm-patch.test.ts` (или новый `pistol.test.ts`) — функциональные тесты.
 - `docs/*` — обновить `asm-label-map.md`, `rom-patching.md`, `ai.md`; README-раздел при
   необходимости; **этот план**.
 - Фронтенд — только если делаем HUD-индикатор (`frontend/src/components/GameUi.tsx`).
@@ -280,8 +280,8 @@
   кнопка «4★🔫» → `LobbyBrowser`/`CreateRoomDialog`/`LobbyRoom`) → настройки лобби
   `defPistol` (`domain/lobby.js`, `match-lifecycle.js`, `relay`/`server`) → `match.start`
   → `MatchController` (`startSolo`/`startOnline`) → `setStartPistol`.
-- Тесты: `emulator-core/tests/pistol.test.js` (13), `backend/tests/lobby.test.js`
-  (normalizeSettings.defPistol), обновлены fingerprint (`patching.test.js`,
+- Тесты: `emulator-core/tests/pistol.test.ts` (13), `backend/tests/lobby.test.ts`
+  (normalizeSettings.defPistol), обновлены fingerprint (`patching.test.ts`,
   `prepare.mjs`) и golden (`GOLDEN_HASH = 1bb47e2f`).
 - Причина fallback: railgun в ASM не помещается целиком в непрерывную свободную зону ROM
   (`$FF50–$FFF9` = 170 Б; один routine не может занимать две зоны), а правила получения

@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "description": "Matchmaking, лобби/комнаты, WebRTC-signaling relay, персистентность матчей (SQLite) для Battle City PvP.",
   "type": "module",
-  "main": "server.js",
+  "main": "server.ts",
   "license": "Apache-2.0",
   "dependencies": {
     "ws": "^8.21.3"
   },
   "scripts": {
-    "start": "node server.js",
-    "test": "node --test tests/*.test.js"
+    "start": "node --disable-warning=ExperimentalWarning server.ts",
+    "test": "node --disable-warning=ExperimentalWarning --test tests/*.test.ts",
+    "typecheck": "tsc --noEmit"
   }
 }

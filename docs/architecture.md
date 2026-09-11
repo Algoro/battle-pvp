@@ -18,7 +18,7 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
 ## Неизменные компоненты
 
 - **jsnes** — сабмодуль `vendor/jsnes`. Не редактируется. Копия `emulator-core/src`
-  генерируется из него (`scripts/prepare.mjs`); guard-тест `jsnes-pristine.test.js`.
+  генерируется из него (`scripts/prepare.mjs`); guard-тест `jsnes-pristine.test.ts`.
   Расширения: `PvPNes extends NES`, `BattleCityPPU extends PPU` (`ppu-ext.js`).
 - **ROM** — файл не меняется. PvP-патчи применяются к in-memory образу PRG
   (`emulator-core/patching/`). Подробно — `docs/rom-patching.md`.
@@ -31,7 +31,7 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
 - **`domain.js`** — семантика домена: направления (`DIR_VEC`, `DIR_BTN`, `btnToDir`),
   флаги танков (`isTankAlive/Active`, `movingFlag`), тайлы (`isBrick/Steel`, `tankPassable`),
   пули (`isBulletFlying`), апгрейд (`starsToUpgrade`). Убирает дубли и «магию» вида `0xa0|dir`.
-- **Enforcement** (`tests/no-magic-addresses.test.js`): запрет сырых RAM/ROM-адресов вне
+- **Enforcement** (`tests/no-magic-addresses.test.ts`): запрет сырых RAM/ROM-адресов вне
   `rom-contract/domain/startup` — регрессии «магии» ловятся в CI.
 - **`startup.js`** — декларативный boot/apply API стартовых опций (стадия, звёзды,
   супер-оружие `setStartPistol`): один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
@@ -41,7 +41,7 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
   `stepFrame` разбит на `_resetNetZone/_readInputs/_applyAttAIDecisions`.
 - **`ai/rollforward.js`** — предсказание будущего на **реальном эмуляторе** (saveState +
   прокрутка), сертифицировано тестом; основа для отказа от отдельной JS-модели (`sim/*`).
-- **Golden-сертификация** (`tests/golden-replay.test.js`): golden-хэш ядра, сходимость
+- **Golden-сертификация** (`tests/golden-replay.test.ts`): golden-хэш ядра, сходимость
   двух инстансов, эквивалентность save/load, детерминизм стартовых опций.
 - **Валидация WS** (`backend/signaling/schema.js`) — декларативная схема сообщений.
 

@@ -49,7 +49,7 @@
   `createLobby`, `joinLobby`, `sendChat`, `reconnect`, `rebindTransport`, `requestResync`.
 - Возвращают результат/DTO; **не** пишут в сокеты/БД напрямую — это делают адаптеры.
 
-### Ports (`netcode/ports.js`, `backend/ports.js`, `frontend/src/ports.ts`)
+### Ports (`netcode/ports.ts`, `backend/ports.ts`, `frontend/src/ports.ts`)
 - `GameCore`: `stepFrame`, `saveState`, `loadState`, `getFrameHash`, `setStartStage`,
   `setStartStars`, `setAudioSuppressed`, `cartridgeFingerprint`.
 - `Transport`: `send`, `onMessage`, `onClose`, `isOpen`.
@@ -60,7 +60,7 @@
 - `SignalingPort` (отправка SDP/ICE/relay.data), `ChatPort`.
 
 ### Interface Adapters
-- Backend: WS-роутер (`signaling/relay.js`) → вызывает use cases; репозитории SQLite;
+- Backend: WS-роутер (`signaling/relay.ts`) → вызывает use cases; репозитории SQLite;
   signaling-адаптер.
 - Frontend: React-хуки (`use-lobby`) и компоненты → вызывают клиенты-шлюзы
   (`LobbyClient`, `NetClient`) и `EmulatorDriver` (адаптер `GameCore`).
@@ -71,8 +71,8 @@
 
 ## 3. Правило зависимостей (enforcement)
 
-Автотест `qa/tests/architecture.test.js` проверяет:
-1. `emulator-core/rom-contract.js` и `emulator-core/domain.js` — чистые (только друг из друга).
+Автотест `qa/tests/architecture.test.ts` проверяет:
+1. `emulator-core/rom-contract.ts` и `emulator-core/domain.ts` — чистые (только друг из друга).
 2. `netcode/**` не импортирует `emulator-core/**`, `frontend/**`, `backend/**`.
 3. `backend/**` не импортирует `emulator-core/**`, `frontend/**`.
 4. `frontend/**` не импортирует `backend/**` напрямую (только сеть).
@@ -82,7 +82,7 @@
 ## 4. Целевая раскладка
 
 ```
-netcode/ports.js   порты netcode (GameCore/Transport/Clock/EventSink) — без импортов
+netcode/ports.ts   порты netcode (GameCore/Transport/Clock/EventSink) — без импортов
 netcode/rollback/  RollbackSession (application-ядро поверх портов)
 emulator-core/     адаптер GameCore (PvPNes, патчинг, домен-хелперы)
 backend/
@@ -103,8 +103,8 @@ frontend/src/
 
 | Фаза | Содержание | Риск |
 |---|---|---|
-| **1. Порты netcode** | `netcode/ports.js` (`GameCore/Transport/Clock/EventSink`), инъекция `Clock` в `RollbackSession`, убрать прямые `Date.now` | низкий |
-| **2. Enforcement** | `architecture.test.js` (правило зависимостей) | низкий |
+| **1. Порты netcode** | `netcode/ports.ts` (`GameCore/Transport/Clock/EventSink`), инъекция `Clock` в `RollbackSession`, убрать прямые `Date.now` | низкий |
+| **2. Enforcement** | `architecture.test.ts` (правило зависимостей) | низкий |
 | **3. Backend application** | вынести use cases `startMatch/finishMatch/sendChat`; relay → тонкий WS-адаптер; репозитории за портами | средний |
 | **4. Frontend application** | контроллеры-хуки (`useMatch`, `useSpectate`) поверх шлюзов; презентеры не знают о сети | средний |
 | **5. Domain-сущности** | `backend/domain/` (Room/Lobby/Matchmaker) как чистые классы; SQLite за `*Repository` | средний |
@@ -129,15 +129,15 @@ frontend/src/
 | Фаза | Статус |
 |---|---|
 | 1. Порты netcode (`ports.js`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
-| 2. Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.js` (11 проверок) |
+| 2. Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (11 проверок) |
 | 3. Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.js`; relay/HTTP — тонкие адаптеры |
 | 4. Frontend application (контроллеры) | ✅ `frontend/src/application/{use-lobby,use-match,use-spectate}.ts` + `MatchController`; `App.tsx` — композиция экранов |
 | 5. Domain-сущности (Room/Lobby/Matchmaker/Chat) | ✅ `backend/domain/` (чистые классы), SQLite за портом `ChatRepository` |
-| 6. Порт `GameCore` | ✅ контракт в `netcode/ports.js`; тест `game-core-port.test.js` на fake-ядре |
-| 7. Полный свод (нулевые нарушения) | ✅ `architecture.test.js` стережёт слои domain←application←adapters и frontend engine←application←components |
+| 6. Порт `GameCore` | ✅ контракт в `netcode/ports.ts`; тест `game-core-port.test.ts` на fake-ядре |
+| 7. Полный свод (нулевые нарушения) | ✅ `architecture.test.ts` стережёт слои domain←application←adapters и frontend engine←application←components |
 
-`netcode/ports.js` и `frontend/src/ports.ts` — самодостаточные контракты без импортов
-(это тоже проверяет `architecture.test.js`). Backend-порты описаны в `backend/ports.js`
+`netcode/ports.ts` и `frontend/src/ports.ts` — самодостаточные контракты без импортов
+(это тоже проверяет `architecture.test.ts`). Backend-порты описаны в `backend/ports.ts`
 (`ChatRepository`/`MatchRepository`/`PlayerRepository`), реализация чата — в
 `persistence/chat-repository.js`.
 

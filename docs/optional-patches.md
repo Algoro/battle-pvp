@@ -35,7 +35,7 @@
 | Драйвер | `setPatchFeatures()`, `getPatchFeatures()` | `frontend/src/engine/emulator.ts` |
 | Application | `startSolo(..., features)`, `beginOnlineMatch({ features })` | `frontend/src/application/match-controller.ts` |
 | Лобби/бэкенд | `settings.features` (валидация `SUPPORTED_FEATURES`) | `backend/domain/features.js`, `domain/lobby.js` |
-| Handoff в бой | `match.start.features` | `backend/application/match-lifecycle.js`, `signaling/relay.js`, `server.js` |
+| Handoff в бой | `match.start.features` | `backend/application/match-lifecycle.ts`, `signaling/relay.ts`, `server.ts` |
 | UI | чекбоксы фич + гейт опций (4★ только при `pistol`) | `frontend/src/features.ts`, `components/*` |
 
 `defPistol` (старт с оружием) имеет смысл только при включённой фиче `pistol`; UI
@@ -48,7 +48,7 @@
 - **Детерминизм**: набор фич одинаков у всех клиентов матча (host-authoritative);
   новые RAM-байты фич входят в `saveState`/rollback.
 - **Слои**: `backend` не импортирует `emulator-core`; списки фич трёх слоёв совпадают —
-  стережёт `qa/tests/features.test.js`.
+  стережёт `qa/tests/features.test.ts`.
 - **Возврат в лобби** сбрасывает фичи к базе (`MatchController.clear`) — чтобы
   fingerprint для последующих join/quick-match оставался базовым.
 
@@ -59,14 +59,14 @@
 3. `SUPPORTED_FEATURES.push(id)` в `backend/domain/features.js`.
 4. `OPTIONAL_FEATURES.push({...})` в `frontend/src/features.ts`.
 5. Гейт JS-эффектов: `if (!this.hasFeature(id)) return;` в `pvp.js`.
-6. Тесты: патчинг (fingerprint с фичей ≠ база), headless-поведение, `features.test.js`
+6. Тесты: патчинг (fingerprint с фичей ≠ база), headless-поведение, `features.test.ts`
    (совпадение списков), при необходимости — golden-пересбор.
 7. Документация: этот файл + `rom-patching.md`.
 
 ## Тесты
 
-- `emulator-core/tests/patching.test.js` — фичи меняют fingerprint; канонизация;
+- `emulator-core/tests/patching.test.ts` — фичи меняют fingerprint; канонизация;
   неизвестная фича отвергается.
-- `emulator-core/tests/pistol.test.js` — фича `pistol` включена (`features: ["pistol"]`).
-- `qa/tests/features.test.js` — списки backend/core/frontend совпадают.
+- `emulator-core/tests/pistol.test.ts` — фича `pistol` включена (`features: ["pistol"]`).
+- `qa/tests/features.test.ts` — списки backend/core/frontend совпадают.
 - `qa/golden`, `golden-replay` — база `pvp` (без фич).

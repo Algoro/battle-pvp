@@ -1,9 +1,9 @@
 // lobby-client.ts — браузерный клиент лобби: WS-протокол (список игр, комната, чат) +
 // хендофф в матч (negotiation WebRTC/relay -> RollbackSession).
-import { RollbackSession } from "../../netcode/rollback/session.js";
-import { RelayTransport } from "../../netcode/transport/relay.js";
-import { WebRTCTransport } from "../../netcode/transport/webrtc.js";
-import { MultiTransport } from "../../netcode/transport/multi.js";
+import { RollbackSession } from "@netcode/rollback/session.ts";
+import { RelayTransport } from "@netcode/transport/relay.ts";
+import { WebRTCTransport } from "@netcode/transport/webrtc.ts";
+import { MultiTransport } from "@netcode/transport/multi.ts";
 import { getIceServers } from "./ice";
 import type { Team } from "../ports";
 

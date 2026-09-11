@@ -67,9 +67,9 @@ audio.setSfxVolume(0.7);   audio.setSfxMuted(false);
 
 ## Тесты
 
-- `emulator-core/tests/audio.test.js`: эмиссия сэмплов; маршрутизация групп music/sfx;
+- `emulator-core/tests/audio.test.ts`: эмиссия сэмплов; маршрутизация групп music/sfx;
   гейт глушит обе группы; `getFrameHash()` не зависит от звука.
-- `netcode/tests/recovery.test.js`: откат включает/снимает гейт, сэмплы во время
+- `netcode/tests/recovery.test.ts`: откат включает/снимает гейт, сэмплы во время
   переигровки не эмитятся.
 - E2E: `AudioContext` поднимается, `posted > 0` для обеих групп (`window.__bcAudio.stats()`).
 

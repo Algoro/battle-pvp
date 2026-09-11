@@ -18,7 +18,7 @@ Rollback netcode (аналог GGPO). Относительные пути: `./ne
 `BATCH.headFrame` = следующий кадр отправителя (нужен для догона после resync).
 Снапшот режется на куски по `SNAP_CHUNK_BYTES` (16 КиБ): `encodeSnapshot(frame, hash, bytes)`.
 
-## Rollback-сессия (`netcode/rollback/session.js`)
+## Rollback-сессия (`netcode/rollback/session.ts`)
 - `advanceFrame(myInputs)` — сохраняет state, симулирует кадр, шлёт **избыточную** пачку
   последних `redundancy` (по умолчанию 4) кадров, периодически hash-check подтверждённых
   кадров (`confirmDelay` 20), ping каждые 60 кадров.

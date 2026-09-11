@@ -10,7 +10,7 @@
 # syntax=docker/dockerfile:1
 
 # --- Стадия сборки фронта ------------------------------------------------
-FROM node:23-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app/frontend
 
 # зависимости (кэшируются отдельно)
@@ -21,6 +21,7 @@ RUN npm install
 COPY emulator-core/ /app/emulator-core/
 COPY netcode/ /app/netcode/
 COPY vendor/jsnes/ /app/vendor/jsnes/
+COPY tsconfig.base.json /app/tsconfig.base.json
 COPY scripts/prepare.mjs /app/scripts/prepare.mjs
 COPY rom/original/ /app/rom/original/
 
@@ -29,13 +30,13 @@ COPY frontend/ ./
 RUN npm run build
 
 # --- Стадия сборки backend (только prod-зависимости) ----------------------
-FROM node:23-slim AS deps
+FROM node:24-slim AS deps
 WORKDIR /app/backend
 COPY backend/package*.json ./
 RUN npm install --omit=dev
 
 # --- Runtime ----------------------------------------------------------------
-FROM node:23-slim AS runtime
+FROM node:24-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     PORT=8080
@@ -46,4 +47,4 @@ COPY --from=build /app/frontend/dist ./frontend/dist
 
 WORKDIR /app/backend
 EXPOSE 8080
-CMD ["node", "server.js"]
+CMD ["node", "--disable-warning=ExperimentalWarning", "server.ts"]

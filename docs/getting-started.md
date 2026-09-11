@@ -2,7 +2,7 @@
 
 ## Требования
 
-- Node.js ≥ 20 (разработка ведётся на 23), npm.
+- Node.js ≥ 23.6 (Docker/CI — 24 LTS; нативный type stripping `.ts` без сборки), npm.
 - git с поддержкой сабмодулей.
 - Оригинальный ROM Battle City (Japan) — `rom/original/_battle_city.nes`
   (sha1 `941ad7ca825e3f86407472113aad00520cb45783`).
@@ -65,8 +65,9 @@ docker run --rm -p 8080:8080 battle-city-pvp
 ## Тесты
 
 ```bash
-npm install                     # корневые dev-tools (ESLint/Prettier)
-npm run lint                    # статический анализ (ESLint)
+npm install                     # корневые dev-tools (ESLint/Prettier/TS)
+npm run lint                    # статический анализ (ESLint, JS+TS)
+npm run typecheck               # tsc --noEmit по netcode/backend/emulator-core/frontend
 
 cd emulator-core && npm test
 cd netcode       && npm test
@@ -77,6 +78,10 @@ cd frontend      && npm test
 # браузерный e2e
 cd qa && npx playwright install chromium && npm run e2e:online
 ```
+
+Исходники на TypeScript исполняются Node напрямую (type stripping, без сборки);
+относительные импорты указывают расширение `.ts`. jsnes (`emulator-core/src`) остаётся
+неизменяемым JS.
 
 Полный прогон: `bash scripts/ci.sh` (ROM-зависимые этапы пропускаются без ROM).
 
