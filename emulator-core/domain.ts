@@ -23,6 +23,10 @@ export const DX = DIR_VEC.map((v) => v.dx);
 export const DY = DIR_VEC.map((v) => v.dy);
 export const DIR_BTN = [BTN.Up, BTN.Left, BTN.Down, BTN.Right];
 
+// Логические танки/порты: 0,1 — DEF ($4016/$4017), 2..7 — ATT (сетевые/ИИ).
+export const NUM_PLAYERS = 8;
+export const DEF_PORTS = 2;
+
 export function dirToBtn(dir: number): number {
   return DIR_BTN[dir & 3];
 }
@@ -97,6 +101,8 @@ export const TILE = {
 export const BRICK_MIN = 0x01;
 export const BRICK_MAX = 0x0f;
 export const BRICK_EXTRA = [0x13, 0x14]; // варианты стадий
+// Битовая маска квадрантов кирпича (совпадает с логикой brickHit).
+export const BRICK_QUADRANT = { TL: 0x01, TR: 0x02, BL: 0x04, BR: 0x08 };
 
 export function isBrick(v: number): boolean {
   return (v >= BRICK_MIN && v <= BRICK_MAX) || BRICK_EXTRA.includes(v);
@@ -139,7 +145,7 @@ export function upgradeToStars(u: number): number {
 }
 
 export default {
-  DIR, DIR_VEC, DX, DY, DIR_BTN, dirToBtn, btnToDir,
+  DIR, DIR_VEC, DX, DY, DIR_BTN, dirToBtn, btnToDir, NUM_PLAYERS, DEF_PORTS,
   TANK_TYPE, tankHits, tankSpeed, bulletProperty, bulletSpeed,
   TILE, isBrick, isSteel, isWater, isIce, isTree, isEagleTile, tankPassable, isRoad, blocksBullet, brickHealth,
   BULLET, isBulletFlying, bulletDir, flyingBullet,

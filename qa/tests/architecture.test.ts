@@ -117,3 +117,58 @@ test("architecture: исходники на TypeScript (нет .js вне jsnes 
   assert.deepStrictEqual(bad, [], `Остались .js-исходники:\n${bad.join("\n")}`);
 });
 
+test("architecture: JS-рантаймы фич не зависят от ядра pvp и детерминированы", () => {
+  const dir = join(ROOT, "emulator-core", "features");
+  const files = walk(dir, (p) => p.endsWith(".ts"));
+  const bad = [];
+  for (const f of files) {
+    const rel = relative(ROOT, f);
+    for (const spec of imports(f)) {
+      if (/(^|\/)pvp\.ts$/.test(spec)) bad.push(`${rel}: import "${spec}"`);
+    }
+    const src = readFileSync(f, "utf8");
+    if (/Date\.now\(|performance\.now\(|Math\.random\(/.test(src)) {
+      bad.push(`${rel}: недетерминированный источник времени/случайности`);
+    }
+  }
+  assert.deepStrictEqual(bad, [], bad.join("\n"));
+});
+
+// --- Слой рендера: драйверы/расширения (display-only, изолированы от ядра/сети) ---
+
+test("architecture: ядро/сеть/бэкенд не зависят от слоя рендера", () => {
+  const bad = [];
+  for (const r of ["emulator-core", "netcode", "backend"]) {
+    const files = walk(join(ROOT, r), (p) => p.endsWith(".ts") && !p.endsWith(".d.ts") && !p.includes(`${sep}tests${sep}`));
+    bad.push(...offenders(files, ["frontend/src/render", "three"]));
+  }
+  assert.deepStrictEqual(bad, [], bad.join("\n"));
+});
+
+test("architecture: shared/renderers.ts без импортов", () => {
+  assert.deepStrictEqual(imports(join(ROOT, "shared", "renderers.ts")), []);
+});
+
+test("architecture: слой рендера не зависит от ядра pvp (только read-only сцена)", () => {
+  const files = walk(join(ROOT, "frontend", "src", "render"), (p) => p.endsWith(".ts"));
+  const bad = [];
+  for (const f of files) {
+    const rel = relative(ROOT, f);
+    for (const spec of imports(f)) {
+      if (/(^|\/)pvp\.ts$/.test(spec)) bad.push(`${rel}: import "${spec}"`);
+    }
+  }
+  assert.deepStrictEqual(bad, [], bad.join("\n"));
+});
+
+test("architecture: слой рендера не вызывает мутирующие методы ядра", () => {
+  const files = walk(join(ROOT, "frontend", "src", "render"), (p) => p.endsWith(".ts"));
+  const bad = [];
+  for (const f of files) {
+    const src = readFileSync(f, "utf8");
+    if (/\.(stepFrame|saveState|loadState)\s*\(/.test(src)) bad.push(relative(ROOT, f));
+  }
+  assert.deepStrictEqual(bad, [], `рендер не должен вызывать методы ядра:\n${bad.join("\n")}`);
+});
+
+

@@ -1,19 +1,16 @@
-// emulator.ts — драйвер ядра в браузере: загрузка ROM, шаг кадра, рендер в canvas.
-// Импортирует детерминированное PvP-ядро (./emulator-core/pvp.js). Тип — any
-// (JS-ядро без деклараций); API стабильно и покрыто тестами в emulator-core.
+// emulator.ts — драйвер игрового ядра в браузере: загрузка ROM, шаг кадра, save/load.
+// Отрисовкой управляет отдельный слой рендера (см. render/render-system.ts): ядро лишь
+// вызывает установленный frameRenderer. Тип ядра — any (PvPNes без деклараций).
 import PvPNes from "@core/pvp.ts";
 import type { FrameInput } from "../ports";
 
 // FrameInput — доменный тип ввода: единое определение в ports.ts, ре-экспорт для совместимости.
 export type { FrameInput };
 
-export const SCREEN_W = 256;
-export const SCREEN_H = 240;
-
 // Обёртка над PvPNes для браузера.
 export class EmulatorDriver {
   nes: any;
-  private ctx: CanvasRenderingContext2D | null = null;
+  private frameRenderer: (() => void) | null = null;
   private raf = 0;
   private lastT = 0;
   private accum = 0;
@@ -25,10 +22,15 @@ export class EmulatorDriver {
   private startStars = 0; // стартовые звёзды DEF (0..3)
   private startPistol = false; // стартовое супер-оружие DEF (аналог 4-й звезды)
   private patchFeatures: string[] = []; // включённые опциональные фичи (pistol, ...)
+  private playerNames: Record<number, string> = {}; // порт → имя (фича player-names)
   public onFrame?: (frame: number) => void;
 
   // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
   setAudio(audio: any) { this.audio = audio; return this; }
+
+  // Подключить рендер-слой: вызывается на каждый step/draw (после обновления ядра).
+  // Ядро больше не рисует само — отрисовку определяет выбранный драйвер рендера.
+  setFrameRenderer(fn: (() => void) | null) { this.frameRenderer = fn; return this; }
 
   // Стартовая стадия. Применяется при следующем reset()/loadROM.
   setStartStage(stage: number) {
@@ -59,6 +61,13 @@ export class EmulatorDriver {
 
   getPatchFeatures(): string[] { return [...this.patchFeatures]; }
 
+  // Имена игроков над танками (фича player-names): карта порт → имя.
+  setPlayerNames(names: Record<number, string> | null | undefined) {
+    this.playerNames = { ...(names || {}) };
+    this.nes?.setPlayerNames?.(this.playerNames);
+    return this;
+  }
+
   getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
   getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }
   // Пиксели CHR-тайла ФОНА (64 значения 0..3). В Battle City BG pattern table — $1000
@@ -72,6 +81,7 @@ export class EmulatorDriver {
     return {
       ...this.aiConfig,
       features: this.patchFeatures,
+      names: this.playerNames,
       onAudioSampleGroup: (group: "music" | "sfx", l: number, r: number) => this.audio?.pushGroup(group, l, r),
     };
   }
@@ -106,16 +116,10 @@ export class EmulatorDriver {
     return this;
   }
 
-  attachCanvas(canvas: HTMLCanvasElement) {
-    canvas.width = SCREEN_W;
-    canvas.height = SCREEN_H;
-    this.ctx = canvas.getContext("2d");
-  }
-
   // Прогнать ровно один кадр с данными входами (детерминированно).
   step(inputs: FrameInput[]): string {
     const h = this.nes.stepFrame(inputs);
-    this.render();
+    this.frameRenderer?.();
     return h;
   }
 
@@ -123,7 +127,7 @@ export class EmulatorDriver {
   stepFrame(inputs: FrameInput[]): string { return this.nes.stepFrame(inputs); }
   saveState(): Uint8Array { return this.nes.saveState(); }
   loadState(bytes: Uint8Array): void { this.nes.loadState(bytes); }
-  draw(): void { this.render(); }
+  draw(): void { this.frameRenderer?.(); }
 
   // Отпечаток пропатченного картриджа (для netcode-handshake). null — если патч не применён.
   cartridgeFingerprint(): string | null {
@@ -183,19 +187,6 @@ export class EmulatorDriver {
 
   readMem(addr: number): number {
     return this.nes.readMem(addr);
-  }
-
-  private render() {
-    if (!this.ctx || !this.nes?.ppu?.buffer) return;
-    const buf = this.nes.ppu.buffer as Uint32Array;
-    const img = this.ctx.createImageData(SCREEN_W, SCREEN_H);
-    const img32 = new Uint32Array(img.data.buffer);
-    // Буфер ядра хранит цвет как 0x00BBGGRR (младший байт = R). Запись
-    // `0xff000000 | buf[i]` даёт байты [R,G,B,A] в ImageData на little-endian.
-    for (let i = 0; i < img32.length; i++) {
-      img32[i] = 0xff000000 | buf[i];
-    }
-    this.ctx.putImageData(img, 0, 0);
   }
 }
 

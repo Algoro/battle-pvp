@@ -97,12 +97,14 @@ export class MatchController {
   }
 
   // --- локальная игра ---
-  startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = []): void {
+  startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = [], names: Record<number, string> = {}): void {
     const emu = this.deps.emu();
     if (!emu) return;
     const feats = [...features];
     emu.setPatchFeatures?.(feats);
-    emu.setStartStage(stage);
+    emu.setPlayerNames?.(names);
+    const forcedStage = feats.includes("pacman") ? 1 : stage; // режим pacman играет только лабиринт (stage 1)
+    emu.setStartStage(forcedStage);
     emu.setStartStars(stars);
     emu.setStartPistol?.(pistol && feats.includes("pistol"));
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
@@ -123,6 +125,10 @@ export class MatchController {
       .filter((p) => p.playerId !== meId)
       .map((p) => ({ team: p.team, port: p.port, playerId: p.playerId }));
     this.deps.lobby()?.rejoinMatch?.(start.matchId, myTeam);
+    const names: Record<number, string> = {};
+    for (const p of start.peers) {
+      if (p.name && p.port !== undefined && p.port !== null) names[p.port] = p.name;
+    }
     await this.beginOnlineMatch({
       gateway,
       myTeam,
@@ -132,6 +138,7 @@ export class MatchController {
       defStars: start.defStars ?? 0,
       defPistol: !!start.defPistol,
       features: start.features ?? [],
+      names,
       opps,
       negotiate: () =>
         opps.length > 1 && gateway.negotiateAll
@@ -148,6 +155,8 @@ export class MatchController {
     await nc.connect();
     nc.peerId = match.opponent;
     const oppTeam: Team = team === "DEF" ? "ATT" : "DEF";
+    const names: Record<number, string> = {};
+    if (name) names[team === "DEF" ? 0 : 2] = name;
     await this.beginOnlineMatch({
       gateway: nc,
       myTeam: team,
@@ -155,6 +164,7 @@ export class MatchController {
       matchId: match.matchId,
       stage: 1,
       defStars: 0,
+      names,
       opps: [{ team: oppTeam, port: team === "DEF" ? 2 : 0, playerId: match.opponent }],
       negotiate: () => nc.negotiate(),
     });
@@ -169,6 +179,7 @@ export class MatchController {
     defStars: number;
     defPistol?: boolean;
     features?: string[];
+    names?: Record<number, string>;
     opps: OnlineOpponent[];
     negotiate: () => Promise<NegotiatedTransport>;
   }): Promise<void> {
@@ -177,8 +188,9 @@ export class MatchController {
 
     const feats = [...(opts.features || [])];
     emu.setPatchFeatures?.(feats);
+    emu.setPlayerNames?.(opts.names || {});
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
-    emu.setStartStage(opts.stage);
+    emu.setStartStage(feats.includes("pacman") ? 1 : opts.stage);
     emu.setStartStars(opts.defStars);
     emu.setStartPistol?.(!!opts.defPistol && feats.includes("pistol"));
     const mark = (team: Team, port: number) =>

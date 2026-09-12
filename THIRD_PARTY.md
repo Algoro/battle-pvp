@@ -37,6 +37,7 @@
 | Компонент | Лицензия | Роль |
 |---|---|---|
 | React / react-dom | MIT | runtime frontend |
+| three | MIT | runtime frontend (драйвер рендера topdown-3d) |
 | ws | MIT | runtime backend |
 | Vite / Rollup / esbuild | MIT | dev/build |
 | TypeScript | Apache-2.0 | dev |

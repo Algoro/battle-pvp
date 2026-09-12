@@ -4,9 +4,10 @@ import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
+import FeaturePicker from "./FeaturePicker";
+import RenderPicker from "./RenderPicker";
 import type { ChatMessage, LobbyState } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
-import { OPTIONAL_FEATURES } from "../features";
 
 interface Props {
   lobbies: LobbyState[];
@@ -65,23 +66,14 @@ export default function LobbyBrowser({
               pistol={soloPistol}
               onPistolChange={soloFeatures.includes("pistol") ? setSoloPistol : undefined}
             />
-            <div className="browser__features">
-              {OPTIONAL_FEATURES.map((f) => (
-                <label key={f.id} className="browser__feature" title={f.description}>
-                  <input
-                    type="checkbox"
-                    checked={soloFeatures.includes(f.id)}
-                    onChange={() => {
-                      setSoloFeatures((prev) => {
-                        const next = prev.includes(f.id) ? prev.filter((x) => x !== f.id) : [...prev, f.id];
-                        if (!next.includes("pistol")) setSoloPistol(false);
-                        return next;
-                      });
-                    }}
-                  /> {f.title}
-                </label>
-              ))}
-            </div>
+            <FeaturePicker
+              features={soloFeatures}
+              onChange={(next) => {
+                setSoloFeatures(next);
+                if (!next.includes("pistol")) setSoloPistol(false);
+              }}
+            />
+            <RenderPicker emulator={emulator} stage={soloStage} />
           </div>
 
           <div className="browser__join">

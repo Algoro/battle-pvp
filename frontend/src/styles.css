@@ -286,8 +286,8 @@ body { margin: 0; }
 .room-header { display: flex; justify-content: space-between; align-items: center; }
 .room-header h1 { margin: 0; font-size: 24px; }
 .room-header__meta { font-size: 13px; color: #9aa3b2; margin-top: 2px; }
-.room { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "teams chat" "controls chat" "settings chat"; gap: 12px; align-items: start; }
-@media (max-width: 820px) { .room { grid-template-columns: minmax(0, 1fr); grid-template-areas: "teams" "controls" "settings" "chat"; } }
+.room { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-areas: "teams chat" "controls chat" "render chat" "settings chat"; gap: 12px; align-items: start; }
+@media (max-width: 820px) { .room { grid-template-columns: minmax(0, 1fr); grid-template-areas: "teams" "controls" "render" "settings" "chat"; } }
 .room__teams { grid-area: teams; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .room__controls { grid-area: controls; display: flex; gap: 8px; flex-wrap: wrap; }
 .room__settings { grid-area: settings; display: flex; align-items: center; gap: 14px; font-size: 13px; color: #c7ccd6; flex-wrap: wrap; }
@@ -318,3 +318,159 @@ body { margin: 0; }
   background: rgba(255,184,74,0.15); border: 1px solid rgba(255,184,74,0.5); color: #ffd79a;
   z-index: 40;
 }
+
+/* ===================== RENDER LAYER (драйверы/расширения) ===================== */
+.screen-stage {
+  position: relative;
+  width: 512px;
+  max-width: 94vw;
+  aspect-ratio: 256 / 240;
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  background: #05070b;
+  overflow: hidden;
+  touch-action: none;
+}
+/* Растягиваем на контейнер только канвас самого драйвера (прямой ребёнок),
+   а не канвасы расширений (миникарта и т.п.). */
+.screen-stage > canvas,
+.rpreview:not(.rpreview--2d) > canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.screen-stage canvas.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.render-minimap {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 148px;
+  padding: 6px;
+  background: rgba(8, 10, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  pointer-events: none;
+}
+.render-minimap__canvas { display: block; width: 148px; height: 148px; }
+.render-minimap__label { font-size: 10px; color: #7d8798; margin-top: 4px; text-align: center; }
+
+.rset { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.rset__toggle {
+  background: #12161d; color: #e6edf3; border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; font-family: inherit; font-size: 13px;
+}
+.rset__panel {
+  display: flex; flex-direction: column; gap: 8px; width: 340px; max-width: 94vw;
+  background: rgba(20, 24, 32, 0.95); border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px; padding: 12px;
+}
+.rset__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #c9d2de; }
+.rset__row select {
+  background: #12161d; color: #e6edf3; border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px; padding: 5px 8px; font-family: inherit;
+}
+.rset__row input[type="range"] { width: 170px; }
+.rset__sub {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #7d8798;
+  border-top: 1px solid rgba(255, 255, 255, 0.08); padding-top: 8px; margin-top: 2px;
+}
+.rset__desc { font-size: 11px; color: #7d8798; }
+.rset__check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #c9d2de; }
+.rset__check--off { opacity: 0.5; }
+.rset__check em { font-size: 10px; color: #ff8a5c; font-style: normal; margin-left: auto; }
+.rset__btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.rset__btns button {
+  background: #1a2029; color: #e6edf3; border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px; padding: 5px 9px; cursor: pointer; font-family: inherit; font-size: 12px;
+}
+.rset__hint { font-size: 10px; color: #7d8798; }
+.rset__warn { font-size: 11px; color: #ffb27a; }
+
+/* ===================== ВЫБОР ПАТЧЕЙ И ВИДА (предполётные экраны) ===================== */
+.fpick { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.fpick__head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.fpick__title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #7d8798; }
+.fpick__count { font-size: 11px; color: #9aa3b2; }
+.fpick__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
+.fpick__item {
+  display: flex; gap: 9px; align-items: flex-start;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 9px; padding: 8px 10px; cursor: pointer;
+}
+.fpick__item--on { border-color: #e0b040; background: rgba(224,176,64,0.10); }
+.fpick__item--disabled { opacity: 0.5; cursor: not-allowed; }
+.fpick__item input { margin-top: 3px; }
+.fpick__item-body { display: flex; flex-direction: column; gap: 2px; }
+.fpick__item-title { font-size: 13px; color: #e8ebf0; }
+.fpick__item-desc { font-size: 11px; color: #7d8798; line-height: 1.35; }
+.fpick__summary { font-size: 12px; color: #9aa3b2; }
+.fpick__summary b { color: #c7ccd6; }
+
+.rpick { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.rpick__drivers { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+.rpick__card {
+  display: flex; flex-direction: column; gap: 3px; text-align: left;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 9px; padding: 8px 10px; cursor: pointer; font-family: inherit; color: #e8ebf0;
+}
+.rpick__card--on { border-color: #3ddc84; background: rgba(61,220,132,0.10); }
+.rpick__card-title { font-size: 13px; }
+.rpick__card-desc { font-size: 11px; color: #7d8798; line-height: 1.35; }
+.rpick__exts { display: flex; flex-direction: column; gap: 5px; }
+.rpick__ext { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #c7ccd6; }
+.rpick__ext--off { opacity: 0.5; }
+.rpick__ext em { font-size: 10px; color: #ff8a5c; font-style: normal; margin-left: auto; }
+.rpick__note { font-size: 11px; color: #7d8798; }
+.rpreview {
+  position: relative; width: 100%; aspect-ratio: 256 / 200; min-height: 170px;
+  border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; overflow: hidden; background: #05070b;
+  touch-action: none;
+}
+.rpreview:not(.rpreview--2d) > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rpreview--2d { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.rpreview__hint { font-size: 10px; color: #7d8798; }
+.room__render { grid-area: render; }
+
+/* ===================== MC-VOXEL: настройки и виньетка ===================== */
+.mcs { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
+.mcs__presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.mcs__preset {
+  background: #1a2029; color: #c9d2de; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px; padding: 4px 9px; cursor: pointer; font-family: inherit; font-size: 11px; text-transform: capitalize;
+}
+.mcs__preset--on { border-color: #3ddc84; color: #bff5d6; background: rgba(61,220,132,0.10); }
+.mcs__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #c9d2de; }
+.mcs__row select {
+  background: #12161d; color: #e6edf3; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 7px; padding: 4px 7px; font-family: inherit; font-size: 12px;
+}
+.mcs__row input[type="range"] { width: 150px; }
+.mcs__checks { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #c9d2de; }
+.mcs__checks label { display: flex; align-items: center; gap: 6px; }
+.mc-vignette {
+  position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+}
+
+/* ===================== Настройки плагина рендера (универсальная форма) ===================== */
+.rform { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
+.rform__presets { display: flex; gap: 6px; flex-wrap: wrap; }
+.rform__preset {
+  background: #1a2029; color: #c9d2de; border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 7px; padding: 4px 9px; cursor: pointer; font-family: inherit; font-size: 11px;
+}
+.rform__preset--on { border-color: #3ddc84; color: #bff5d6; background: rgba(61,220,132,0.10); }
+.rform__group { font-size: 11px; text-transform: uppercase; letter-spacing: 0.4px; color: #7d8798; margin-top: 4px; }
+.rform__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #c9d2de; }
+.rform__row select {
+  background: #12161d; color: #e6edf3; border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 7px; padding: 4px 7px; font-family: inherit; font-size: 12px;
+}
+.rform__row input[type="range"] { width: 150px; }

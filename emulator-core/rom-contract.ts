@@ -40,6 +40,8 @@ export const RAM = {
   TANK_UPGRADE: 0x0101, // ram_tank_upgrade (+port), шаги 0x20: 0x00/0x20/0x40/0x60
   FIELD: 0x0400, // буфер поля 32x32 тайлов (0x0400..0x07FF)
   SFX_BONUS_PICKUP: 0x0306, // ram_sfx_bonus_pickup
+  SFX_BONUS_APPEAR: 0x0309, // ram_sfx_bonus_appear
+  SFX_BULLET_HIT_TANK: 0x030e, // ram_sfx_bullet_hit_tank
   SFX_EXPLOSION_PLAYER: 0x0307, // ram_sfx_explosion_player
   SFX_EXPLOSION_ENEMY: 0x030a, // ram_sfx_explosion_enemy
   SFX_EXPLOSION_HQ: 0x030b, // ram_sfx_explosion_hq
@@ -53,6 +55,13 @@ export const RAM = {
   // супер-оружие «пистолет» (rom-патч pistol, 2 игрока DEF)
   PISTOL: 0x01ee, // 2 байта: 1 = владеет супер-оружием
   PISTOL_AMMO: 0x01f0, // 2 байта: остаток супер-выстрелов
+  // фича enemy-prizes: эффекты врагов, подобравших приз (см. patching/patches/enemy-prizes)
+  ENEMY_PISTOL_AMMO: 0x01f2, // 6 байт: боезапас супер-оружия врагов (танки 2..7), 0 = нет
+  ENEMY_PRIZE_IDX: 0x01f8, // 1 байт: индекс врага, забравшего приз (0xFF — нет)
+  ENEMY_PRIZE_ID: 0x01f9, // 1 байт: id забранного приза
+  PRIZE_FREEZE: 0x01fa, // 2 байта: таймер заморозки DEF-танков (clock у врага)
+  DOTS_LEFT: 0x01fc, // 2 байта: остаток точек (режим pacman); 0 — поле зачищено
+  PACMAN_WIN: 0x01fe, // 1 байт: 1 — DEF зачистили поле (победа в матче)
 };
 
 export const FIELD_SIZE = 32;

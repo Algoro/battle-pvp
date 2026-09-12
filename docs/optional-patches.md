@@ -1,7 +1,7 @@
 # Опциональные патч-фичи
 
-Механизм, позволяющий включать/выключать игровые ROM-патчи (первый — «пистолет»),
-не ломая совместимость netcode и сохраняя детерминизм.
+Механизм, позволяющий включать/выключать игровые ROM-патчи («пистолет»,
+«враги берут призы»), не ломая совместимость netcode и сохраняя детерминизм.
 
 ## Модель
 
@@ -9,8 +9,18 @@
   сетевой PvP-патч. Её fingerprint (`94cb0636`) — предмет netcode-совместимости,
   его обменивают при join/matchmaking.
 - **Фичи** (`features: ["pistol"]`) — опциональные игровые патчи поверх базы.
-  Включаются списком, собираются в ROM детерминированно; fingerprint зависит от набора
-  (`pvp` без фич = `94cb0636`, `pvp+pistol` = `d370108f`).
+  Включаются списком, собираются в ROM детерминированно; fingerprint зависит от ROM-части
+  набора: `pvp` без фич = `94cb0636`, `pvp+pistol` = `d370108f`, `pvp+enemy-prizes` = `b1940f80`,
+  `pvp+pistol+enemy-prizes` = `0f0d445d`. Фичи, реализованные только JS-рантаймом
+  (`friendly-fire-def`, `friendly-fire-att`), ROM не меняют — их fingerprint совпадает с
+  базой, а совместимость обеспечивается списком фич (неизвестная фича отвергается).
+
+Фича = ROM-дескриптор (`patching/patches/*`) + опциональный JS-рантайм
+(`features/*`, `FeatureRuntime`), который ядро вызывает вокруг ROM-кадра
+(`preFrame → frame() → postFrame → render`). Рантаймы не зависят от `pvp.ts`,
+авторитетное состояние держат в RAM (rollback), визуал — в `ctx.state`. Производный
+визуал (например, nametable-overlay имён) снимается хуками `beforeSaveState` и
+возвращается `afterSaveState`, чтобы не попадать в снапшот/rollback.
 - Набор фич выбирает **хост** в настройках лобби (`features`) или игрок в соло; набор
   передаётся в `match.start` и применяется всеми клиентами **до старта симуляции**,
   поэтому образ у всех одинаков.
@@ -54,13 +64,18 @@
 
 ## Как добавить новую опциональную фичу
 
-1. `emulator-core/patching/patches/<new>.js` — дескриптор (routines/writes).
-2. `registerFeature({ id, title, description, patch })` в `registry.js`.
-3. `SUPPORTED_FEATURES.push(id)` в `backend/domain/features.js`.
-4. `OPTIONAL_FEATURES.push({...})` в `frontend/src/features.ts`.
-5. Гейт JS-эффектов: `if (!this.hasFeature(id)) return;` в `pvp.js`.
-6. Тесты: патчинг (fingerprint с фичей ≠ база), headless-поведение, `features.test.ts`
-   (совпадение списков), при необходимости — golden-пересбор.
+Метаданные фич (`id/title/description`) живут в едином манифесте **`shared/features.ts`**.
+Из него автоматически выводятся UI-чекбоксы (`frontend OPTIONAL_FEATURES`) и валидация
+бэкенда (`backend SUPPORTED_FEATURES`) — править UI/backend не нужно. Реестр патчей
+сверяется с манифестом на старте (`assertFeaturesConsistent`).
+
+1. `emulator-core/patching/patches/<new>.ts` — ROM-дескриптор (routines/writes/free или пустой).
+2. `emulator-core/features/<new>.ts` — JS-рантайм (`FeatureRuntime`), если нужен.
+3. `registerFeature({ id, patch, runtime? })` в `registry.ts` — только проводка.
+4. Строка в `shared/features.ts` (`FEATURE_MANIFEST`).
+5. Гейт JS-эффектов — рантайм присутствует только у активной фичи (`hasFeature` не нужен).
+6. Тесты: патчинг (fingerprint, если ROM меняется), headless-поведение,
+   согласованность манифеста/реестра (`qa/tests/features.test.ts`, `architecture.test.ts`).
 7. Документация: этот файл + `rom-patching.md`.
 
 ## Тесты
@@ -68,5 +83,17 @@
 - `emulator-core/tests/patching.test.ts` — фичи меняют fingerprint; канонизация;
   неизвестная фича отвергается.
 - `emulator-core/tests/pistol.test.ts` — фича `pistol` включена (`features: ["pistol"]`).
+- `emulator-core/tests/enemy-prizes.test.ts` — `enemy-prizes`: враг забирает приз и
+  получает эффект (clock/shovel/grenade/tank/star/pistol), без фичи — нет; игрок
+  подбирает как раньше; комбинация с `pistol` собирается без перекрытий.
+- `emulator-core/tests/friendly-fire.test.ts` — `friendly-fire-def` (свой убивает своего)
+  и `friendly-fire-att` (урон союзнику с бронёй и выпадением приза), без фич — нет.
+- `emulator-core/tests/player-names.test.ts` — имя над танком (глифы/центровка/движение),
+  нет имён/фичи — ничего, хэш не меняется, overlay не попадает в `saveState`.
+- `emulator-core/tests/pacman.test.ts` — режим `pacman`: ROM-лабиринт (стадия 1), замуровка
+  базы бетоном, точки/сбор DEF-танками, счётчик, победа по зачистке, бомбы-призы; без фичи —
+  обычный Battle City.
+- `qa/tests/architecture.test.ts` — рантаймы `features/**` не зависят от `pvp.ts` и
+  детерминированы (без `Date.now/performance.now/Math.random`).
 - `qa/tests/features.test.ts` — списки backend/core/frontend совпадают.
 - `qa/golden`, `golden-replay` — база `pvp` (без фич).

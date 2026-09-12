@@ -2,9 +2,10 @@
 import { useState } from "react";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
+import FeaturePicker from "./FeaturePicker";
+import RenderPicker from "./RenderPicker";
 import type { LobbySettings } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
-import { OPTIONAL_FEATURES } from "../features";
 
 interface Props {
   onCreate: (name: string, settings: LobbySettings) => void;
@@ -22,12 +23,6 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
   const [defStars, setDefStars] = useState(0);
   const [defPistol, setDefPistol] = useState(false);
   const [features, setFeatures] = useState<string[]>([]);
-  const toggleFeature = (id: string) =>
-    setFeatures((prev) => {
-      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      if (!next.includes("pistol")) setDefPistol(false);
-      return next;
-    });
 
   return (
     <div className="modal" onClick={onCancel}>
@@ -63,13 +58,16 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
           />
         </div>
         <div className="modal__field">
-          <span>Опциональные патчи:</span>
-          {OPTIONAL_FEATURES.map((f) => (
-            <label key={f.id} className="modal__check" title={f.description}>
-              <span>{f.title}</span>
-              <input type="checkbox" checked={features.includes(f.id)} onChange={() => toggleFeature(f.id)} />
-            </label>
-          ))}
+          <FeaturePicker
+            features={features}
+            onChange={(next) => {
+              setFeatures(next);
+              if (!next.includes("pistol")) setDefPistol(false);
+            }}
+          />
+        </div>
+        <div className="modal__field">
+          <RenderPicker emulator={emulator} stage={stage} />
         </div>
         <p className="modal__hint">Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».</p>
         <div className="modal__actions">

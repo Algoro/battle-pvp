@@ -22,6 +22,7 @@
 - Чат в бою, HUD соединения (ping, rollback, DESYNC), конец матча с возвратом в лобби.
 - **Выбор стадии (1–35) с предпросмотром** и **стартовых звёзд защитников (0–3)** — из ROM в памяти, старт детерминирован.
 - **Опциональные патч-фичи** (первая — «Пистолет»: приз и 4-я звезда дают супер-оружие) — хост/соло выбирает набор, все клиенты собирают один ROM; см. `docs/optional-patches.md`.
+- **Драйверы и расширения рендера** (отдельный от патчей слой): пиксельный NES-вид, **3D-вид сверху** и **воксельный «sandbox» вид** (кубические блоки, пиксельные текстуры, небо/день-ночь, вода, частицы, «живой мир» — птицы, блочные облака, мышки). Камеры: **орбита**, **от третьего лица**, **из глаз** (с авто-доворотом за танком), настройки/пресеты для каждого драйвера, живой предпросмотр уровня до старта. Расширения — миникарта, частицы. Выбор локальный, на матч/детерминизм не влияет; см. `docs/render-extensions.md`.
 - **Звук и музыка** из APU (jsnes) с раздельными громкостью/mute для музыки и эффектов; откаты не дают щелчков.
 - Детерминированный `saveState/loadState` и `getFrameHash` — основа побед/поражений и netcode.
 
@@ -107,7 +108,8 @@ cd qa && npx playwright install chromium && npm run e2e:online
 backend/         Node backend: matchmaking, лобби/комнаты, signaling relay, SQLite
 emulator-core/   ядро: PvPNes (поверх неизменного jsnes), patching/, ai/, sim/, model/, io/
 netcode/         rollback-netcode: протокол, сессия, транспорты (webrtc/relay/local)
-frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD
+frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD,
+                 render/ (драйверы и расширения рендера: pixel-2d, topdown-3d, minimap, particles)
 qa/              node-тесты + Playwright e2e
 rom/             original/ (ваш ROM; не коммитится) + генерируемый disasm/
 scripts/         prepare.mjs, extract-patches.mjs, ci.sh, verify-environment.sh, init-git.sh
@@ -146,6 +148,9 @@ git push -u origin main
 - [docs/audio.md](docs/audio.md) — звук и музыка (APU, громкость, откаты).
 - [docs/ai.md](docs/ai.md) — ИИ атакующих/защитников.
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
+- [docs/render-extensions.md](docs/render-extensions.md) — драйверы/расширения рендера.
+- [docs/3d-view-plan.md](docs/3d-view-plan.md) — драйвер `topdown-3d`.
+- [docs/minecraft-look-plan.md](docs/minecraft-look-plan.md) — драйвер `mc-voxel` (воксельный стиль).
 
 ## Лицензия и правовой статус
 

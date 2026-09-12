@@ -33,6 +33,7 @@ emu.patching;                        // отчёт применения патч
 | `setStartStars(stars)` | Стартовые звёзды команды DEF (0..3) — апгрейд танка (`ram_tank_upgrade`). |
 | `setStartPistol(on)` | Стартовое супер-оружие DEF (аналог 4-й звезды): максимум звёзд + пистолет (`ram_pistol`/`ram_pistol_ammo`). No-op без фичи `pistol`. |
 | `setPatchFeatures(features)` | Включённые опциональные фичи-патчи (`["pistol"]`), применяются при следующем `reset()`. См. `docs/optional-patches.md`. |
+| `setPlayerNames(map)` | Карта `порт → имя` для фичи `player-names`: имя рисуется над танком (BG-overlay nametable, шрифт ROM). Не влияет на хэш/rollback. |
 | `getStage(stage)` / `getStageBlocks(stage)` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
 | `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |
@@ -59,3 +60,16 @@ emu.patching;                        // отчёт применения патч
 
 - `emu.ppu.buffer` — `Uint32Array(256×240)` текущего кадра (в canvas: `0xff000000 | buf[i]`).
 - `emu.cpu.mem` — полное адресное пространство CPU (RAM + ROM).
+
+### Слой рендера (драйверы и расширения)
+
+Отрисовка вынесена из ядра в отдельный слой (`frontend/src/render/`, см.
+`docs/render-extensions.md`). `EmulatorDriver` лишь вызывает `setFrameRenderer(fn)` на
+каждый `step()`/`draw()`; чем рисовать — определяет выбранный **драйвер рендера**:
+
+- `pixel-2d` (по умолчанию) — прежний кадр PPU;
+- `topdown-3d` — объёмное поле (`docs/3d-view-plan.md`).
+
+Расширения (`minimap`, `particles`) накладываются хостом `RenderSystem`. Драйверы читают
+только `SceneState` (`readScene`, из RAM/PPU) и не влияют на шаг ядра, хэши, save/load и
+сетевой протокол; выбор хранится локально (`bc_renderDriver`/`bc_renderExtensions`).

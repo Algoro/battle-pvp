@@ -4,7 +4,8 @@ import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
-import { OPTIONAL_FEATURES } from "../features";
+import FeaturePicker from "./FeaturePicker";
+import RenderPicker from "./RenderPicker";
 import type { ChatMessage, LobbyState, LobbySettings, Team } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
 
@@ -143,23 +144,19 @@ export default function LobbyRoom({
               />
             </div>
             <div className="room__features">
-              <span className="room__settings-label">Патчи:</span>
-              {OPTIONAL_FEATURES.map((f) => (
-                <label key={f.id} className="room__toggle" title={f.description}>
-                  <input
-                    type="checkbox"
-                    checked={(lobby.settings.features || []).includes(f.id)}
-                    onChange={(e) => {
-                      const cur = lobby.settings.features || [];
-                      const next = e.target.checked ? [...cur, f.id] : cur.filter((x) => x !== f.id);
-                      onSettings({ features: next, ...(next.includes("pistol") ? {} : { defPistol: false }) });
-                    }}
-                  /> {f.title}
-                </label>
-              ))}
+              <FeaturePicker
+                features={lobby.settings.features || []}
+                onChange={(next) =>
+                  onSettings({ features: next, ...(next.includes("pistol") ? {} : { defPistol: false }) })
+                }
+              />
             </div>
           </div>
         )}
+
+        <div className="room__render">
+          <RenderPicker emulator={emulator} stage={lobby.settings.stage || 1} />
+        </div>
 
         <aside className="room__chat">
           <ChatPanel title="Чат комнаты" messages={chat} onSend={onSendChat} meId={meId} />

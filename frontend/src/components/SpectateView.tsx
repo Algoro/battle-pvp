@@ -1,8 +1,11 @@
 // SpectateView.tsx — экран наблюдателя: рендер снапшотов, полученных от игроков,
 // и чат матча. Ввод не отправляется (наблюдатель не управляет танками).
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EmulatorDriver } from "../engine/emulator";
 import ChatPanel from "./ChatPanel";
+import RenderSettings from "./RenderSettings";
+import { RenderSystem } from "../render/render-system";
+import { readScene } from "../render/scene-state";
 import type { ChatMessage } from "../engine/lobby-client";
 
 interface Props {
@@ -16,13 +19,29 @@ interface Props {
 }
 
 export default function SpectateView({ emulator, meId, chat, onSendChat, frame, finished, onExit }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [render, setRender] = useState<RenderSystem | null>(null);
 
   useEffect(() => {
-    if (canvasRef.current) emulator.attachCanvas(canvasRef.current);
-    emulator.draw();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const el = containerRef.current;
+    if (!el) return;
+    const sys = new RenderSystem({ container: el, scene: () => readScene(emulator) });
+    sys.setViewer({ port: 0 });
+    emulator.setFrameRenderer(() => sys.frame());
+    setRender(sys);
+    let raf = 0;
+    const loop = () => {
+      emulator.draw();
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      emulator.setFrameRenderer(null);
+      sys.dispose();
+      setRender(null);
+    };
+  }, [emulator]);
 
   return (
     <div className="game">
@@ -33,7 +52,8 @@ export default function SpectateView({ emulator, meId, chat, onSendChat, frame, 
       </div>
       <div className="game__body">
         <div className="game__board">
-          <canvas ref={canvasRef} className="screen" />
+          <div ref={containerRef} className="screen-stage" />
+          <RenderSettings system={render} />
           <div className="controls-hint">Просмотр матча (без управления)</div>
         </div>
         <aside className="game__side">

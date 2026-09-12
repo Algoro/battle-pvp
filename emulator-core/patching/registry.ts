@@ -11,9 +11,22 @@
 // Относительный путь: ./emulator-core/patching/registry.js
 import { composeSets } from "./descriptor.ts";
 import { PatchError, PatchErrorCode } from "./errors.ts";
+import { RUNTIME_METHODS, type FeatureRuntime } from "./runtime.ts";
 import { baseNrom } from "./patches/base-nrom.ts";
 import { pvp } from "./patches/pvp.ts";
 import { pistol } from "./patches/pistol.ts";
+import { enemyPrizes } from "./patches/enemy-prizes.ts";
+import { friendlyFireDef } from "./patches/friendly-fire-def.ts";
+import { friendlyFireAtt } from "./patches/friendly-fire-att.ts";
+import { playerNames } from "./patches/player-names.ts";
+import { pacman } from "./patches/pacman.ts";
+import { pistolRuntime } from "../features/pistol.ts";
+import { enemyPrizesRuntime } from "../features/enemy-prizes.ts";
+import { friendlyFireDefRuntime } from "../features/friendly-fire-def.ts";
+import { friendlyFireAttRuntime } from "../features/friendly-fire-att.ts";
+import { playerNamesRuntime } from "../features/player-names.ts";
+import { pacmanDotsRuntime } from "../features/pacman-dots.ts";
+import { FEATURE_MANIFEST } from "../../shared/features.ts";
 
 const SETS = new Map<any, any>();
 const FEATURES = new Map<any, any>();
@@ -23,19 +36,57 @@ export function registerPatchSet(name: string, set: any): void {
   SETS.set(name, set);
 }
 
-/** Зарегистрировать опциональную фичу: { id, title, description, patch, defaultEnabled? }. */
+/** Зарегистрировать опциональную фичу: { id, patch, runtime? }. Метаданные (title/description)
+ *  берутся из shared/features.ts — здесь только проводка id → патч/рантайм. */
 export function registerFeature(feature: any): void {
   if (!feature || !feature.id || !feature.patch) {
     throw new PatchError(PatchErrorCode.BAD_SET, "фича должна иметь id и patch");
   }
-  FEATURES.set(feature.id, { defaultEnabled: false, ...feature });
+  if (feature.runtime) validateRuntime(feature.runtime, feature.id);
+  FEATURES.set(feature.id, { id: feature.id, patch: feature.patch, runtime: feature.runtime });
 }
 
-/** Список фич (метаданные для UI/валидации), в детерминированном порядке. */
+/** Проверить форму JS-рантайма фичи (только известные методы). */
+function validateRuntime(runtime: any, id: string): void {
+  if (typeof runtime !== "object") {
+    throw new PatchError(PatchErrorCode.BAD_SET, `runtime фичи ${id} должен быть объектом`);
+  }
+  for (const k of Object.keys(runtime)) {
+    if (!(RUNTIME_METHODS as readonly string[]).includes(k)) {
+      throw new PatchError(PatchErrorCode.BAD_SET, `runtime фичи ${id}: неизвестный метод ${k}`);
+    }
+    if (typeof runtime[k] !== "function") {
+      throw new PatchError(PatchErrorCode.BAD_SET, `runtime фичи ${id}: ${k} не функция`);
+    }
+  }
+}
+
+/** Рантаймы активных фич в детерминированном (каноническом) порядке. */
+export function resolveFeatureRuntimes(features: any): { id: string; runtime: FeatureRuntime }[] {
+  const ids = canonicalFeatures(features);
+  const out: { id: string; runtime: FeatureRuntime }[] = [];
+  for (const id of ids) {
+    const f = FEATURES.get(id);
+    if (f && f.runtime) out.push({ id, runtime: f.runtime });
+  }
+  return out;
+}
+
+/** Список фич (метаданные для UI/валидации) из единого манифеста. */
 export function listFeatures() {
-  return [...FEATURES.values()]
-    .map((f) => ({ id: f.id, title: f.title || f.id, description: f.description || "", defaultEnabled: !!f.defaultEnabled }))
-    .sort((a, b) => a.id.localeCompare(b.id));
+  return FEATURE_MANIFEST.map((f) => ({ id: f.id, title: f.title, description: f.description }));
+}
+
+/** Сверить манифест и реестр патчей (одно без другого — ошибка конфигурации). */
+export function assertFeaturesConsistent(): void {
+  const registered = new Set(FEATURES.keys());
+  const manifest = new Set(FEATURE_MANIFEST.map((f) => f.id));
+  for (const id of manifest) {
+    if (!registered.has(id)) throw new PatchError(PatchErrorCode.BAD_SET, `фича «${id}» в манифесте, но патч не зарегистрирован`);
+  }
+  for (const id of registered) {
+    if (!manifest.has(id)) throw new PatchError(PatchErrorCode.BAD_SET, `патч «${id}» зарегистрирован, но отсутствует в манифесте`);
+  }
 }
 
 /** Канонический список id фич: строки, уникальные, отсортированные. */
@@ -91,12 +142,44 @@ export function listPatchSets() {
 registerPatchSet("pvp", composeSets(baseNrom, pvp));
 registerPatchSet("base", composeSets(baseNrom));
 
-// Опциональные игровые фичи.
+// Опциональные игровые фичи (метаданные — в shared/features.ts).
 registerFeature({
   id: "pistol",
-  title: "Пистолет (супер-оружие)",
-  description: "Приз «пистолет» и 4-я звезда: луч, сносящий всё по линии.",
   patch: pistol,
+  runtime: pistolRuntime,
 });
 
-export { baseNrom, pvp, pistol };
+registerFeature({
+  id: "enemy-prizes",
+  patch: enemyPrizes,
+  runtime: enemyPrizesRuntime,
+});
+
+registerFeature({
+  id: "friendly-fire-def",
+  patch: friendlyFireDef,
+  runtime: friendlyFireDefRuntime,
+});
+
+registerFeature({
+  id: "friendly-fire-att",
+  patch: friendlyFireAtt,
+  runtime: friendlyFireAttRuntime,
+});
+
+registerFeature({
+  id: "player-names",
+  patch: playerNames,
+  runtime: playerNamesRuntime,
+});
+
+registerFeature({
+  id: "pacman",
+  patch: pacman,
+  runtime: pacmanDotsRuntime,
+});
+
+// Манифест и реестр обязаны совпадать (добавил фичу — зарегистрируй патч, и наоборот).
+assertFeaturesConsistent();
+
+export { baseNrom, pvp, pistol, enemyPrizes, friendlyFireDef, friendlyFireAtt, playerNames, pacman };

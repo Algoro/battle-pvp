@@ -17,7 +17,8 @@ import ROM from "./src/rom.js";
 import BattleCityPPU from "./ppu-ext.ts";
 import BattleCityPAPU from "./papu-ext.ts";
 import { applyPatchSet } from "./patching/apply.ts";
-import { canonicalFeatures } from "./patching/registry.ts";
+import { canonicalFeatures, resolveFeatureRuntimes } from "./patching/registry.ts";
+import type { FeatureContext, KernelApi } from "./patching/runtime.ts";
 import { encodeState, decodeState } from "./io/state-codec.ts";
 import { readStage, readStageBlocks, STAGE_COUNT, normalizeStage } from "./io/stage-data.ts";
 import { stepTank, runtimePassable, DX as TANK_DX, DY as TANK_DY } from "./io/tank-driver.ts";
@@ -27,7 +28,7 @@ import { lookaheadPlan } from "./ai/lookahead-ai.ts";
 import { strategyDefense } from "./ai/defender-strategy.ts";
 import { attackerPlan } from "./ai/attacker-strategy.ts";
 import { RAM, ROM as ROM_ADDR, BTN } from "./rom-contract.ts";
-import { DIR_BTN, movingFlag, standingFlag, isTankAlive, isTankActive, tankPassable, isBrick, isRoad, isEagleTile, TANK_RESPAWN_FLAG, BULLET, PISTOL_BEAM_HALF } from "./domain.ts";
+import { DIR_BTN, movingFlag, standingFlag, isTankAlive, isTankActive, tankPassable, isBrick, TANK_RESPAWN_FLAG, BULLET, NUM_PLAYERS, DEF_PORTS } from "./domain.ts";
 import { createStartup, assertRomContract } from "./startup.ts";
 import { Tracer } from "./io/trace.ts";
 export { BTN };
@@ -45,8 +46,7 @@ const PLAYER_SPAWN_Y = [0xd8, 0xd8];
 // Режимы ИИ атакующих, управляемые JS-мозгом (остальные — ASM или "off").
 const ATT_AI_MODES = new Set(["js", "plan", "scan", "lookahead", "strategy-att"]);
 
-export const NUM_PLAYERS = 8; // логических портов
-export const DEF_PORTS = 2; // 0,1 -> $4016/$4017
+export { NUM_PLAYERS, DEF_PORTS };
 
 
 // Сторожевой статус пули для ЧЕЛОВЕЧЕСКИХ танков, чтобы блокировать RNG-огонь ASM
@@ -57,8 +57,7 @@ export const DEF_PORTS = 2; // 0,1 -> $4016/$4017
 // освобождается, чтобы ASM выстрелил по кнопке.
 const HUMAN_BULLET_BUSY = BULLET.BUSY;
 
-// Тайлы анимации взрыва (как у танка): sub_DEE2 даёт 0xF1/0xF5/0xF9 для статусов 0x70/0x60/0x50.
-const BEAM_FX_TILES = [0xf1, 0xf5, 0xf9];
+// Тайлы анимации взрыва/луча — см. features/railgun.ts (общий модуль эффекта).
 
 // Строгий шаг человеческого танка. ASM (`sub_DC97`) проверяет только 2 УГЛА передней
 // кромки (±8 от центра по перпендикуляру) — поэтому, когда центр танка НЕ на границе
@@ -115,7 +114,8 @@ class PvPNes extends NESBase {
   declare _playerFire: any;
   declare _jsDir: any[];
   declare _frameHash: string;
-  declare _beamFx: any[];
+  declare _runtimes: { id: string; runtime: any; ctx: FeatureContext }[];
+  declare _kernelApi: KernelApi;
   declare _attAI: string;
   declare _defMode: string;
   declare _aiEvery: number;
@@ -126,7 +126,6 @@ class PvPNes extends NESBase {
   declare _defAI: string;
   declare _defState: Map<any, any>;
   declare tracer: any;
-  declare _pistolBulletBefore: number[];
   declare _pcHooks: any;
   declare rom: any;
   declare romData: any;
@@ -161,7 +160,17 @@ class PvPNes extends NESBase {
     this._playerFire = {}; // нажал ли игрок A в текущем кадре
     this._jsDir = []; // направление ввода человеческого танка в кадре
     this._frameHash = "00000000";
-    this._beamFx = []; // очередь визуальных взрывов луча: {x,y,age} (только рендер, не RAM)
+    const self: any = this;
+    this._runtimes = []; // JS-рантаймы активных фич (features/*), собираются в loadROM
+    this._kernelApi = {
+      get mem() { return self.cpu.mem; },
+      get ppuNameTable() { return self.ppu.nameTable; },
+      get ppuSpriteMem() { return self.ppu.spriteMem; },
+      get ppuVram() { return self.ppu.vramMem; },
+      get playerFire() { return self._playerFire; },
+      hasFeature: (id: string) => self.hasFeature(id),
+      setAudioSuppressed: (v: boolean) => self.setAudioSuppressed(v),
+    } as KernelApi;
     // Режим ИИ атакующих (ATT 2..7): "lookahead" — предсказание будущего (A+D,
     // по умолчанию), "scan" — полное сканирование, "js" — тактический,
     // "asm" — родной ASM-ИИ (JS не пишет RAM.NET_DIR/RAM.NET_FIRE для атакующих).
@@ -212,6 +221,32 @@ class PvPNes extends NESBase {
     this.mmap.loadROM();
     this.ppu.setMirroring(this.rom.getMirroringType());
     this.romData = data;
+    this._buildRuntimes();
+  }
+
+  // Собрать JS-рантаймы активных фич (детерминированный порядок) и инициализировать их.
+  _buildRuntimes(): void {
+    this._runtimes = resolveFeatureRuntimes(this._features).map(({ id, runtime }) => {
+      const ctx: FeatureContext = {
+        kernel: this._kernelApi,
+        frame: this._frame,
+        state: {},
+        startOptions: this.opts,
+      };
+      runtime.init?.(ctx);
+      return { id, runtime, ctx };
+    });
+  }
+
+  // Вызвать хук у всех рантаймов в детерминированном порядке.
+  _runRuntimes(hook: "preFrame" | "postFrame" | "render" | "beforeSaveState" | "afterSaveState" | "onLoadState"): void {
+    for (const r of this._runtimes) {
+      const fn = r.runtime?.[hook];
+      if (typeof fn === "function") {
+        r.ctx.frame = this._frame;
+        fn(r.ctx);
+      }
+    }
   }
 
   // После штатного reset() (jsnes создаёт новый PPU) устанавливаем наш PPU-подкласс
@@ -263,6 +298,13 @@ class PvPNes extends NESBase {
     return this;
   }
 
+  // Имена игроков над танками (фича player-names): карта порт → имя. Обновляется
+  // на старте матча; рантайм читает её каждый кадр (не влияет на хэш/rollback).
+  setPlayerNames(names: any): this {
+    this.opts.names = names || {};
+    return this;
+  }
+
 
   getStageCount(): number {
     return STAGE_COUNT;
@@ -306,6 +348,7 @@ class PvPNes extends NESBase {
     this._frame++;
     const mem = this.cpu.mem;
     this._resetNetZone(mem);
+    this._tickPrizeFreeze(mem);
     const received = new Set<number>(); // порты, получившие любой ввод (вкл. авто-старт)
     const humanControlled = new Set<number>(); // порты с реальным управлением (направление/огонь)
     this._playerFire = {};
@@ -313,14 +356,14 @@ class PvPNes extends NESBase {
     this._applyAttAIDecisions(mem, received);
     this._applyDefAIDecisions(mem, humanControlled);
     this._applyHumanPreFrame(mem);
-    this._applyPistolPreFrame(mem);
+    this._runRuntimes("preFrame");
     this.frame();
     // Пауза: снимаем, если её запустил Start респавна DEF-танка (а не игрок),
     // и логируем окружение вокруг причины. Вся логика паузы — в JS.
     this.handlePauseAfterFrame();
     this._applyHumanPostFrame(mem);
-    this._applyPistolPostFrame(mem);
-    this._renderBeamFx();
+    this._runRuntimes("postFrame");
+    this._runRuntimes("render");
     this._unstuckTanks(mem);
     this._frameHash = this.getFrameHash();
     // Детект убийств по переходам alive->мертв (для трейса с фильтрами).
@@ -446,6 +489,8 @@ if (startedGame) {
     // Не трогаем танк, за которым закреплён живой игрок (в т.ч. когда он
     // бездействует) — ИИ играет только за компьютерных игроков.
     if (humanControlled.has(port) || this.humanDefTanks.has(port)) continue;
+    // Заморозка DEF (clock у врага): не управляем, снимаем контроллер.
+    if (port < DEF_PORTS && this.hasFeature("enemy-prizes") && mem[RAM.PRIZE_FREEZE + port] > 0) { this._setDefController(port, 0); continue; }
     let b = buttons;
     // Режимы защитников для экспериментов (только для planDefense):
     //  "active"     — полный planDefense (патруль+огонь),
@@ -468,6 +513,16 @@ if (!playerOnDef) {
 }
   }
 
+  // Заморозка DEF (эффект `clock`, фича enemy-prizes): таймер в RAM, декремент на кадр.
+  // Кооперация ядра: DEF-управление (человек/ИИ) подавляется, пока таймер > 0.
+  _tickPrizeFreeze(mem: any): void {
+    if (!this.hasFeature("enemy-prizes")) return; // фича выключена — не трогаем RAM
+    for (let t = 0; t < DEF_PORTS; t++) {
+      const v = mem[RAM.PRIZE_FREEZE + t];
+      if (v > 0) mem[RAM.PRIZE_FREEZE + t] = v - 1;
+    }
+  }
+
   // Человеческие танки: задать направление до кадра (пули летят верно).
   _applyHumanPreFrame(mem: any): void {
 // Человеческие танки: AI отключается. JS задаёт направление (до кадра, чтобы
@@ -475,6 +530,14 @@ if (!playerOnDef) {
 // отсутствии ввода танк удерживается на месте и НЕ разворачивается ИИ).
 // Действует ТОЛЬКО на АКТИВНО живой танк (флаг 0x90-0xD0).
 for (const t of this.humanTanks) {
+  // Заморозка DEF (clock у врага): игнорируем ввод и удерживаем танк на месте.
+  if (t < DEF_PORTS && this.hasFeature("enemy-prizes") && mem[RAM.PRIZE_FREEZE + t] > 0) {
+    this._setDefController(t, 0);
+    this._jsPrev[t] = null;
+    this._jsDir[t] = 0xff;
+    this._playerFire[t] = false;
+    continue;
+  }
   const flagAddr = RAM.TANK_FLAG + t;
   const flag = mem[flagAddr];
   // 0x80..0xd0 (вкл. 0x80..0x8f «гусеницы крутятся»): управляем танком всегда,
@@ -545,156 +608,6 @@ for (const t of this.humanTanks) {
     mem[0xc4 + t] = 0; // pos_Y пули
   }
 }
-  }
-
-  // ==== супер-оружие «пистолет» (правила получения — ROM-патч pistol) ====
-  // Запомнить состояние пули DEF-слотов до кадра (для подавления обычного выстрела).
-  _applyPistolPreFrame(mem: any): void {
-    this._pistolBulletBefore = [mem[RAM.BULLET_STATUS], mem[RAM.BULLET_STATUS + 1]];
-  }
-
-  // После кадра: если игрок DEF с супер-оружием нажал огонь — исполнить луч.
-  _applyPistolPostFrame(mem: any): void {
-    if (!this.hasFeature("pistol")) return; // фича выключена — луч недоступен
-    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
-    const stage = mem[RAM.STAGE];
-    if (stage < 1 || stage > 35) return;
-    for (let t = 0; t < DEF_PORTS; t++) {
-      if (mem[RAM.PISTOL + t] !== 1) continue; // ровно 1 (RAM инициализируется 0xFF)
-      if (!this._playerFire[t]) continue;
-      // Подавить обычную пулю, созданную ROM в этот кадр.
-      if (this._pistolBulletBefore[t] === 0 && mem[RAM.BULLET_STATUS + t] !== 0) {
-        mem[RAM.BULLET_STATUS + t] = 0;
-      }
-      this._fireRailgun(mem, t);
-      const ammo = mem[RAM.PISTOL_AMMO + t] - 1;
-      mem[RAM.PISTOL_AMMO + t] = ammo > 0 ? ammo : 0;
-      if (ammo <= 0) mem[RAM.PISTOL + t] = 0;
-    }
-  }
-
-  // Луч: прожигает линию до края поля, уничтожая тайлы, танки и пули.
-  // Состояние (RAM) детерминировано и входит в saveState/rollback.
-  _fireRailgun(mem: any, t: number): void {
-    const dir = mem[RAM.TANK_FLAG + t] & 3;
-    const dx = [0, -1, 0, 1][dir];
-    const dy = [-1, 0, 1, 0][dir];
-    // Перпендикуляр к лучу: для вертикального выстрела — по X, для горизонтального — по Y.
-    const px = dx === 0 ? 1 : 0;
-    const py = dy === 0 ? 1 : 0;
-    const H = PISTOL_BEAM_HALF; // ширина луча = 2*H+1 тайлов
-    const originCol = mem[RAM.TANK_X + t] >> 3;
-    const originRow = mem[RAM.TANK_Y + t] >> 3;
-    let col = originCol;
-    let row = originRow;
-    for (let i = 0; i < 32; i++) {
-      col += dx;
-      row += dy;
-      if (col < 0 || col > 31 || row < 0 || row > 31) break;
-      let hitHq = false;
-      for (let k = -H; k <= H; k++) {
-        const c = col + px * k;
-        const r = row + py * k;
-        if (c < 0 || c > 31 || r < 0 || r > 31) continue;
-        if (this._beamCell(mem, c, r)) hitHq = true;
-      }
-      if (hitHq) break;
-    }
-    mem[RAM.SFX_SHOT] = 1;
-  }
-
-  // Рендер взрывов луча в свободные OAM-спрайты (Y>=0xF0 — вне экрана).
-  // Чистая визуализация: не пишет cpu.mem, поэтому не влияет на hash/сеть.
-  // Анимация повторяет танковую: 8x16-пары тайлов 0xF1/0xF5/0xF9 (см. sub_DEE2).
-  _renderBeamFx(): void {
-    const sm = this.ppu.spriteMem;
-    if (this._beamFx.length === 0) return;
-
-    // Свободные слоты — те, что игра сама держит вне экрана (Y>=0xF0).
-    // Их DMA перезаписывает каждый кадр, поэтому чистить за собой не нужно.
-    const free = [];
-    for (let i = 0; i < 64; i++) if (sm[i * 4] >= 0xf0) free.push(i);
-
-    const next = [];
-    let fi = 0;
-    for (const fx of this._beamFx) {
-      if (fi + 1 >= free.length) {
-        next.push(fx); // нет места — покажем в следующих кадрах
-        continue;
-      }
-      const T = BEAM_FX_TILES[Math.min(fx.age, BEAM_FX_TILES.length - 1)];
-      const y = (fx.y - 8) & 0xff;
-      const i0 = free[fi++];
-      const i1 = free[fi++];
-      sm[i0 * 4] = y; sm[i0 * 4 + 1] = T; sm[i0 * 4 + 2] = 0x03; sm[i0 * 4 + 3] = (fx.x - 8) & 0xff;
-      sm[i1 * 4] = y; sm[i1 * 4 + 1] = (T + 2) & 0xff; sm[i1 * 4 + 2] = 0x03; sm[i1 * 4 + 3] = fx.x & 0xff;
-      if (++fx.age < BEAM_FX_TILES.length) next.push(fx);
-    }
-    this._beamFx = next;
-  }
-
-  // Обработать одну клетку луча: тайл/танки/пули. true — попали в штаб.
-  _beamCell(mem: any, col: number, row: number): boolean {
-    const off = row * 32 + col;
-    const tile = mem[RAM.FIELD + off];
-    if ((tile & 0xfc) === 0xc8) {
-      this._destroyHq(mem);
-      return true;
-    }
-    // Луч сносит всё, кроме пустого, дороги и штаба: кирпич, сталь, воду, лёд, кусты.
-    if (tile !== 0 && !isEagleTile(tile) && !isRoad(tile)) {
-      this._clearTile(mem, off);
-      // Запустить взрыв (как у танка) на разрушенной клетке — визуальный слой.
-      if (this._beamFx.length < 128) this._beamFx.push({ x: col * 8 + 4, y: row * 8 + 4, age: 0 });
-    }
-    this._killTanksAt(mem, col, row);
-    this._clearBulletsAt(mem, col, row);
-    return false;
-  }
-
-  // Уничтожить тайл: поле (коллизия) + nametable (рендер).
-  _clearTile(mem: any, off: number): void {
-    mem[RAM.FIELD + off] = 0;
-    for (const nt of this.ppu.nameTable) nt.tile[off] = 0;
-  }
-
-  // Убить живые танки, стоящие в клетке (col,row). Союзники тоже гибнут.
-  _killTanksAt(mem: any, col: number, row: number): void {
-    for (let tt = 0; tt < NUM_PLAYERS; tt++) {
-      const flag = mem[RAM.TANK_FLAG + tt];
-      if (!(flag & 0x80) || flag >= 0xe0) continue; // только «на поле»
-      if ((mem[RAM.TANK_X + tt] >> 3) !== col || (mem[RAM.TANK_Y + tt] >> 3) !== row) continue;
-      mem[RAM.TANK_FLAG + tt] = 0x73; // con_tank_flag_explosion + 3
-      mem[RAM.TANK_TYPE + tt] = 0;
-      if (tt < DEF_PORTS) {
-        mem[RAM.TANK_UPGRADE + tt] = 0;
-        mem[RAM.PISTOL + tt] = 0;
-        mem[RAM.PISTOL_AMMO + tt] = 0;
-      }
-      mem[RAM.SFX_EXPLOSION_ENEMY] = 1;
-    }
-  }
-
-  // Убрать пули, находящиеся в клетке (col,row).
-  _clearBulletsAt(mem: any, col: number, row: number): void {
-    for (let b = 0; b < 10; b++) {
-      if ((mem[RAM.BULLET_STATUS + b] & 0xf0) !== 0x40) continue;
-      if ((mem[RAM.BULLET_X + b] >> 3) !== col || (mem[RAM.BULLET_Y + b] >> 3) !== row) continue;
-      mem[RAM.BULLET_STATUS + b] = 0;
-    }
-  }
-
-  // Разрушить штаб (своя база тоже): тайлы разрушенного орла + поражение.
-  _destroyHq(mem: any): void {
-    const base = 26 * 32 + 14; // фиксированная позиция базы (см. sub_CC08)
-    const tiles = [[0, 0xcc], [1, 0xce], [32, 0xcd], [33, 0xcf]];
-    for (const [d, v] of tiles) {
-      mem[RAM.FIELD + base + d] = v;
-      for (const nt of this.ppu.nameTable) nt.tile[base + d] = v;
-    }
-    mem[RAM.GAME_OVER] = 0x27; // таймер поражения (как обычная пуля по орлу)
-    mem[RAM.SFX_EXPLOSION_HQ] = 1;
-    mem[RAM.SFX_EXPLOSION_PLAYER] = 1;
   }
 
   // Анти-застревание в стене (слепая зона 2-точечной коллизии ASM).
@@ -835,13 +748,19 @@ for (let t = 0; t < NUM_PLAYERS; t++) {
 
   // Полный детерминированный state как компактный бинарный Uint8Array.
   saveState() {
-    return encodeState(this);
+    // Производные визуальные изменения (nametable-overlay никнеймов) не должны попадать
+    // в снапшот: рантаймы снимают их до кодирования и возвращают после.
+    this._runRuntimes("beforeSaveState");
+    const bytes = encodeState(this);
+    this._runRuntimes("afterSaveState");
+    return bytes;
   }
 
   // Восстановление состояния из бинарного снапшота (in-place, детерминированно).
   loadState(bytes: any): void {
     decodeState(this, bytes);
     this._frameHash = this.getFrameHash();
+    this._runRuntimes("onLoadState");
   }
 
   // Хэш текущего состояния (FNV-1a по полному CPU-пространству) — для сверки

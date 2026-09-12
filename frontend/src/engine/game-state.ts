@@ -23,14 +23,16 @@ export function isGameplayStarted(enemiesLeft: number): boolean {
 
 // Победитель по состоянию (только в реальной игре, stage 1..35):
 // ATT побеждает при уничтожении штаба DEF (game_over -> 0),
-// DEF — при уничтожении всех танков ATT (enemies_left -> 0).
+// DEF — при уничтожении всех танков ATT (enemies_left -> 0) или зачистке точек (pacman).
 export function determineWinner(
   stage: number,
   gameOver: number,
   enemiesLeft: number,
+  pacmanWin = 0,
 ): Team | null {
   if (stage < 1 || stage > 35) return null;
   if (gameOver === 0) return "ATT";
+  if (pacmanWin === 1) return "DEF";
   if (enemiesLeft === 0) return "DEF";
   return null;
 }

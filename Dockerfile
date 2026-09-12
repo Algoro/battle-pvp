@@ -22,6 +22,7 @@ COPY emulator-core/ /app/emulator-core/
 COPY netcode/ /app/netcode/
 COPY vendor/jsnes/ /app/vendor/jsnes/
 COPY tsconfig.base.json /app/tsconfig.base.json
+COPY shared/ /app/shared/
 COPY scripts/prepare.mjs /app/scripts/prepare.mjs
 COPY rom/original/ /app/rom/original/
 
@@ -43,6 +44,7 @@ ENV NODE_ENV=production \
 
 COPY --from=deps /app/backend/node_modules ./backend/node_modules
 COPY backend/ ./backend/
+COPY shared/ ./shared/
 COPY --from=build /app/frontend/dist ./frontend/dist
 
 WORKDIR /app/backend
