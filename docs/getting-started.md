@@ -83,7 +83,10 @@ cd qa && npx playwright install chromium && npm run e2e:online
 относительные импорты указывают расширение `.ts`. jsnes (`emulator-core/src`) остаётся
 неизменяемым JS.
 
-Полный прогон: `bash scripts/ci.sh` (ROM-зависимые этапы пропускаются без ROM).
+Прогон CI: `bash scripts/ci.sh` — стадии gate, prepare, lint, typecheck,
+emulator-core/netcode/qa/backend-тесты и сборка фронта (ROM-зависимые этапы без ROM
+пропускаются). Юнит-тесты фронта (`cd frontend && npm test`) запускаются отдельно —
+в `ci.sh` их нет.
 
 ## Частые проблемы
 

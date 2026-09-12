@@ -22,6 +22,7 @@
 - Чат в бою, HUD соединения (ping, rollback, DESYNC), конец матча с возвратом в лобби.
 - **Выбор стадии (1–35) с предпросмотром** и **стартовых звёзд защитников (0–3)** — из ROM в памяти, старт детерминирован.
 - **Опциональные патч-фичи** (первая — «Пистолет»: приз и 4-я звезда дают супер-оружие) — хост/соло выбирает набор, все клиенты собирают один ROM; см. `docs/optional-patches.md`.
+- **Соло-режим «Tower Defence»** (скрытая фича `tower-defence`): покупка/расстановка неподвижных танков-башен за очки, волны врагов, экономика и редактор расстановки на TD-картах; см. `docs/tower-defense-plan.md`.
 - **Драйверы и расширения рендера** (отдельный от патчей слой): пиксельный NES-вид, **3D-вид сверху** и **воксельный «sandbox» вид** (кубические блоки, пиксельные текстуры, небо/день-ночь, вода, частицы, «живой мир» — птицы, блочные облака, мышки). Камеры: **орбита**, **от третьего лица**, **из глаз** (с авто-доворотом за танком), настройки/пресеты для каждого драйвера, живой предпросмотр уровня до старта. Расширения — миникарта, частицы. Выбор локальный, на матч/детерминизм не влияет; см. `docs/render-extensions.md`.
 - **Звук и музыка** из APU (jsnes) с раздельными громкостью/mute для музыки и эффектов; откаты не дают щелчков.
 - Детерминированный `saveState/loadState` и `getFrameHash` — основа побед/поражений и netcode.
@@ -97,7 +98,10 @@ cd frontend      && npm test     # фронт-модули
 cd qa && npx playwright install chromium && npm run e2e:online
 ```
 
-Полный локальный прогон: `bash scripts/ci.sh`. Проверка окружения: `bash scripts/verify-environment.sh`.
+Полный локальный прогон: `bash scripts/ci.sh` (стадии: gate, prepare, lint, typecheck,
+emulator-core/netcode/qa/backend-тесты, сборка фронта). Юнит-тесты фронта (`cd frontend &&
+npm test`) в `ci.sh` не входят — запускайте их отдельно. Проверка окружения:
+`bash scripts/verify-environment.sh`.
 
 > ROM-зависимые тесты требуют `rom/original/_battle_city.nes`. В публичном CI они не
 > запускаются (ROM не распространяется).
@@ -106,10 +110,11 @@ cd qa && npx playwright install chromium && npm run e2e:online
 
 ```
 backend/         Node backend: matchmaking, лобби/комнаты, signaling relay, SQLite
-emulator-core/   ядро: PvPNes (поверх неизменного jsnes), patching/, ai/, sim/, model/, io/
+emulator-core/   ядро: PvPNes (поверх неизменного jsnes), patching/, features/ (JS-рантаймы фич), ai/, sim/, model/, io/
 netcode/         rollback-netcode: протокол, сессия, транспорты (webrtc/relay/local)
 frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD,
-                 render/ (драйверы и расширения рендера: pixel-2d, topdown-3d, minimap, particles)
+                 render/ (драйверы и расширения: pixel-2d, topdown-3d, mc-voxel, minimap, particles)
+shared/          манифесты без импортов: features.ts, renderers.ts, tower-defence.ts (данные TD)
 qa/              node-тесты + Playwright e2e
 rom/             original/ (ваш ROM; не коммитится) + генерируемый disasm/
 scripts/         prepare.mjs, extract-patches.mjs, ci.sh, verify-environment.sh, init-git.sh
@@ -126,7 +131,7 @@ cd ../.. && node scripts/prepare.mjs     # перегенерирует emulator
 cd emulator-core && npm test             # guard-тест сверит байты с апстримом
 ```
 
-При обновлении сверьте override в `emulator-core/ppu-ext.js` (там скопирован один метод
+При обновлении сверьте override в `emulator-core/ppu-ext.ts` (там скопирован один метод
 upstream с точечным исправлением 8x16-спрайтов).
 
 ## Подготовка к публикации (git)
@@ -149,8 +154,9 @@ git push -u origin main
 - [docs/ai.md](docs/ai.md) — ИИ атакующих/защитников.
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
 - [docs/render-extensions.md](docs/render-extensions.md) — драйверы/расширения рендера.
-- [docs/3d-view-plan.md](docs/3d-view-plan.md) — драйвер `topdown-3d`.
-- [docs/minecraft-look-plan.md](docs/minecraft-look-plan.md) — драйвер `mc-voxel` (воксельный стиль).
+- [docs/3d-view-plan.md](docs/3d-view-plan.md) — драйвер `topdown-3d` (реализован).
+- [docs/minecraft-look-plan.md](docs/minecraft-look-plan.md) — драйвер `mc-voxel` (воксельный стиль, реализован).
+- [docs/tower-defense-plan.md](docs/tower-defense-plan.md) — соло-режим Tower Defence (реализован).
 
 ## Лицензия и правовой статус
 

@@ -48,7 +48,7 @@ export const RAM = {
   SFX_EXPLOSION_HQ: 0x030b, // ram_sfx_explosion_hq
   SFX_SHOT: 0x030f, // ram_sfx_shot
 
-  // сетевая RAM-зона PvP (см. patching/patches/base-nrom.js)
+  // сетевая RAM-зона PvP (см. patching/patches/base-nrom.ts)
   NET_DIR: 0x01db, // 6 байт: направление ATT (0=Up,1=Left,2=Down,3=Right, FF=нет)
   NET_FIRE: 0x01e1, // 6 байт: edge выстрела
   NET_RESPAWN: 0x01e7, // 6 байт: edge респавна

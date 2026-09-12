@@ -3,7 +3,11 @@
 Документ описывает переход монорепозитория Battle City PvP с JavaScript на TypeScript
 без изменения поведения, детерминизма и инвариантов (jsnes/ROM неизменяемы).
 
-Статус: **план**. Код не менялся.
+Статус: **выполнено**. Собственный код (`backend`, `netcode`, `emulator-core`, `frontend/src`, `qa`)
+на TypeScript (`.ts`/`.tsx`), Node исполняет его через type stripping; ниже сохранён исходный
+план. Фактические отличия: `qa/` без `tsconfig.json` (тесты гоняются node напрямую, в
+`npm run typecheck` не входят); `draw()`/`cartridgeFingerprint()` — методы `EmulatorDriver`,
+а не `PvPNes`; `engines.node` = `>=23.6` (`.nvmrc` = 24).
 
 ## 1. Цель и принципы
 
@@ -77,8 +81,8 @@ extensionless-импортами. Node-тесты фронта уже испол
 | `scripts` | 2 `.mjs` | — | импортируют core |
 | **Итого** | | | **~29 000** |
 
-Самые крупные точки: `emulator-core/sim/battle.js` (1001), `emulator-core/pvp.js` (842),
-`ai/tactical-ai.js` (565), `ai/defender-strategy.js` (510), `backend/signaling/relay.ts` (466),
+Самые крупные точки: `emulator-core/sim/battle.js` (1001), `emulator-core/pvp.ts` (842),
+`ai/tactical-ai.ts` (565), `ai/defender-strategy.ts` (510), `backend/signaling/relay.ts` (466),
 `netcode/rollback/session.ts` (450).
 
 ## 3. Инфраструктура типов
@@ -116,7 +120,8 @@ extensionless-импортами. Node-тесты фронта уже испол
 
 ### 3.2 `tsconfig.json` по пакетам
 
-`netcode/`, `backend/`, `qa/`:
+`netcode/`, `backend/` (и отдельно `emulator-core/`, `frontend/`; у `qa/` своего
+`tsconfig.json` нет — тесты исполняются node через type stripping):
 
 ```jsonc
 {
@@ -172,7 +177,7 @@ extensionless-импортами. Node-тесты фронта уже испол
 ```jsonc
 "scripts": {
   "lint": "eslint .",
-  "typecheck": "tsc -p netcode && tsc -p backend && tsc -p emulator-core && tsc -p qa && tsc -p frontend"
+  "typecheck": "tsc -p netcode && tsc -p backend && tsc -p emulator-core && tsc -p frontend"
 }
 ```
 
@@ -216,8 +221,10 @@ export type DecodedPacket =
 ### 4.3 Эмулятор
 
 - `pvp.ts` — публичная поверхность (`PvPNes`): `stepFrame(inputs)`, `saveState()`,
-  `loadState(bytes)`, `getFrameHash()`, `draw()`, `readMem(addr)`, `cartridgeFingerprint()`,
-  `setStartStage`, `setStartStars`, `setStartPistol`, `setHumanTank`, `setHumanDefTank`.
+  `loadState(bytes)`, `getFrameHash()`, `readMem(addr)`, `setStartStage`, `setStartStars`,
+  `setStartPistol`, `setHumanTank`, `setHumanDefTank`, `tdOrder`, `getTowerDefence`,
+  `getStage/getStageBlocks/getStageCount`, `getBlockTiles/getBlockAttribute`. Отпечаток —
+  `patching.fingerprint`; `draw()`/`cartridgeFingerprint()` — на `EmulatorDriver`.
   Внутренние поля (`cpu`, `ppu`, `papu`, `mmap`) — по типам jsnes где возможно.
 - `ppu-ext.ts` / `papu-ext.ts` — `extends PPU`/`extends PAPU`; переопределения
   аннотируются явно; доступ к неописанным полям — через точечный `any` на границе.
@@ -276,7 +283,7 @@ export type DecodedPacket =
 ### Фаза 0. Инфраструктура (без изменения исходников)
 
 - Поднять Node: `Dockerfile` → `node:24-slim` (обе стадии), `.github/workflows/ci.yml`
-  → `node-version: 24`, добавить `.nvmrc` и `engines.node >= 24`.
+  → `node-version: 24`, добавить `.nvmrc` (24) и `engines.node >= 23.6` (фактически в `package.json`).
 - Добавить `tsconfig.base.json`, `typescript@^5.9`, `@types/node@^24`,
   `typescript-eslint@^8` в корень.
 - Обновить `eslint.config.mjs` (снять игнор `.ts`, подключить ts-eslint).
@@ -288,8 +295,8 @@ export type DecodedPacket =
 
 Почему первым: маленький, чистые порты, нет jsnes, от него зависит frontend.
 
-- `ports.js → ports.ts` (интерфейсы + `systemClock`).
-- `protocol/frame.js → .ts` (типы пакетов, discriminated union).
+- `ports.ts → ports.ts` (интерфейсы + `systemClock`).
+- `protocol/frame.ts → .ts` (типы пакетов, discriminated union).
 - `rollback/session.js → .ts`, `transport/{transport,local,relay,webrtc,multi}.js → .ts`,
   `index.js → index.ts`.
 - Все относительные импорты — на `.ts`.
@@ -302,7 +309,7 @@ export type DecodedPacket =
 ### Фаза 2. `backend/` (~1 640 строк)
 
 - `domain/*.js` (7) → `.ts` — чистые правила, JSDoc-typedef → интерфейсы.
-- `ports.js → .ts`.
+- `ports.ts → .ts`.
 - `application/{match-lifecycle,chat}.js → .ts`.
 - `signaling/{relay,schema}.js → .ts` (schema — типы сообщений).
 - `persistence/{store,chat-repository}.js → .ts` (`node:sqlite`, `@types/node`).
@@ -330,9 +337,9 @@ export type DecodedPacket =
 - 3e: в `emulator-core/tests/no-magic-addresses.test.ts` заменить
   `name.endsWith(".js")` → `".ts"` и `SKIP_FILES` на `.ts`-имена
   (`rom-contract.ts`, `domain.ts`, `startup.ts`, `fine-grid.ts`).
-- После 3b: `frontend/src/engine/emulator.ts` импорт `pvp.ts`, удалить `*pvp.js` из
+- После 3b: `frontend/src/engine/emulator.ts` импорт `pvp.ts`, удалить `*pvp.ts` из
   `js-modules.d.ts`; `scripts/prepare.mjs` и `scripts/extract-patches.mjs` импорт
-  `../emulator-core/patching/apply.js` → `.ts`; `qa/tests/test-utils.js` — то же.
+  `../emulator-core/patching/apply.ts` → `.ts`; `qa/tests/test-utils.js` — то же.
 - **Проверка на 3b/3e**: `emulator-core npm test` 234/234, golden/determinism/pistol
   без изменений хэшей, `tsc -p emulator-core`.
 
@@ -340,7 +347,7 @@ export type DecodedPacket =
 
 - `tests/*.js → .ts`, `test-utils.js → test-utils.ts`.
 - `qa/tests/architecture.test.ts → .ts`: фильтры `p.endsWith(".js")` → `".ts"`,
-  пути `session.js`/`ports.js`/`rom-contract.js` → `.ts`, секция frontend уже `.ts`.
+  пути `session.js`/`ports.ts`/`rom-contract.ts` → `.ts`, секция frontend уже `.ts`.
 - `sync-mode.js → .ts`, `golden-state.js → .ts`, `followhq.mjs` — при желании `.mts`
   (или оставить `.mjs`, он запускаемый скрипт).
 - `e2e/*.spec.js → .spec.ts`, `playwright*.config.js → .ts` (Playwright транспилирует TS).
@@ -386,7 +393,7 @@ export type DecodedPacket =
 |---|---|---|
 | Несовместимость native strip-types с окружением | низкая | Node 24 LTS, `engines`, `--disable-warning`; fallback — компиляция `tsc` в `dist` (см. альтернативу) |
 | Сопротивление типизации внутренностей jsnes | средняя | `allowJs`/точечный `any` на границе, не менять jsnes |
-| Смена поведения при переводе `pvp.js`/`sim` | средняя | golden/determinism-тесты как страховка; рефакторинг только синтаксиса, по коммитам |
+| Смена поведения при переводе `pvp.ts`/`sim` | средняя | golden/determinism-тесты как страховка; рефакторинг только синтаксиса, по коммитам |
 | Тихо сломать архитектурные тесты (сканируют исходники) | высокая | обновлять их в том же коммите, что и переименование |
 | Рост времени линта (type-aware) | низкая | ts-eslint `recommended` без type-aware; типы — `tsc` |
 | Ломается frontend из-за `.ts`-импортов | низкая | Vite+alias уже поддерживают; проверять `vite build` в фазе 1 |

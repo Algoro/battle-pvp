@@ -27,7 +27,7 @@
 
 ## Ядро: реестр и API (`emulator-core/patching/`)
 
-- `registry.js`:
+- `registry.ts`:
   - `registerPatchSet(name, set)` — именованные базовые наборы (`pvp`, `base`);
   - `registerFeature({ id, title, description, patch })` — опциональные фичи;
   - `canonicalFeatures(list)` — уникальные отсортированные id (детерминизм);
@@ -41,10 +41,10 @@
 
 | Слой | Что | Где |
 |---|---|---|
-| Ядро | `opts.features`, `hasFeature()`, `getFeatures()` | `emulator-core/pvp.js` |
+| Ядро | `opts.features`, `hasFeature()`, `getFeatures()` | `emulator-core/pvp.ts` |
 | Драйвер | `setPatchFeatures()`, `getPatchFeatures()` | `frontend/src/engine/emulator.ts` |
 | Application | `startSolo(..., features)`, `beginOnlineMatch({ features })` | `frontend/src/application/match-controller.ts` |
-| Лобби/бэкенд | `settings.features` (валидация `SUPPORTED_FEATURES`) | `backend/domain/features.js`, `domain/lobby.js` |
+| Лобби/бэкенд | `settings.features` (валидация `SUPPORTED_FEATURES`) | `backend/domain/features.ts`, `domain/lobby.ts` |
 | Handoff в бой | `match.start.features` | `backend/application/match-lifecycle.ts`, `signaling/relay.ts`, `server.ts` |
 | UI | чекбоксы фич + гейт опций (4★ только при `pistol`) | `frontend/src/features.ts`, `components/*` |
 

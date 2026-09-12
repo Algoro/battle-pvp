@@ -13,7 +13,7 @@ PvPNes (BattleCityPAPU) --onAudioSampleGroup("music"|"sfx", L,R)--> EmulatorDriv
 
 - `PvPNes` по умолчанию молчит (`sampleRate: 0`). Звук включается опциями
   `sampleRate: 48000` + `onAudioSampleGroup`.
-- **Раздельные группы** (подкласс `emulator-core/papu-ext.js`, jsnes не тронут):
+- **Раздельные группы** (подкласс `emulator-core/papu-ext.ts`, jsnes не тронут):
   - `music` = pulse1 + pulse2 + triangle;
   - `sfx` = noise + DMC.
 - `EmulatorDriver` передаёт обе группы в `AudioOutput`

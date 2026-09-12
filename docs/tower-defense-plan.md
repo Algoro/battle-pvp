@@ -75,10 +75,12 @@ export interface TowerTypeInfo {
   description: string;
   cost: number;
   damage: number;
-  range: number;       // в клетках поля (тайлы 8px)
+  range: number;       // в блоках поля (16 px)
   fireInterval: number;// кадров между выстрелами
   projectileSpeed: number; // px/кадр
   upgradeCost: number; // стоимость апгрейда
+  hp: number;          // прочность
+  icon: number;        // иконка-подсказка для UI
 }
 export const TOWER_TYPES: TowerTypeInfo[] = [
   { id: "gun",    ... }, // 1 ствол, средняя скорострельность
@@ -87,14 +89,14 @@ export const TOWER_TYPES: TowerTypeInfo[] = [
   { id: "cannon", ... }, // медленный, высокий урон
 ];
 export const TOWER_IDS = TOWER_TYPES.map(t => t.id);
-export const TD_WAVES: WaveDef[] = [ { count, types, interval, reward }, ... ];
+export const TD_WAVES: { count: number; interval: number; types: number[] }[];
 export const TD_POINTS_PER_KILL: Record<number, number>; // тип ROM-танка → очки
-export const TD_LEVELS: { id: string; title: string }[];  // метаданные карт
+export const TD_MAPS: { id; title; rows }[]; export const TD_MAP_LIST; // карты
 ```
 
-Здесь же — общая геометрия: `TD_GRID = 13`, `TD_CELL = 16`, конверсии
-`cellToBlock`, `blockToCell`, `isBuildableCell`, `TD_START_POINTS`. UI и рантайм
-используют одни и те же функции (тестируемо, без дублирования).
+Здесь же — общая геометрия: `TD_SIZE = 13`, блок 16 px (`TD_BASE_*` — зона базы),
+функции `tdMapById`, `tdBlocks`, `tdBuildableCells`, `tdSpawnCells`, `buildTdStageBytes`.
+UI и рантайм используют один модуль `shared/tower-defence.ts` (без импортов).
 
 ## 4. Слой 2 — «конструктор уровней» и ROM-патч
 
@@ -104,15 +106,13 @@ export const TD_LEVELS: { id: string; title: string }[];  // метаданны�
 (DFS-лабиринт → 91-байтный формат стадии). Адаптируем его в **TD-конструктор**:
 
 - Новый `emulator-core/features/td-levels.ts`:
-  - ASCII-карты 13×13 (символы: `#` бетон, `.` пол, `S` спавн ATT, `E` база,
-    `*` строимая клетка, `x` запрет строительства) — читаемый и правится вручную;
+  - ASCII-карты 13×13 (символы: `#` бетон, `.` пол, `S` спавн ATT, `E` пол у базы) —
+    читаемый и правится вручную;
   - `buildTdStageBytes(ascii): Uint8Array` — та же упаковка, что в `pacman-maze`
     (14 нибблов/строку, stride 7 = 91, чётный индекс — старший ниббл);
-  - `tdSpawnBlocks(map)`, `tdBaseBlocks(map)`, `tdBuildableCells(map)` — экспорт
-    для редактора и рантайма;
-  - детерминированный LCG, если карту нужно генерировать (без `Math.random`).
-- 3 стартовых карты: `loop` (кольцо), `snake` (змейка), `spiral` (спираль) —
-  разные по длине дорожек и числу строимых клеток.
+  - `tdSpawnCells(map)`, `tdBuildableCells(map)`, `isWallBlock`, `isBaseCell` — экспорт
+    для редактора и рантайма (без `Math.random`).
+- 3 карты: `snake` (змейка), `lanes` (коридоры), `zigzag` (зигзаг) — разные дорожки.
 
 Проверка: байты карты читаются `readStage()` и совпадают с ASCII (round-trip тест).
 
@@ -124,11 +124,9 @@ export const TD_LEVELS: { id: string; title: string }[];  // метаданны�
 - Хук завершения стадии `sub_C728_check_condition_for_stage_ending` ($C728):
   патчим вход, чтобы в TD-режиме стадия **не завершалась** по `enemies_left==0`
   во время BUILD/INTERMISSION (см. §5). Варианты:
-  - (основной) JMP на свободную зону $EF75+ (после рутин PvP) → если
-    `TD_STATE != WAVE`, вернуть Z=1 («стадия не окончена»); иначе оригинал;
-  - (запасной) держать в BUILD `enemies_left = 1` и не давать ему упасть до
-    WAVE, а в WAVE перехватывать переход 0→1 в рантайме.
-  Выбор подтверждаем spike-тестом в фазе 0.
+  - реализовано: JMP на рутину `sub_td_stage_end_check` в свободной зоне `$FF50..$FFF9`;
+    пока `TD_STATE != 0` и игры нет — вернуть A=0 (Z=1, «стадия не окончена»),
+    поражение (game over) проходит.
 - База и спавны на TD-картах: орёл в центре низа, точки спавна ATT по краям —
   как в оригинальном формате (проверяем `field`-коллизии тестом).
 
@@ -152,11 +150,11 @@ export const TD_LEVELS: { id: string; title: string }[];  // метаданны�
 | Адрес | Имя | Назначение |
 |---|---|---|
 | `0x01FF` | `TD_STATE` | 0=off, 1=BUILD, 2=WAVE, 3=INTERMISSION, 4=VICTORY, 5=DEFEAT |
-| `0xFC` (план) | `TD_MAP` | выбранная карта (можно передать через startup, не RAM) |
 
-Если для ROM-хука потребуется больше байт — переносим/ужимаем блок фич
-(`0x01DB+`), т.к. TD несовместим одновременно с pacman/enemy-prizes в одном
-матче; адреса фиксируем в `rom-contract.ts` и покрываем тестом на пересечения.
+Выбранная карта передаётся через `tdOrder({type:"configure"})` (не через RAM).
+
+Адреса фиксируются в `rom-contract.ts`; сочетаемость TD с другими фичами
+проверяется тестами патчинга (при пересечении рутин линкер даёт `PATCH_OVERLAP`).
 
 Точки, список башен (клетка, тип, hp, кулдаун, направление), снаряды (x, y, dir,
 owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрасывает производное
@@ -165,45 +163,34 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 
 ## 6. Слой 3 — рантайм `features/tower-defence.ts`
 
-Один `FeatureRuntime`, разбитый на модули (как `pacman-dots` + `pacman-maze`):
+Реализовано двумя модулями:
 
-- `features/tower-defence.ts` — диспетчер хуков и состояние.
-- `features/towers.ts` — список башен: постановка/продажа/апгрейд, HP.
-- `features/tower-targeting.ts` — выбор цели: ближайший враг в линии (та же
-  строка/столбец, поле между ними свободно), поворот «дула» к цели.
-- `features/tower-projectiles.ts` — снаряды: движение, столкновения
-  (снаряд↔враг, снаряд↔стена), попадание во врага.
-- `features/tower-damage.ts` — общий `damageEnemy()` (броня/носитель приза/
-  смерть), **вынести из `friendly-fire-att.ts`** и переиспользовать в обоих
-  рантаймах (единый источник, чтобы правила совпадали).
-- `features/tower-waves.ts` — волны, спавн, начисление очков и переходы фаз.
+- `features/tower-defence.ts` — диспетчер хуков и состояние: экономика,
+  постановка/продажа/апгрейд, таргетинг/LOS, снаряды, урон по башням, волны, фазы.
+- `features/enemy-damage.ts` — общий `damageEnemy()` (броня/носитель приза/смерть),
+  вынесен из `friendly-fire-att.ts` и переиспользуется им и башнями.
 
 Хуки:
 
-- `init`: инициализировать `TD_STATE=BUILD`, точки, пустые башни/снаряды; выключить
-  спавн врагов (`enemies_left`, `SPAWN_TIMER`) до старта волны.
-- `preFrame`: запомнить флаги танков (детект смерти врага), тик кулдаунов.
-- `postFrame`:
-  - начисление очков за переход врага `alive→взрыв` (по типу `TANK_TYPE`);
-  - урон по башням от вражеских пуль (радиус, как в `sub_E70C`), гибель башни;
-  - в WAVE: контроль волны (`enemies_left`, `SPAWN_TIMER/INTERVAL`,
-    `TANK_TYPE` из `WaveDef`); когда все враги волны убиты → INTERMISSION;
-  - в INTERMISSION: пауза, затем BUILD или VICTORY; при `GAME_OVER==0` → DEFEAT.
-- `render`: отрисовка башен/снарядов — **в BG nametable** (надёжный путь,
-  как `pacman-dots`/`player-names`), 2×2 тайла для башни (танк) и 1 тайл для
-  снаряда. OAM — опционально позже (railgun доказал трюк со свободными слотами).
-- `onLoadState`: сброс производного.
+- `init`: `TD_STATE=BUILD`, состояние, точки; RAM до старта игры не трогается.
+- `preFrame`: обработка `startOptions.tdOrders`; в BUILD после старта матча
+  обнуляются счётчики спавна, чтобы волны не пошли до «В бой».
+- `postFrame`: очки за переход врага `alive→взрыв`; выдача типа волны на спавне;
+  наведение/выстрелы башен; движение снарядов и урон; урон по башням от вражеских
+  пуль; в WAVE — контроль волны, в INTERMISSION — пауза → BUILD/VICTORY;
+  при `GAME_OVER != 0x80` (или 0 жизней командира) → DEFEAT.
+- `render`: башни/снаряды блитятся спрайтовыми тайлами прямо в кадровый буфер PPU
+  (`ppuBuffer`), т.к. BG-таблица указывает на PT1, а танки — в PT0.
+- `onLoadState`: сброс производного (в TD `saveState/loadState` не используются).
 
 Взаимодействие с ядром (`pvp.ts`):
 
-- `setTowerDefence(options | null)` — включить режим и опции (карта, сложность,
-  мобильный танк, стартовые очки).
-- `getTowerDefence()` — снимок для UI: фаза, очки, волна/всего волн, список
-  башен, стоимость/апгрейд, HP базы.
-- `placeTower(cell, type)`, `sellTower(cell)`, `upgradeTower(cell)`,
-  `startWave()` — вызываются фронтом в BUILD; валидируются в рантайме.
-- `canvas`-редактор и рантайм не дублируют правила: расчёт стоимости/валидности
-  — в `shared/tower-defence.ts`.
+- `tdOrder(order)` — приказы `configure/place/sell/upgrade/startWave` (очередь в
+  `startOptions.tdOrders`, обрабатывается в `preFrame`).
+- `getTowerDefence()` — снимок для UI: фаза, очки, волна/всего волн, список башен,
+  снаряды, `started`.
+- Валидность/стоимость считаются в рантайме по `shared/tower-defence.ts` (UI не
+  дублирует правила). `MatchController.startTowerDefence(config)` настраивает матч.
 
 ## 7. Слой 4 — фронтенд
 
@@ -227,20 +214,19 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 - Компонент ничего не знает о netcode/ядрах — работает через пропсы/колбэки
   TD-контроллера (правила зависимостей сохраняются).
 
-### 7.3 TD-контроллер `application/td-controller.ts` (+ `use-tower-defence.ts`)
+### 7.3 Игровой экран `components/TowerDefenceView.tsx`
 
-- Машина фаз BUILD/WAVE/INTERMISSION/RESULT поверх `MatchController`/эмулятора.
-- В BUILD цикл эмулятора **не шагает**; в WAVE — обычный rAF-цикл `stepFrame`.
-- Читает `emu.getTowerDefence()` для HUD; пишет через `placeTower`/`startWave`.
-- Определяет победу/поражение по `TD_STATE` (а не по `determineWinner`).
+- Ведёт цикл эмулятора (авто-старт матча, затем rAF `stepFrame`), рендерит боевой
+  вид через общий `RenderSystem`.
+- В BUILD показывает редактор и магазин, шлёт `emu.tdOrder(...)`; HUD читает
+  `emu.getTowerDefence()`; результат — по фазе `TD_STATE` (не `determineWinner`).
 
 ### 7.4 Интеграция
 
-- `App.tsx`: новый `Screen` `{ name:"td-setup" }` и `{ name:"td"; ... }`;
-  `GameCanvas` получает `td`-пропс и в TD-режиме работает через TD-контроллер.
-- `GameUi.tsx`: расширенный HUD (очки, волна `n/N`, башни, жизни, HP базы).
-- `engine/emulator.ts`: прокси-методы TD API; `ports.ts` — типы.
-- `styles.css`: стили редактора/HUD.
+- `App.tsx`: экран `{ name: "td" }` + модалка настройки (`showTdSetup`);
+  `GameCanvas` не меняется — TD рисует отдельный `TowerDefenceView`.
+- HUD — внутри `TowerDefenceView` (очки, волна `n/N`, фаза, магазин, результат).
+- `engine/emulator.ts`: прокси `tdOrder`/`getTowerDefence`; `styles.css`: стили TD.
 
 ## 8. Экономика и волны
 
@@ -251,8 +237,8 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 - **Стоимость/апгрейд/продажа** — в `TOWER_TYPES`; продажа — 60% вложенного.
 - **Башни живут между волнами**, покупка/перестановка — в BUILD.
   (Продажа и перенос — по желанию, в фазе 5.)
-- **Волны**: `TD_WAVES` — массив `{ count, types[], interval, reward }`;
-  сложность масштабирует count/типы. Спавн через `enemies_left`/`SPAWN_TIMER`.
+- **Волны**: `TD_WAVES` — массив `{ count, interval, types }`; сложность масштабирует
+  count, рантайм выдаёт тип врага из `types` на спавне. Спавн через `enemies_left`/`SPAWN_TIMER`.
 - **База**: классическая (одно попадание) — поражение. При желании в фазе 5:
   HP базы с ремонтом между волнами (перехват `sub_E2A9_HQ_handler`).
 - **Жизни**: если мобильный танк включён — стандартные 3, поражение при 0.
@@ -271,8 +257,8 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 |---|---|---|
 | 0 | Манифест `hidden`, реестр, пустой рантайм + скелет патча; spike перехвата `sub_C728`; `TD_STATE` в `rom-contract` | `ci.sh` зелёный, golden не изменён, фича включается/выключается |
 | 1 | `td-levels.ts`: ASCII→91 байт, 3 карты, round-trip тест; патч пишет стадии 1..3; превью карт | `readStage()` совпадает с ASCII, спавны/база корректны |
-| 2 | Ядро башен: постановка/цель/снаряды/урон; `tower-damage.ts` вынесен; враг→башня; BG-рендер | unit: таргетинг, LOS, попадание, броня, гибель башни |
-| 3 | Волны, очки, BUILD/WAVE/INTERMISSION, победа/поражение; `setTowerDefence`/`getTowerDefence` | unit: экономика, переходы фаз, win/lose |
+| 2 | Ядро башен: постановка/цель/снаряды/урон; общий `enemy-damage.ts`; враг→башня; 2D-блендинг в буфер PPU | unit: таргетинг, LOS, попадание, броня, гибель башни |
+| 3 | Волны, очки, BUILD/WAVE/INTERMISSION, победа/поражение; `tdOrder`/`getTowerDefence` | unit: экономика, переходы фаз, win/lose |
 | 4 | Setup + редактор расстановки, TD-контроллер/хук, HUD, `App`/`LobbyBrowser` | сборка фронта, e2e-сценарий «setup→build→wave→result» |
 | 5 | Баланс, типы/апгрейды/продажа, 3+ карты, сложности, полировка HUD | игровой прогон, тюнинг |
 | 6 | 3D-рендер башен (расширение `SceneState`), docs, полный CI | `ci.sh` 9/9, typecheck/eslint чисто |
@@ -297,13 +283,14 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
   держать `enemies_left=1` вне WAVE.
 - **AI-путь по коридорам**: враги используют существующий `lookahead` (цель —
   база); карты должны быть проходимы и не ломать навигацию (`fine-grid`).
-- **OAM/BG-бюджет**: башни/снаряды рисуем в BG nametable (проверенный путь);
-  OAM — только если хватит свободных слотов.
+- **2D-оверлей**: башни/снаряды блитятся спрайтовыми тайлами прямо в кадровый буфер
+  PPU (`ppuBuffer`) — BG не подходит (фоновая таблица PT1, танки в PT0), а OAM-запись
+  из хуков в видимый кадр не доживает.
 - **RAM**: авторитет TD — в `ctx.state`; rollback/`loadState` в TD не
   поддерживаются (задокументировать). `TD_STATE` — единственный новый байт.
 - **Баланс**: числа (очки/стоимость/волны) тюнятся в фазе 5, вынесены в `shared`.
-- **3D**: башни в `topdown-3d`/`mc-voxel` появятся после расширения
-  `SceneState` (фаза 6), иначе TD — 2D-only.
+- **3D**: реализовано — `SceneState.towers` + `render/tower-visual.ts`, башни рисуются
+  в `topdown-3d`/`mc-voxel`.
 
 ## 13. Вне рамок
 

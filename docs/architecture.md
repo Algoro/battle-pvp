@@ -9,7 +9,8 @@ Battle City PvP — надстройка над классической Battle 
 ```
 frontend/       React/TS SPA: canvas-рендер, лобби, чат, spectator, HUD
 netcode/        rollback-netcode: протокол, RollbackSession, транспорты
-emulator-core/  ядро: PvPNes (extends jsnes NES), BattleCityPPU, patching/, ai/, sim/, model/, io/
+emulator-core/  ядро: PvPNes (extends jsnes NES), BattleCityPPU, patching/, features/ (JS-рантаймы фич), ai/, sim/, model/, io/
+shared/         манифесты и общие данные без импортов: features.ts, renderers.ts, tower-defence.ts
 backend/        Node: HTTP + WS, matchmaking, лобби/комнаты, signaling relay, SQLite
 rom/            original/ (ваш ROM), patches/, disasm/ (asm-референс), сборочные утилиты
 vendor/jsnes/   git-сабмодуль: неизменный апстрим jsnes
@@ -19,31 +20,35 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
 
 - **jsnes** — сабмодуль `vendor/jsnes`. Не редактируется. Копия `emulator-core/src`
   генерируется из него (`scripts/prepare.mjs`); guard-тест `jsnes-pristine.test.ts`.
-  Расширения: `PvPNes extends NES`, `BattleCityPPU extends PPU` (`ppu-ext.js`).
+  Расширения: `PvPNes extends NES`, `BattleCityPPU extends PPU` (`ppu-ext.ts`).
 - **ROM** — файл не меняется. PvP-патчи применяются к in-memory образу PRG
   (`emulator-core/patching/`). Подробно — `docs/rom-patching.md`.
 
 ## Контракт ROM и сертификация
 
-- **`rom-contract.js`** — единый источник правды по адресам RAM/ROM (было разбросано
+- **`rom-contract.ts`** — единый источник правды по адресам RAM/ROM (было разбросано
   тысячи «магических» чисел). Используется ядром, моделью ИИ, симом, патчингом.
-  Контрольные байты проверяются `assertRomContract()` (`startup.js`).
-- **`domain.js`** — семантика домена: направления (`DIR_VEC`, `DIR_BTN`, `btnToDir`),
+  Контрольные байты проверяются `assertRomContract()` (`startup.ts`).
+- **`domain.ts`** — семантика домена: направления (`DIR_VEC`, `DIR_BTN`, `btnToDir`),
   флаги танков (`isTankAlive/Active`, `movingFlag`), тайлы (`isBrick/Steel`, `tankPassable`),
   пули (`isBulletFlying`), апгрейд (`starsToUpgrade`). Убирает дубли и «магию» вида `0xa0|dir`.
 - **Enforcement** (`tests/no-magic-addresses.test.ts`): запрет сырых RAM/ROM-адресов вне
   `rom-contract/domain/startup` — регрессии «магии» ловятся в CI.
-- **`startup.js`** — декларативный boot/apply API стартовых опций (стадия, звёзды,
+- **`startup.ts`** — декларативный boot/apply API стартовых опций (стадия, звёзды,
   супер-оружие `setStartPistol`): один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
-- **`patching/patches/pistol.js`** — приз «пистолет» (выпадение/подбор/4-я звезда/сброс);
-  эффект луча — в JS (`pvp.js`, `_fireRailgun`/`_renderBeamFx`). См. `docs/pistol-powerup-plan.md`.
-- **`io/trace.js`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта);
+- **`features/*.ts`** — JS-рантаймы фич (вызываются ядром вокруг ROM-кадра
+  `preFrame → frame() → postFrame → render`); общий урон по врагам — `features/enemy-damage.ts`,
+  луч пистолета — `features/railgun.ts` (`fireRailgun`/`renderRailgunFx`), соло `tower-defence` —
+  `features/tower-defence.ts`. Контракт — `patching/runtime.ts`.
+- **`patching/patches/pistol.ts`** — приз «пистолет» (выпадение/подбор/4-я звезда/сброс);
+  эффект луча — в JS (`features/railgun.ts`). См. `docs/pistol-powerup-plan.md`.
+- **`io/trace.ts`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта);
   `stepFrame` разбит на `_resetNetZone/_readInputs/_applyAttAIDecisions`.
-- **`ai/rollforward.js`** — предсказание будущего на **реальном эмуляторе** (saveState +
+- **`ai/rollforward.ts`** — предсказание будущего на **реальном эмуляторе** (saveState +
   прокрутка), сертифицировано тестом; основа для отказа от отдельной JS-модели (`sim/*`).
 - **Golden-сертификация** (`tests/golden-replay.test.ts`): golden-хэш ядра, сходимость
   двух инстансов, эквивалентность save/load, детерминизм стартовых опций.
-- **Валидация WS** (`backend/signaling/schema.js`) — декларативная схема сообщений.
+- **Валидация WS** (`backend/signaling/schema.ts`) — декларативная схема сообщений.
 
 ## Поток матча
 

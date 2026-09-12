@@ -1,8 +1,9 @@
 # Драйверы и расширения рендерера (render drivers & extensions)
 
-> Статус: **проект**. Новый тип сущностей уровня ядра проекта, параллельный
-> «патчам». Патч меняет **игру** (ROM + JS-рантайм, детерминизм, fingerprint).
-> Драйвер/расширение рендерера меняют **только изображение** и полностью локальны.
+> Статус: **реализовано** (`frontend/src/render/`: драйверы `pixel-2d`, `topdown-3d`,
+> `mc-voxel`; расширения `minimap`, `particles`). Тип сущностей, параллельный «патчам»:
+> патч меняет **игру** (ROM + JS-рантайм, детерминизм, fingerprint), а драйвер/расширение
+> рендерера меняют **только изображение** и полностью локальны.
 
 ## 1. Идея
 
@@ -44,6 +45,8 @@ export interface RendererInfo {
   /** capabilities, которые требует расширение (для расширений). */
   requires?: string[];
   order?: number; // порядок наложения расширений (по умолчанию 1000)
+  /** Декларативная схема настроек драйвера (авто-UI и пресеты). */
+  settings?: RenderSettingsSpec;
 }
 
 export const RENDER_MANIFEST: RendererInfo[] = [
@@ -81,15 +84,18 @@ export interface SceneState { /* см. docs/3d-view-plan.md §4 */ }
 
 /** Общий контекст, который хост даёт любому драйверу/расширению. */
 export interface RenderHost {
-  readonly container: HTMLElement; // точка монтирования (драйвер сам создаёт canvas/DOM)
-  readonly width: number;
-  readonly height: number;
-  readonly capabilities: ReadonlySet<string>;
-  /** Общая модель камеры (драйверы вправе игнорировать). */
-  readonly camera: CameraRig;
-  /** Доля секунды с прошлого кадра (для анимаций; НЕ для игровой логики). */
-  readonly dtMs: number;
-  readonly scene: SceneState;
+  container: HTMLElement; // точка монтирования (драйвер сам создаёт canvas/DOM)
+  width: number;
+  height: number;
+  capabilities: Set<string>;
+  camera: CameraRig;
+  scene: SceneState;
+  /** Миллисекунды с прошлого кадра (для анимаций; НЕ для игровой логики). */
+  dtMs: number;
+  /** Произвольный обмен между драйвером и расширениями (например, three-контекст). */
+  shared: Record<string, unknown>;
+  /** Локальный игрок (камера «из глаз»): порт танка. */
+  viewer: { port: number };
 }
 
 export interface RenderDriver {
@@ -100,6 +106,7 @@ export interface RenderDriver {
   resize(width: number, height: number): void;
   render(dtMs: number): void;      // рисует кадр
   dispose(): void;
+  setOptions?(options: unknown): void; // необязательные локальные настройки
 }
 
 export interface RenderExtension {
@@ -118,7 +125,7 @@ export interface RenderExtension {
 `frontend/src/render/registry.ts`:
 
 ```ts
-registerRenderer(entry: { id, kind, load: () => Promise<RenderDriver | RenderExtension> });
+registerRenderer(id: string, load: () => Promise<RenderDriver | RenderExtension>);
 resolveDriver(id): Promise<RenderDriver>;
 resolveExtensions(ids: string[]): Promise<{ id: string; ext: RenderExtension }[]>;
 listRenderers(): RendererInfo[];         // из shared/renderers.ts
@@ -142,7 +149,7 @@ class RenderSystem {
   setDriver(id: string): Promise<void>;          // выключает старый, монтирует новый
   setExtensions(ids: string[]): Promise<void>;   // пересобирает стек
   resize(w: number, h: number): void;
-  frame(dtMs: number): void;                      // scene -> driver.setScene -> render pipeline
+  frame(): void;                                  // scene -> beforeRender -> setScene/render -> afterRender
   driverId: string;
   extensionStatus: { id: string; state: "active" | "skipped"; reason?: string }[];
   dispose(): void;
@@ -152,14 +159,13 @@ class RenderSystem {
 Пайплайн кадра:
 
 ```
-scene() ──► driver.setScene(scene)
-         ─► for ext of active: ext.beforeRender(scene, dt)     // прямой порядок
-         ─► driver.render(dt)
+scene() ──► for ext of active: ext.beforeRender(scene, dt)   // прямой порядок
+         ─► driver.setScene(scene); driver.render(dt)
          ─► for ext of active (reverse): ext.afterRender(scene, dt)
 ```
 
-- **Один драйвер**; переключение — атомарно (dispose старого после успешного mount
-  нового; при ошибке — откат на предыдущий).
+- **Один драйвер**; при переключении старый драйвер/расширения освобождаются до mount
+  нового; при ошибке mount — откат на `pixel-2d` (не на предыдущий).
 - **`frame()` вызывается из игрового тика** (соло/онлайн/spectator) — вместе с `draw()`.
 - Анимации/демпфирование камеры — внутри `driver.render`/rAF хоста, ядро **не шагается**.
 - Смена драйвера пересобирает стек расширений по `requires`.

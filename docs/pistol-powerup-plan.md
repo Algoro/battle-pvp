@@ -61,20 +61,20 @@
 - `emulator-core/patching/`: дескрипторы `routines` (символы, `at`/first-fit, токены
   `jmpT/jsrT/absT/selfJmpT`) и `writes` (хук по адресу, `len`, `expect`, байты).
   Линкер размещает только в объявленных `free`-зонах, заполненных `0xFF`, и проверяет
-  атомарность/перекрытия. `applyPatchSet(rom, "pvp")`; `composeSets`; `registry.js`.
+  атомарность/перекрытия. `applyPatchSet(rom, "pvp")`; `composeSets`; `registry.ts`.
 - Свободные (`0xFF`) зоны PRG: **`$EF75–$EFFF`** (занята патчем `pvp`),
   **`$FF50–$FFF9` (170 байт)**, `$D3DD–$D3FF` (35), `$FD46–$FD4F` (10).
 - Потребители: `scripts/prepare.mjs` (собирает `rom/disasm/_battle_city.nes`,
   константа `PRG_FNV = 94cb0636`), `emulator-core/tests/patching.test.ts`
   (fingerprint `94cb0636`), `qa/tests/asm-patch.test.ts`,
   `emulator-core/tests/golden-replay.test.ts` (`GOLDEN_HASH = 34e8ff73`),
-  `qa/golden-state.js`, `emulator-core/tests/no-magic-addresses.test.ts` (regex адресов),
+  `qa/golden-state.ts`, `emulator-core/tests/no-magic-addresses.test.ts` (regex адресов),
   `emulator-core/rom-contract.ts` (единый источник RAM/ROM).
-- JS-ядро `PvPNes` (`emulator-core/pvp.js`): `loadROM` → `applyPatchSet`;
+- JS-ядро `PvPNes` (`emulator-core/pvp.ts`): `loadROM` → `applyPatchSet`;
   `stepFrame` = `_readInputs` → ИИ → `_applyHumanPreFrame` → `frame()` →
   `_applyHumanPostFrame` → `_unstuckTanks`; `saveState/loadState` кодируют **всю RAM
   `0x0000–0x07FF`**. `sim/*` — тест-онли JS-модель. Lookahead-ИИ использует
-  `EmulatorPredictor` (реальный эмулятор, `ai/rollforward.js`), т.е. патч учитывается.
+  `EmulatorPredictor` (реальный эмулятор, `ai/rollforward.ts`), т.е. патч учитывается.
 
 ## 3. Дизайн фичи
 
@@ -114,11 +114,11 @@
   Точный свободный адрес —
   **подтвердить спайком** (§6, фаза 0): кандидаты — хвост PvP-зоны (`$01EE–$01FF`) или
   свободный участок (`$0111–$017E`), с проверкой, что туда не пишет `ram_ppu_buffer`
-  (`$0180`) и индексируемые массивы. Зарегистрировать в `rom-contract.js`,
+  (`$0180`) и индексируемые массивы. Зарегистрировать в `rom-contract.ts`,
   `no-magic-addresses` и контрактном тесте; покрыть `state-codec` (rollback/saveState).
 
 ### 3.3. ROM-патч (основной путь)
-Новый модуль `emulator-core/patching/patches/pistol.js`, собирается как
+Новый модуль `emulator-core/patching/patches/pistol.ts`, собирается как
 `composeSets(baseNrom, pvp, pistol)` и регистрируется под именем `pvp`
 (чтобы фронт/тесты ничего не меняли; меняется только fingerprint). Содержимое:
 
@@ -183,18 +183,18 @@
 - Рекомендуется только как крайний случай, если спайк покажет нехватку места/багов в ROM.
 
 ## 4. Изменяемые файлы (предварительно)
-- `emulator-core/patching/patches/pistol.js` — новый патч (рутины + хуки + free-зоны).
-- `emulator-core/patching/patches/base-nrom.js` — символы/`free` (если добавляем зоны).
-- `emulator-core/patching/registry.js` — композиция `pvp + pistol`.
+- `emulator-core/patching/patches/pistol.ts` — новый патч (рутины + хуки + free-зоны).
+- `emulator-core/patching/patches/base-nrom.ts` — символы/`free` (если добавляем зоны).
+- `emulator-core/patching/registry.ts` — композиция `pvp + pistol`.
 - `emulator-core/rom-contract.ts` — новые RAM (`PISTOL`/`AMMO`), при необходимости
   `AI_READ_RANGES`.
-- `emulator-core/pvp.js` — доступ к новым адресам через `RAM.*`, обновить doc
+- `emulator-core/pvp.ts` — доступ к новым адресам через `RAM.*`, обновить doc
   `spawnBonus` (id 6 = пистолет), при необходимости тестовые хелперы.
 - `emulator-core/tests/no-magic-addresses.test.ts` — добавить базовые адреса в regex.
 - `scripts/prepare.mjs` — `PRG_FNV` (новый fingerprint).
 - `emulator-core/tests/patching.test.ts` — ожидаемый fingerprint.
 - `emulator-core/tests/golden-replay.test.ts` — `GOLDEN_HASH`.
-- `qa/golden-state.js` + `qa/golden/` — пересоздать эталон.
+- `qa/golden-state.ts` + `qa/golden/` — пересоздать эталон.
 - `qa/tests/asm-patch.test.ts` (или новый `pistol.test.ts`) — функциональные тесты.
 - `docs/*` — обновить `asm-label-map.md`, `rom-patching.md`, `ai.md`; README-раздел при
   необходимости; **этот план**.
@@ -258,31 +258,30 @@
 - Супер-выстрел уничтожает любые препятствия и противников через весь экран, остаётся
   в границах поля и детерминирован.
 - Матч двух клиентов синхронен (нет DESYNC), fingerprint совпадает.
-- `bash scripts/ci.sh` 8/8, новые тесты зелёные, golden/fingerprint обновлены,
+- `bash scripts/ci.sh` 9/9, новые тесты зелёные, golden/fingerprint обновлены,
   документация актуализирована.
 
 ## 8a. Фактическая реализация
 
-- ROM-патч `emulator-core/patching/patches/pistol.js` (набор `pvp = base + pvp + pistol`,
+- ROM-патч `emulator-core/patching/patches/pistol.ts` (набор `pvp = base + pvp + pistol`,
   fingerprint `d370108f`): выпадение id 6, подбор, 4-я звезда, сброс при смерти.
-- RAM `ram_pistol` `$01EE`, `ram_pistol_ammo` `$01F0` (`rom-contract.js`).
-- Эффект луча — JS-ядро `PvPNes` (`_applyPistolPostFrame` + `_fireRailgun`):
+- RAM `ram_pistol` `$01EE`, `ram_pistol_ammo` `$01F0` (`rom-contract.ts`).
+- Эффект луча — JS-рантайм `emulator-core/features/railgun.ts` (`fireRailgun`/`renderRailgunFx`), вызывается из `features/pistol.ts`:
   hitscan по клеткам, уничтожение **любых препятствий и ландшафта — кирпич, сталь,
   вода, лёд, кусты** (кроме дороги и штаба), танков (включая союзника),
   пуль, базы; N=3; **ширина луча = `2*PISTOL_BEAM_HALF+1`** тайлов
-  (`domain.js`, сейчас 3 тайла, можно менять одной константой); **визуал — взрыв
-  (анимация как у танка) на каждой разрушенной клетке**: JS-очередь `_beamFx` +
-  `_renderBeamFx` рисует 8×16-пары тайлов `0xF1/0xF5/0xF9` в свободные (внеэкранные)
+  (`domain.ts`, сейчас 3 тайла, можно менять одной константой); **визуал — взрыв
+  (анимация как у танка) на каждой разрушенной клетке**: JS-очередь `ctx.state.beamFx` + `renderRailgunFx` рисует 8×16-пары тайлов `0xF1/0xF5/0xF9` в свободные (внеэкранные)
   OAM-спрайты движка — чистая визуализация, не пишет `cpu.mem` (hash/сеть не затронуты);
   SFX. Состояние разрушения — в RAM → `saveState`/rollback работают.
 - **Стартовая опция**: `setStartPistol(true)` (в `StartupInjector` + `PvPNes` + `EmulatorDriver`)
   выдаёт DEF максимум звёзд (`0x60`) и пистолет на старте. Проброс: UI (`StarsSelect`
   кнопка «4★🔫» → `LobbyBrowser`/`CreateRoomDialog`/`LobbyRoom`) → настройки лобби
-  `defPistol` (`domain/lobby.js`, `match-lifecycle.js`, `relay`/`server`) → `match.start`
+  `defPistol` (`domain/lobby.ts`, `match-lifecycle.ts`, `relay`/`server`) → `match.start`
   → `MatchController` (`startSolo`/`startOnline`) → `setStartPistol`.
 - Тесты: `emulator-core/tests/pistol.test.ts` (13), `backend/tests/lobby.test.ts`
   (normalizeSettings.defPistol), обновлены fingerprint (`patching.test.ts`,
-  `prepare.mjs`) и golden (`GOLDEN_HASH = 1bb47e2f`).
+  `prepare.mjs`) и golden (`GOLDEN_HASH = 34e8ff73` в `tests/golden-replay.test.ts`).
 - Причина fallback: railgun в ASM не помещается целиком в непрерывную свободную зону ROM
   (`$FF50–$FFF9` = 170 Б; один routine не может занимать две зоны), а правила получения
   остались в ROM. Если понадобится полный ROM-вариант — писать компактнее/расширять зоны.

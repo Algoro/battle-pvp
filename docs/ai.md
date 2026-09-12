@@ -24,12 +24,12 @@
 
 | Файл | Роль |
 |---|---|
-| `lookahead-ai.js` | предсказание будущего (MPC), основной ATT |
-| `scan-ai.js` | полное сканирование |
-| `tactical-ai.js` | тактический план (`plan`, `planDefense`) |
-| `attacker-strategy.js` | стратегия атакующих |
-| `defender-strategy.js` | стратегия защитников |
-| `brain-runner.js` | запуск мозга с кэшем решений (`aiEvery`) |
+| `lookahead-ai.ts` | предсказание будущего (MPC), основной ATT |
+| `scan-ai.ts` | полное сканирование |
+| `tactical-ai.ts` | тактический план (`plan`, `planDefense`) |
+| `attacker-strategy.ts` | стратегия атакующих |
+| `defender-strategy.ts` | стратегия защитников |
+| `brain-runner.ts` | запуск мозга с кэшем решений (`aiEvery`) |
 
 ## API
 

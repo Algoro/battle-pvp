@@ -1,8 +1,9 @@
 # 3D-вид: альтернативный рендер (display-only патч)
 
-> Статус: **проект** (не реализовано). Цель — добавить альтернативный трёхмерный
-> вид игрового поля с масштабированием и вращением, **не меняя игру**: ни RAM,
-> ни кадры ядра, ни rollback/desync/хэши, ни ROM-патчи и их fingerprint.
+> Статус: **реализовано** — драйвер `topdown-3d` в `frontend/src/render/drivers/topdown-3d/`.
+> Цель — альтернативный трёхмерный вид игрового поля с масштабированием и вращением,
+> **не меняя игру**: ни RAM, ни кадры ядра, ни rollback/desync/хэши, ни ROM-патчи и их
+> fingerprint. Раздел ниже сохранён как исходный дизайн.
 
 ## 1. Постановка задачи
 
@@ -41,23 +42,23 @@ shared/
 frontend/src/
   engine/
     emulator.ts            игровое ядро БЕЗ отрисовки: stepFrame/save/load/readMem
-    render/
-      types.ts             RenderDriver / RenderExtension / RenderHost / SceneState
-      registry.ts          registerRenderer / resolveDriver / resolveExtensions + assert
-      render-system.ts     RenderSystem: композиция driver + [extensions], lifecycle
-      camera-rig.ts        общая модель камеры (yaw/pitch/roll/zoom/pan)
-      scene-state.ts       readScene(emu): SceneState — ЧИСТОЕ извлечение (RAM)
-      drivers/
-        pixel-2d.ts        драйвер по умолчанию (текущий буфер PPU -> 2D canvas)
-        topdown-3d/        ЭТОТ драйвер
-          driver.ts        реализация RenderDriver
-          scene.ts         корень сцены, свет, земля, field-статика, dirty-update
-          textures.ts      палитра NES + процедурные текстуры
-          models/
-            tank.ts        танк (DEF/ATT, 4 класса, гусеницы, башня, звёзды, каска/стан)
-            terrain.ts     кирпич (квадранты!), сталь, вода, лёд, деревья, дорога
-            base.ts        орёл: цел / разрушен / укреплён (лопата)
-            props.ts       пули, призы (6 иконок), взрывы, спавн-маркеры, точки pacman
+  render/
+    types.ts               RenderDriver / RenderExtension / RenderHost / SceneState
+    registry.ts            registerRenderer / resolveDriver / resolveExtensions + assert
+    render-system.ts       RenderSystem: композиция driver + [extensions], lifecycle
+    camera-rig.ts          общая модель камеры (yaw/pitch/roll/zoom/pan)
+    scene-state.ts         readScene(emu): SceneState — ЧИСТОЕ извлечение (RAM)
+    tower-visual.ts        адаптация башен TD к модели танка (SceneState.towers)
+    drivers/
+      pixel-2d.ts          драйвер по умолчанию (текущий буфер PPU -> 2D canvas)
+      topdown-3d/          ЭТОТ драйвер
+        driver.ts          реализация RenderDriver (сцена/свет/земля — внутри)
+        textures.ts        палитра NES + процедурные текстуры
+        models/
+          tank.ts          танк (DEF/ATT, 4 класса, гусеницы, башня, звёзды, каска/стан)
+          terrain.ts       кирпич (квадранты!), сталь, вода, лёд, деревья, дорога
+          base.ts          орёл: цел / разрушен / укреплён (лопата)
+          props.ts         пули, призы (6 иконок), взрывы, спавн-маркеры, точки pacman
       extensions/
         particles.ts       пример расширения к topdown-3d (three)
         minimap.ts         пример DOM-оверлея (overlay-dom)
@@ -90,14 +91,18 @@ export interface SceneTank {
 export interface SceneState {
   frame: number;
   field: Uint8Array;             // 32×32 тайлов коллизий (копия)
-  bounds: { cols: number; rows: number }; // видимая игровая зона (26×26)
+  bounds: RenderBounds;          // видимая игровая зона (26×26)
   tanks: SceneTank[];
-  bullets: { owner: number; team: "DEF"|"ATT"; dir: number; x: number; y: number }[];
-  prize: { id: number; x: number; y: number } | null;
-  eagle: { col: number; row: number; fortified: boolean; destroyed: boolean };
-  effects: { freezeTimer: number; dotsLeft: number | null };
-  events: RenderEvent[];         // дельты кадра (взрывы/попадания) для эффектов
+  bullets: SceneBullet[];
+  prize: ScenePrize | null;
+  towers: SceneTower[];          // башни tower defence (пусто в обычных режимах)
+  eagle: SceneEagle;
+  effects: SceneEffects;
+  pixels: Uint32Array | null;    // ссылка на пиксельный буфер PPU (для pixel-2d)
 }
+
+// RenderEvent/events в финальной реализации не появились — эффекты строятся
+// драйверами из дельт SceneState между кадрами.
 export function readScene(emu: EmulatorDriver): SceneState; // чистая, без записи
 ```
 
@@ -196,9 +201,9 @@ Clamp pitch (чтобы не уйти под пол), свободный yaw, ro
   `saveState` совпадают.
 - **SceneState детерминирован и чист**: `readScene(mem)` не мутирует вход; одинаковый
   mem → одинаковый снимок (юнит-тесты `frontend/tests/scene-state.test.ts`).
-- **Архитектурный enforcement** (`qa/tests/architecture.test.ts`): модули `render3d/*`
-  не импортируются из `emulator-core`/`netcode`/`backend`; `emulator-core` не зависит от
-  `three`/DOM; «нет `.js` вне jsnes src» сохраняется.
+- **Архитектурный enforcement** (`qa/tests/architecture.test.ts`): модули
+  `frontend/src/render/*` не импортируются из `emulator-core`/`netcode`/`backend`;
+  `emulator-core` не зависит от `three`/DOM.
 - `camera-rig.ts` — чистые функции позы/клампов (`frontend/tests/camera-rig.test.ts`).
 
 ## 10. Этапы

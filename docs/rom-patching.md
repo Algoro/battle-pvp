@@ -45,15 +45,18 @@ fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+
 
 | Файл | Назначение |
 |---|---|
-| `rom-image.js` | доступ к PRG как к образу: `map(addr)`, read/write/verify, `isFill`, `fingerprint` |
-| `descriptor.js` | валидация дескрипторов, токены (`jmp/jsr/abs/self`), `composeSets` |
-| `linker.js` | таблица символов, размещение рутин, проверки `NO_SPACE`/`OVERLAP` |
-| `apply.js` | `applyPatchSet(rom, "pvp")`: проверка базы, `expect`-байтов, атомарная запись |
-| `errors.js` | типизированные коды ошибок |
-| `patches/base-nrom.js` | база (mapper0, 1×16 КБ, FNV PRG `b8a818c1`, sha1 ROM) + символы + свободная зона |
-| `patches/pvp.js` | сетевые патчи (рутины токенами + хуки) |
-| `patches/pistol.js` | приз «пистолет»: выпадение/подбор/4-я звезда/сброс |
-| `registry.js` | именованные наборы (`pvp` = base+pvp, `base`) + реестр опциональных фич |
+| `rom-image.ts` | доступ к PRG как к образу: `map(addr)`, read/write/verify, `isFill`, `fingerprint` |
+| `descriptor.ts` | валидация дескрипторов, токены (`jmp/jsr/abs/self`), `composeSets` |
+| `linker.ts` | таблица символов, размещение рутин, проверки `NO_SPACE`/`OVERLAP` |
+| `apply.ts` | `applyPatchSet(rom, "pvp")`: проверка базы, `expect`-байтов, атомарная запись |
+| `errors.ts` | типизированные коды ошибок |
+| `runtime.ts` | контракт `FeatureRuntime`/`KernelApi` (хуки `preFrame/postFrame/render/...`) |
+| `patches/base-nrom.ts` | база (mapper0, 1×16 КБ, FNV PRG `b8a818c1`, sha1 ROM) + символы + свободная зона |
+| `patches/pvp.ts` | сетевые патчи (рутины токенами + хуки) |
+| `patches/pistol.ts` | приз «пистолет»: выпадение/подбор/4-я звезда/сброс |
+| `patches/tower-defence.ts` | TD-карты в стадиях 1..3 + хук завершения стадии `sub_td_stage_end_check` (`$FF50`) |
+| `patches/{pacman,enemy-prizes,friendly-fire-def,friendly-fire-att,player-names}.ts` | прочие опциональные фичи |
+| `registry.ts` | именованные наборы (`pvp` = base+pvp, `base`) + реестр опциональных фич |
 
 ## Инварианты и защита
 
@@ -66,7 +69,7 @@ fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+
 
 ## Как добавить патч
 
-1. Опишите байты/рутины в `patches/*.js` (по образцу `pvp.js`), используя токены для адресов.
+1. Опишите байты/рутины в `patches/*.ts` (по образцу `pvp.ts`), используя токены для адресов.
 2. Зарегистрируйте набор/добавьте в `composeSets` при необходимости.
 3. Проверьте воспроизведение: `node scripts/extract-patches.mjs --check`.
 4. Прогоните `cd emulator-core && npm test` (golden + детерминизм).

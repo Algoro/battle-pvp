@@ -9,7 +9,7 @@
 
 - NMI `vec_D400_NMI` — каждый кадр: чтение джойстиков, счётчик кадров.
 - RESET `vec_C070_RESET`.
-- Главный цикл раунда: stage-start `loc_C1C5` → gameplay `bra_C1F9_loop` → stage-end `bra_C238_loop`.
+- Главный цикл раунда: stage-start `bra_C1C5` → gameplay `bra_C1F9_loop` → stage-end `bra_C238_loop`.
 
 ## Контроллеры
 
@@ -34,8 +34,8 @@
 | спавн (`sub_DB48_enemy_spawn_handler`) | `$DB48` | `sub_DB48_patched` + `sub_net_respawn_check` |
 
 - Цели: `ofs_000_DD7E_D0_follow_p1` / `_p2` / `_HQ`.
-- Флаги танков: `0xA0` basic, `0xB0/0xC0/0xD0` follow-HQ/p2/p1, `0xE0/0xF0` respawn,
-  `0x70/0x80` explosion.
+- Флаги танков: `0x80` активен (анимация/движение), `0x90`, `0xA0` basic,
+  `0xB0/0xC0/0xD0` follow-HQ/p2/p1, `0xE0/0xF0` respawn, `0x70` взрыв (в коде `0x73`).
 
 ## Спавн и состояние раунда
 
@@ -69,12 +69,18 @@
 | ram_net_enemy_dir | `$01DB` | направление ATT (0..3, FF=нет) |
 | ram_net_enemy_fire | `$01E1` | edge выстрела |
 | ram_net_enemy_respawn | `$01E7` | edge респавна |
-| ram_net_match_state | `$01ED` | состояние матча |
+| ram_net_enemy_state | `$01ED` | состояние матча |
 | ram_pistol | `$01EE` | 2 байта: 1 = DEF-игрок владеет супер-оружием |
 | ram_pistol_ammo | `$01F0` | 2 байта: остаток супер-выстрелов |
+| ram_enemy_pistol_ammo | `$01F2` | 6 байт: боезапас супер-оружия врагов (`enemy-prizes`) |
+| ram_dots_left | `$01FC` | 2 байта: остаток точек (`pacman`); 0 — поле зачищено |
+| ram_pacman_win | `$01FE` | 1 байт: победа DEF в `pacman` |
+| ram_td_state | `$01FF` | 1 байт: фаза `tower-defence` |
 
-Зона `$01DB–$01F7` свободна: `ram_ppu_buffer` (`$0180`) заканчивается на `$01DA`
-(максимальный `ram_buffer_index` = `$5A` по замерам геймплея).
+Зона `$01DB–$01FF` (от `ram_ppu_buffer` `$0180`, который заканчивается на `$01DA`)
+занята фичами: сеть (`$01DB–$01ED`), пистолет (`$01EE–$01F1`), `enemy-prizes`
+(`$01F2–$01FB`), `pacman` (`$01FC–$01FE`), `tower-defence` (`$01FF`). Отдельные фичи
+рассчитаны на совместное включение только там, где это проверено тестами.
 
 ## Призы (bonus)
 
@@ -99,6 +105,7 @@ pistol — супер-оружие врагу (при фиче `pistol`); helmet
 ## Патчи
 
 Хуки строго равного размера (`JMP`/`JSR` + NOP-пады), новый код — в неиспользуемых зонах
-`$EF75–$EFFF` (pvp) и `$FF50–$FFF9` (pistol). Дескрипторы и линкер —
-`emulator-core/patching/` (`patches/pvp.js`, `patches/pistol.js`).
+`$EF75–$EFFF` (pvp) и `$FF50–$FFF9` (pistol, enemy-prizes, tower-defence). Дескрипторы и
+линкер — `emulator-core/patching/` (`patches/pvp.ts`, `patches/pistol.ts`,
+`patches/tower-defence.ts`).
 Проверка воспроизведения: `node scripts/extract-patches.mjs --check`.

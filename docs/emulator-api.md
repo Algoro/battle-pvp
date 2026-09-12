@@ -1,17 +1,17 @@
 # API ядра (`emulator-core` / `PvPNes`)
 
 `PvPNes` — подкласс **неизменного** `NES` из jsnes (сабмодуль `vendor/jsnes`).
-Относительный путь: `./emulator-core/pvp.js`. Патчи Battle City применяются к
+Относительный путь: `./emulator-core/pvp.ts`. Патчи Battle City применяются к
 in-memory образу PRG (см. `docs/rom-patching.md`).
 
 ## Создание и загрузка ROM
 
 ```js
-import PvPNes, { BTN } from "./emulator-core/pvp.js";
+import PvPNes, { BTN } from "./emulator-core/pvp.ts";
 
-const emu = new PvPNes({ patchSet: "pvp", attAI: "lookahead", defAI: "plan" });
+const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"], attAI: "lookahead", defAI: "plan" });
 emu.loadROM(originalRomBytes);       // Uint8Array/ArrayBuffer — ОРИГИНАЛЬНЫЙ ROM
-emu.patching;                        // отчёт применения патчей: { fingerprint, applied, routines }
+emu.patching;                        // отчёт применения патчей: { features, fingerprint, applied, routines }
 ```
 
 Звук включается опциями `sampleRate: 48000` + `onAudioSample` (см. `docs/audio.md`).
@@ -32,9 +32,12 @@ emu.patching;                        // отчёт применения патч
 | `setStartStage(stage)` | Стартовая стадия партии (1..35), внедряется детерминированно. |
 | `setStartStars(stars)` | Стартовые звёзды команды DEF (0..3) — апгрейд танка (`ram_tank_upgrade`). |
 | `setStartPistol(on)` | Стартовое супер-оружие DEF (аналог 4-й звезды): максимум звёзд + пистолет (`ram_pistol`/`ram_pistol_ammo`). No-op без фичи `pistol`. |
-| `setPatchFeatures(features)` | Включённые опциональные фичи-патчи (`["pistol"]`), применяются при следующем `reset()`. См. `docs/optional-patches.md`. |
+| `opts.features` | Опциональные фичи-патчи (`features: ["pistol"]`) передаются в конструктор `PvPNes` и применяются при `loadROM`. На уровне фронта — `EmulatorDriver.setPatchFeatures()`/`getPatchFeatures()` (применяются при следующем `reset()`). См. `docs/optional-patches.md`. |
 | `setPlayerNames(map)` | Карта `порт → имя` для фичи `player-names`: имя рисуется над танком (BG-overlay nametable, шрифт ROM). Не влияет на хэш/rollback. |
-| `getStage(stage)` / `getStageBlocks(stage)` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
+| `getStage(stage)` / `getStageBlocks(stage)` / `getStageCount()` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
+| `getBlockTiles(id)` / `getBlockAttribute(id)` | Тайлы CHR и палитра блока стадии (нужно для предпросмотра TD-карт из `shared/`). |
+| `tdOrder(order)` | Приказ режиму `tower-defence`: `configure/place/sell/upgrade/startWave`; обрабатывается в `preFrame`. |
+| `getTowerDefence()` | Снимок состояния TD для UI (фаза, очки, волна, башни, снаряды). |
 | `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |
 | `setAttAI(mode)` / `setDefAI(mode)` | Режим ИИ (см. `docs/ai.md`). |
@@ -60,15 +63,20 @@ emu.patching;                        // отчёт применения патч
 
 - `emu.ppu.buffer` — `Uint32Array(256×240)` текущего кадра (в canvas: `0xff000000 | buf[i]`).
 - `emu.cpu.mem` — полное адресное пространство CPU (RAM + ROM).
+- `FeatureContext.kernel` даёт визуальные буферы: `ppuNameTable`, `ppuSpriteMem`, `ppuVram`,
+  а также `ppuBuffer` (кадровый буфер) и `ppuSpritePalette` (палитра спрайтов) —
+  используются 2D-оверлеями фич (например, TD).
 
 ### Слой рендера (драйверы и расширения)
 
 Отрисовка вынесена из ядра в отдельный слой (`frontend/src/render/`, см.
-`docs/render-extensions.md`). `EmulatorDriver` лишь вызывает `setFrameRenderer(fn)` на
-каждый `step()`/`draw()`; чем рисовать — определяет выбранный **драйвер рендера**:
+`docs/render-extensions.md`). Хост один раз вызывает `EmulatorDriver.setFrameRenderer(fn)`,
+а `step()`/`draw()` дёргают установленный callback; чем рисовать — определяет выбранный
+**драйвер рендера**:
 
-- `pixel-2d` (по умолчанию) — прежний кадр PPU;
-- `topdown-3d` — объёмное поле (`docs/3d-view-plan.md`).
+- `pixel-2d` (по умолчанию) — кадр PPU 256×240;
+- `topdown-3d` — объёмное поле (`docs/3d-view-plan.md`);
+- `mc-voxel` — воксельный «sandbox» (`docs/minecraft-look-plan.md`).
 
 Расширения (`minimap`, `particles`) накладываются хостом `RenderSystem`. Драйверы читают
 только `SceneState` (`readScene`, из RAM/PPU) и не влияют на шаг ядра, хэши, save/load и

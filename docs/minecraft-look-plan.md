@@ -40,28 +40,23 @@ three-сцены (renderer/scene/camera/resize/lights) в `frontend/src/render/t
 frontend/src/render/
   three/
     bootstrap.ts          // WebGLRenderer + Scene + PerspectiveCamera + resize + dispose
-    lighting.ts           // общие светильники/тени
-    texture-utils.ts      // canvas -> CanvasTexture, атлас, nearest
   drivers/mc-voxel/
     driver.ts             // RenderDriver: mount/setScene/resize/render/dispose
     options.ts            // схема настроек, пресеты, валидация, сериализация
     atlas.ts              // сборка текстурного атласа
-    textures/{...}.ts     // генераторы пиксель-арт текстур (кирпич, камень, железо, лёд,
-                          //   вода, листва, брусчатка, шерсть, стекло, TNT, звезда и т.д.)
     world/
       blocks.ts           // Domain tile -> BlockId (+ UV в атласе, флаги solid/cutout/emissive)
       mesher.ts           // greedy meshing + culling + AO + vertex colors
-      chunk.ts            // chunk (8×8×h), build/dirty
       field.ts            // построение поля из SceneState.field, диффы, dirty-chunks
     models/
       tank.ts             // воксельный танк (классы/звёзды/каска/стан/гусеницы)
       base.ts             // орёл — блочная скульптура + состояния
       props.ts            // пули, призы (итемы), точки pacman
     sky/
-      sky.ts              // купол градиента, солнце/луна, звёзды, облака
-      water.ts            // анимированная вода (2 слоя UV + лёгкие волны)
+      sky.ts              // купол градиента, солнце/луна, звёзды, облака, вода
     fx/
       particles.ts        // разрушение кирпича, искры, TNT-взрыв, пыль, muzzle flash
+    ambient.ts            // птицы/мышки/облака («живой мир»)
     materials.ts          // opaque / cutout / translucent / emissive материалы
 ```
 
@@ -156,10 +151,10 @@ frontend/src/render/
   рендера (визуально), не затрагивая игру.
 
 ### 5.5 Камера
-- Наследуем общий `CameraRig` (yaw/pitch/roll/zoom/pan + tilt поля). Добавляем MC-опции:
-  `fov` (60..90), `mode: orbit | shoulder | first` (наблюдательные режимы; игра
-  управляется WASD-танком, камера — только вид), `collision` (камера не проходит сквозь
-  блоки), `headBob`/`smooth` (опц.).
+- Наследуем общий `CameraRig` (yaw/pitch/roll/zoom/pan + tilt поля). Фактические MC-опции:
+  `cameraMode: orbit | third | first` (игра управляется WASD-танком, камера — только вид),
+  `cameraFollow` (плавно доворачивать за танком), `fov` (50..95).
+  `collision`/`headBob`/`smooth` из исходного дизайна не реализованы.
 
 ### 5.6 Эффекты (`fx/`)
 - Пул частиц (Points/InstancedMesh) на события из `SceneState` (взрыв танка, попадание
@@ -171,23 +166,26 @@ frontend/src/render/
 `McVoxelOptions` (JSON в `bc_renderOptions`), с валидацией и дефолтами:
 
 ```
-texturePack: "builtin" | string
-textureSize: 16 | 32
-blockScale: number            # масштаб блока
-lighting: "flat" | "mc" | "cinematic"
-ambientOcclusion: "off" | "simple" | "smooth"
-shadows: "off" | "soft"
+cameraMode: "orbit" | "third" | "first"
+cameraFollow: boolean
 time: "noon" | "day" | "sunset" | "night" | "cycle"
+lighting: "mc" | "flat"
+ao: "off" | "simple" | "smooth"      # не ambientOcclusion
+shadows: "off" | "soft"
 fog: 0..1
-renderDistance: 8..40
-clouds: "off" | "flat" | "volumetric"
+clouds: "off" | "flat" | "voxel"     # не volumetric
+birds: boolean
+mice: boolean
 water: "off" | "simple" | "animated"
 particles: 0..2
-tankDetail: "voxel" | "voxel_detail"
+textureSize: 16 | 32
+fov: 50..95
 outline: boolean
-camera: { mode, fov, collision, headBob }
-post: { aa, bloom, vignette, grade: "none" | "mc" }
+vignette: boolean                     # пост-обработка: только виньетка
+cloudsDrift: boolean
 ```
+
+Схема настроек генерирует UI автоматически (`shared/renderers.ts`, `settings`/пресеты).
 
 Пресеты: **Classic Voxel** (noon, mc-свет, AO smooth, тени off), **Survival** (cycle,
 тени soft, туман, частицы 2), **Cinematic** (sunset, bloom, grade mc, тени soft),

@@ -5,7 +5,7 @@ Rollback netcode (аналог GGPO). Относительные пути: `./ne
 что делает маршрутизацию однозначной (раньше hash/snapshot могли быть ошибочно
 декодированы как frame).
 
-## Теги пакетов (`netcode/protocol/frame.js`)
+## Теги пакетов (`netcode/protocol/frame.ts`)
 | Тег | Пакет | Разметка (LE) |
 |---|---|---|
 | 1 `INPUT` | ввод одного кадра | `uint8 type, uint32 frame, uint8 count, repeat{uint8 port,uint8 buttons}` |
@@ -38,11 +38,11 @@ Rollback netcode (аналог GGPO). Относительные пути: `./ne
   `latency {ms}`, `transport-closed`, `transport-rebound`, `resync*`.
 
 ## Транспорты (контракт `{ send(buf), onMessage(cb), onClose?(cb), isOpen?() }`)
-- `transport/local.js` — in-process (задержка/джиттер/потери, детерм. PRNG) для тестов.
-- `transport/webrtc.js` — WebRTC DataChannel (основной, P2P).
-- `transport/relay.js` — через backend (fallback при симметричном NAT):
+- `transport/local.ts` — in-process (задержка/джиттер/потери, детерм. PRNG) для тестов.
+- `transport/webrtc.ts` — WebRTC DataChannel (основной, P2P).
+- `transport/relay.ts` — через backend (fallback при симметричном NAT):
   WS-сообщения `{type:'relay.data', matchId, to/from, data: base64}`.
-- `transport/multi.js` — `MultiTransport`: вещание/мультиплекс N транспортов (2v2/N игроков);
+- `transport/multi.ts` — `MultiTransport`: вещание/мультиплекс N транспортов (2v2/N игроков);
   `send()` уходит во все, входящие объединяются в один поток.
 
 ## Backend-сигналинг (WS `/ws`)
@@ -60,7 +60,7 @@ Rollback netcode (аналог GGPO). Относительные пути: `./ne
 
 ## UX соединения (frontend)
 - `LobbyClient` авто-переподключает WS (backoff), `rejoinMatch()` возвращает в ту же комнату.
-- `App.renegotiate()` пере-сопрягает транспорт с соперниками (`negotiateAll`), затем
+- `MatchController.renegotiate()` (вызывается из `App`) пере-сопрягает транспорт с соперниками (`negotiateAll`), затем
   `session.rebindTransport`. Экраны: «Соединение…», «Переподключение…», «Ожидание соперника…»;
   HUD: режим (webrtc/relay), ping, rollbacks, **DESYNC**.
 

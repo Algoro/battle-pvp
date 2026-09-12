@@ -87,10 +87,10 @@ netcode/rollback/  RollbackSession (application-ядро поверх порто
 emulator-core/     адаптер GameCore (PvPNes, патчинг, домен-хелперы)
 backend/
   domain/          teams/room/lobby/matchmaker/chat — чистые правила (без I/O)
-  ports.js         контракты (ChatRepository/MatchRepository/PlayerRepository)
-  application/     use cases: match-lifecycle.js, chat.js (без I/O)
-  signaling/       WS-адаптер (тонкий роутер) + schema.js
-  persistence/     SQLite-адаптеры (store.js, chat-repository.js)
+  ports.ts         контракты (ChatRepository/MatchRepository/PlayerRepository)
+  application/     use cases: match-lifecycle.ts, chat.ts (без I/O)
+  signaling/       WS-адаптер (тонкий роутер) + schema.ts
+  persistence/     SQLite-адаптеры (store.ts, chat-repository.ts)
 frontend/src/
   ports.ts         порты фронта (GameCore/Transport/Clock/EventSink/MatchGateway) — без импортов
   engine/          шлюзы-адаптеры (LobbyClient/NetClient/EmulatorDriver/AudioOutput)
@@ -128,9 +128,9 @@ frontend/src/
 
 | Фаза | Статус |
 |---|---|
-| 1. Порты netcode (`ports.js`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
-| 2. Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (11 проверок) |
-| 3. Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.js`; relay/HTTP — тонкие адаптеры |
+| 1. Порты netcode (`ports.ts`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
+| 2. Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (18 проверок, включая `shared/tower-defence.ts` без импортов и слои рендера) |
+| 3. Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.ts`; relay/HTTP — тонкие адаптеры |
 | 4. Frontend application (контроллеры) | ✅ `frontend/src/application/{use-lobby,use-match,use-spectate}.ts` + `MatchController`; `App.tsx` — композиция экранов |
 | 5. Domain-сущности (Room/Lobby/Matchmaker/Chat) | ✅ `backend/domain/` (чистые классы), SQLite за портом `ChatRepository` |
 | 6. Порт `GameCore` | ✅ контракт в `netcode/ports.ts`; тест `game-core-port.test.ts` на fake-ядре |
@@ -139,6 +139,6 @@ frontend/src/
 `netcode/ports.ts` и `frontend/src/ports.ts` — самодостаточные контракты без импортов
 (это тоже проверяет `architecture.test.ts`). Backend-порты описаны в `backend/ports.ts`
 (`ChatRepository`/`MatchRepository`/`PlayerRepository`), реализация чата — в
-`persistence/chat-repository.js`.
+`persistence/chat-repository.ts`.
 
 Правило зависимостей зафиксировано автотестом: любое нарушение слоёв ломает CI.
