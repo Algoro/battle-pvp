@@ -319,6 +319,14 @@ export function blockCode(ch: string): number {
   return ch === "#" ? BLOCK_WALL : BLOCK_EMPTY;
 }
 
+/** 169 кодов блоков карты (13×13, построчно) — для предпросмотра/редактора. */
+export function tdBlocks(map: TdMapDef): Uint8Array {
+  const out = new Uint8Array(TD_SIZE * TD_SIZE);
+  for (let r = 0; r < TD_SIZE; r++)
+    for (let c = 0; c < TD_SIZE; c++) out[r * TD_SIZE + c] = blockCode(cellAt(map, r, c));
+  return out;
+}
+
 /** 91 байт стадии: 14 нибблов/строку (13 блоков + паддинг), stride 7 байт. */
 export function buildTdStageBytes(map: TdMapDef): Uint8Array {
   const out = new Uint8Array(TD_STRIDE);
@@ -385,6 +393,7 @@ export default {
   isWallBlock,
   tdSpawnCells,
   tdBuildableCells,
+  tdBlocks,
   buildTdStageBytes,
   isConnected,
 };

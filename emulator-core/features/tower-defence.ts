@@ -15,7 +15,6 @@ import { RAM } from "../rom-contract.ts";
 import { DEF_PORTS, blocksBullet, isTankActive } from "../domain.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
 import { damageEnemy } from "./enemy-damage.ts";
-import { DOT_TILE } from "./pacman-maze.ts";
 import { tdMapById, tdBuildableCells } from "./td-levels.ts";
 import {
   TD_DEFAULT_CONFIG,
@@ -71,8 +70,8 @@ interface TdState {
   projs: Proj[];
   prevFlags: number[];
   prevTypes: number[];
-  typeQueue: number[];
   drawn: Set<number>;
+  typeQueue: number[];
   buildable: Set<number>;
 }
 
@@ -80,9 +79,6 @@ function st(ctx: FeatureContext): TdState {
   return ctx.state.td as TdState;
 }
 
-function blockCellOff(r: number, c: number): number {
-  return (2 + 2 * r) * 32 + (2 + 2 * c);
-}
 function cellR(cell: number): number {
   return (cell / 13) | 0;
 }
@@ -350,44 +346,39 @@ function awardKills(ctx: FeatureContext): void {
   }
 }
 
-function iconPalette(ctx: FeatureContext): number {
-  const v = ctx.kernel.ppuVram;
-  const spr2 = [1, 2, 3].map((k) => v[0x3f18 + k] & 0x3f);
-  let best = 0;
-  let bestScore = -1;
-  for (let j = 0; j < 4; j++) {
-    const bg = [1, 2, 3].map((k) => v[0x3f00 + 4 * j + k] & 0x3f);
-    const score = bg.reduce((acc, c, i) => acc + (c === spr2[i] ? 1 : 0), 0);
-    if (score > bestScore) {
-      bestScore = score;
-      best = j;
-    }
-  }
-  return (best << 2) & 0x0c;
+// BG-тайлы танков по типу башни. В CHR (одна 8K-таблица) танки лежат так же, как
+// спрайтовые тайлы: base & 0xF0 по типу, +dir*8, квадранты 2×2 = [T, T+2, T+1, T+3]
+// (левая 8×16 = T/T+1, правая = T+2/T+3 — как sub_DA7B).
+const TOWER_TILE_BASE: Record<string, number> = { gun: 0x80, rapid: 0xa0, sniper: 0xc0, cannon: 0xe0 };
+// Тайлы пуль: base 0xB1 + dir*2 (sub_E0FB).
+const BULLET_TILE_BASE = 0xb1;
+
+function blockCellOff(r: number, c: number): number {
+  return (2 + 2 * r) * 32 + (2 + 2 * c);
 }
 
-// BG-overlay: башни 2×2 (квадранты иконки приза base=0x81+icon*4), снаряды 1 тайл.
+// BG-overlay: башни 2×2 (тайлы танков), снаряды 1 тайл (тайлы пуль).
 function renderOverlay(ctx: FeatureContext): void {
   const s = ctx.state.td as TdState | undefined;
   if (!s) return;
   const nts = ctx.kernel.ppuNameTable;
-  const pal = iconPalette(ctx);
+  const towerPal = 0x0c; // BG-палитра 3 (сталь/белый): танк читается на тёмном поле
+  const bulletPal = 0x0c;
   const next = new Map<number, { tile: number; pal: number }>();
 
   for (const tw of s.towers) {
-    const type = towerById(tw.type);
-    if (!type) continue;
-    const r = cellR(tw.cell);
-    const c = cellC(tw.cell);
-    const off = blockCellOff(r, c);
-    const base = 0x81 + type.icon * 4;
-    const tiles = [base - 1, base + 1, base, base + 2];
-    const cells = [off, off + 1, off + 32, off + 33];
-    for (let k = 0; k < 4; k++) next.set(cells[k], { tile: tiles[k] & 0xff, pal });
+    const base = TOWER_TILE_BASE[tw.type] ?? 0x80;
+    const t = (base + (tw.dir & 3) * 8) & 0xff;
+    const off = blockCellOff(cellR(tw.cell), cellC(tw.cell));
+    // TL, TR, BL, BR
+    next.set(off, { tile: t, pal: towerPal });
+    next.set(off + 1, { tile: (t + 2) & 0xff, pal: towerPal });
+    next.set(off + 32, { tile: (t + 1) & 0xff, pal: towerPal });
+    next.set(off + 33, { tile: (t + 3) & 0xff, pal: towerPal });
   }
   for (const p of s.projs) {
     const off = (p.y >> 3) * 32 + (p.x >> 3);
-    next.set(off, { tile: DOT_TILE, pal });
+    next.set(off, { tile: (BULLET_TILE_BASE + (p.dir & 3) * 2) & 0xff, pal: bulletPal });
   }
 
   for (const cell of s.drawn) {
@@ -446,8 +437,8 @@ export const towerDefenceRuntime: FeatureRuntime = {
       projs: [],
       prevFlags: [],
       prevTypes: [],
-      typeQueue: [],
       drawn: new Set<number>(),
+      typeQueue: [],
       buildable: new Set<number>(tdBuildableCells(tdMapById(TD_DEFAULT_CONFIG.map))),
     };
     ctx.state.td = s;

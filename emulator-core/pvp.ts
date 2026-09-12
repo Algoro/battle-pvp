@@ -20,7 +20,7 @@ import { applyPatchSet } from "./patching/apply.ts";
 import { canonicalFeatures, resolveFeatureRuntimes } from "./patching/registry.ts";
 import type { FeatureContext, KernelApi } from "./patching/runtime.ts";
 import { encodeState, decodeState } from "./io/state-codec.ts";
-import { readStage, readStageBlocks, STAGE_COUNT, normalizeStage } from "./io/stage-data.ts";
+import { readStage, readStageBlocks, readBlockTiles, readBlockAttribute, STAGE_COUNT, normalizeStage } from "./io/stage-data.ts";
 import { stepTank, runtimePassable, DX as TANK_DX, DY as TANK_DY } from "./io/tank-driver.ts";
 import { plan, planDefense, resetDefState } from "./ai/tactical-ai.ts";
 import { scanPlan } from "./ai/scan-ai.ts";
@@ -329,6 +329,15 @@ class PvPNes extends NESBase {
 
   getStage(stage: number): any {
     return readStage(this.rom, stage);
+  }
+
+  // Тайлы/атрибут блока стадии по id — для предпросмотра TD-карт из shared-данных.
+  getBlockTiles(blockId: number): number[] {
+    return readBlockTiles(this.rom, blockId);
+  }
+
+  getBlockAttribute(blockId: number): number {
+    return readBlockAttribute(this.rom, blockId);
   }
 
   // ---- input mux (edge detection для портов 2..7; порты 0,1 идут через аппарат) ----

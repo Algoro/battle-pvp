@@ -19,10 +19,12 @@ const PALETTES = [
 interface Props {
   emulator: EmulatorDriver | null;
   stage: number;
+  /** Готовые коды блоков (169) — предпросмотр карты без ROM-патча (TD setup). */
+  blocks?: Uint8Array;
   size?: number;
 }
 
-export default function StagePreview({ emulator, stage, size = SIZE }: Props) {
+export default function StagePreview({ emulator, stage, blocks, size = SIZE }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -40,13 +42,16 @@ export default function StagePreview({ emulator, stage, size = SIZE }: Props) {
     for (let y = 0; y < SIZE; y++) for (let x = 0; x < SIZE; x++) put(x, y, BG);
 
     const data = emulator?.getStage?.(stage);
-    if (data && emulator) {
+    if (emulator && (blocks || data)) {
       for (let row = 0; row < FIELD; row++) {
         for (let col = 0; col < FIELD; col++) {
           const bi = row * FIELD + col;
-          const pal = PALETTES[data.attrs[bi] & 3];
+          const id = blocks ? blocks[bi] : data.blocks[bi];
+          const tiles = blocks ? emulator.getBlockTiles(id) : [data.tiles[bi * 4], data.tiles[bi * 4 + 1], data.tiles[bi * 4 + 2], data.tiles[bi * 4 + 3]];
+          const attr = blocks ? emulator.getBlockAttribute(id) : data.attrs[bi];
+          const pal = PALETTES[attr & 3];
           for (let k = 0; k < 4; k++) {
-            const tile = data.tiles[bi * 4 + k];
+            const tile = tiles[k];
             const pix = emulator.getChrTilePixels(tile);
             if (!pix) continue;
             const ox = col * BLOCK + (k & 1) * 8;
@@ -63,7 +68,7 @@ export default function StagePreview({ emulator, stage, size = SIZE }: Props) {
       }
     }
     ctx.putImageData(img, 0, 0);
-  }, [emulator, stage]);
+  }, [emulator, stage, blocks]);
 
   return (
     <canvas

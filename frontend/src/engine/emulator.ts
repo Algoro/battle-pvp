@@ -76,6 +76,8 @@ export class EmulatorDriver {
 
   getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
   getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }
+  getBlockTiles(blockId: number): number[] { return this.nes?.getBlockTiles?.(blockId) ?? []; }
+  getBlockAttribute(blockId: number): number { return this.nes?.getBlockAttribute?.(blockId) ?? 0; }
   // Пиксели CHR-тайла ФОНА (64 значения 0..3). В Battle City BG pattern table — $1000
   // (вторая таблица, offset 256 в ptTile): там тайл 0 пустой, 0x0F.. — кирпич/сталь и т.п.
   getChrTilePixels(tileIndex: number): Uint8Array | null {
