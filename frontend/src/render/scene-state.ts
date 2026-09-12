@@ -16,7 +16,7 @@ import {
   tankHi,
   upgradeToStars,
 } from "@core/domain.ts";
-import type { RenderBounds, SceneBullet, ScenePrize, SceneState, SceneTank, TankVisualState } from "./types.ts";
+import type { RenderBounds, SceneBullet, ScenePrize, SceneState, SceneTank, SceneTower, TankVisualState } from "./types.ts";
 
 // Игровая зона в буфере коллизий $0400: 13×13 блоков ROM = 26×26 клеток по 8 px,
 // со смещением (2,2) (проверено по ROM: орёл в клетках 14..15, 26..27).
@@ -40,7 +40,12 @@ function eaglePresent(field: Uint8Array, b: RenderBounds): boolean {
   return false;
 }
 
-export function readSceneFromMem(mem: Uint8Array, frame: number, pixels: Uint32Array | null = null): SceneState {
+export function readSceneFromMem(
+  mem: Uint8Array,
+  frame: number,
+  pixels: Uint32Array | null = null,
+  towers: SceneTower[] = [],
+): SceneState {
   const state = readState(mem);
   const field = mem.slice(RAM.FIELD, RAM.FIELD + 32 * 32);
   const bounds = PLAY_BOUNDS;
@@ -96,6 +101,7 @@ export function readSceneFromMem(mem: Uint8Array, frame: number, pixels: Uint32A
     tanks,
     bullets,
     prize,
+    towers,
     eagle: {
       col: state.eagle.col,
       row: state.eagle.row,
@@ -113,10 +119,25 @@ export function readScene(emu: any): SceneState {
   const mem: Uint8Array | undefined = nes?.cpu?.mem;
   const frame: number = nes?._frame ?? 0;
   const pixels: Uint32Array | null = nes?.ppu?.buffer ?? null;
+  const towers = readTowers(emu);
   if (!mem) {
-    return { ...emptyScene(), frame, pixels };
+    return { ...emptyScene(), frame, pixels, towers };
   }
-  return readSceneFromMem(mem, frame, pixels);
+  return readSceneFromMem(mem, frame, pixels, towers);
+}
+
+// Башни TD живут в JS-рантайме (не в RAM) — забираем снимок через API драйвера.
+function readTowers(emu: any): SceneTower[] {
+  const td = emu?.getTowerDefence?.();
+  if (!td || !Array.isArray(td.towers)) return [];
+  return td.towers.map((t: any) => ({
+    cell: t.cell | 0,
+    type: String(t.type),
+    level: t.level | 0,
+    hp: t.hp | 0,
+    maxHp: t.maxHp | 0,
+    dir: (t.dir & 3) as 0 | 1 | 2 | 3,
+  }));
 }
 
 export function emptyScene(): SceneState {
@@ -127,6 +148,7 @@ export function emptyScene(): SceneState {
     tanks: [],
     bullets: [],
     prize: null,
+    towers: [],
     eagle: { col: 14, row: 26, fortified: false, destroyed: false },
     effects: { freezeTimer: 0, dotsLeft: null },
     pixels: null,

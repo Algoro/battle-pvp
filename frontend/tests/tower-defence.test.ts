@@ -5,6 +5,7 @@ import {
   TD_MAPS,
   TD_MAP_LIST,
   TD_SIZE,
+  TD_WAVES,
   TOWER_TYPES,
   towerById,
   towerStats,
@@ -17,6 +18,8 @@ import {
   difficultyById,
   TD_DEFAULT_CONFIG,
 } from "../../shared/tower-defence.ts";
+import { readScene, readSceneFromMem } from "../src/render/scene-state.ts";
+import { RAM } from "@core/rom-contract.ts";
 
 test("td-shared: карты задокументированы и стадии совпадают", () => {
   assert.strictEqual(TD_MAPS.length, TD_MAP_LIST.length);
@@ -63,4 +66,33 @@ test("td-shared: очки за типы и сложности", () => {
   assert.strictEqual(pointsForTankType(0xe0), 400);
   assert.strictEqual(pointsForTankType(0x84), 500); // бонусный
   assert.strictEqual(difficultyById("nope").id, TD_DEFAULT_CONFIG.difficulty);
+});
+
+test("td-shared: волны задают корректные типы врагов", () => {
+  const allowed = new Set([0x80, 0xa0, 0xc0, 0xe0]);
+  for (const w of TD_WAVES) {
+    assert.ok(w.types.length > 0, "у волны должна быть очередь типов");
+    for (const t of w.types) assert.ok(allowed.has(t & 0xf0), `неизвестный тип ${t.toString(16)}`);
+  }
+  assert.ok(TD_WAVES.some((w) => w.types.some((t) => (t & 0xf0) === 0xe0)), "нет бронированных врагов");
+  assert.ok(TD_WAVES[0].types.includes(0xa0), "в первой волне ожидается быстрая пуля");
+});
+
+test("td-render: башни попадают в SceneState (3D-драйверы)", () => {
+  const mem = new Uint8Array(0x10000);
+  mem[RAM.ENEMIES_LEFT] = 20;
+  mem[RAM.GAME_OVER] = 0x80;
+  mem[RAM.PRIZE_ID] = 0xff;
+  const towers = [{ cell: 27, type: "gun", level: 1, hp: 2, maxHp: 3, dir: 3 as const }];
+  const direct = readSceneFromMem(mem, 7, null, towers);
+  assert.deepStrictEqual(direct.towers, towers);
+
+  const fake: any = {
+    getTowerDefence: () => ({ towers }),
+    nes: { cpu: { mem }, _frame: 3, ppu: { buffer: null } },
+  };
+  const viaEmu = readScene(fake);
+  assert.strictEqual(viaEmu.towers.length, 1);
+  assert.strictEqual(viaEmu.towers[0].cell, 27);
+  assert.strictEqual(viaEmu.towers[0].dir, 3);
 });

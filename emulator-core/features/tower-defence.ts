@@ -71,6 +71,7 @@ interface TdState {
   projs: Proj[];
   prevFlags: number[];
   prevTypes: number[];
+  typeQueue: number[];
   drawn: Set<number>;
   buildable: Set<number>;
 }
@@ -137,6 +138,8 @@ function startWave(ctx: FeatureContext): void {
   mem[RAM.SPAWN_INTERVAL] = def.interval;
   s.prevFlags = [];
   s.prevTypes = [];
+  const types = def.types && def.types.length ? def.types : [0x80];
+  s.typeQueue = Array.from({ length: count }, (_, i) => types[i % types.length]);
   s.phase = TD_PHASE.WAVE;
   mem[RAM.TD_STATE] = TD_PHASE.WAVE;
 }
@@ -340,6 +343,8 @@ function awardKills(ctx: FeatureContext): void {
     const wasAlive = (prev & 0x80) !== 0 && prev < 0xe0;
     const nowAlive = (now & 0x80) !== 0 && now < 0xe0;
     if (wasAlive && !nowAlive) s.points += pointsForTankType(s.prevTypes[t] ?? 0x80);
+    // Новый спавн волны: выдаём тип врага из очереди волны.
+    if (!wasAlive && nowAlive && s.typeQueue.length) mem[RAM.TANK_TYPE + t] = s.typeQueue.shift()!;
     s.prevFlags[t] = now;
     s.prevTypes[t] = mem[RAM.TANK_TYPE + t];
   }
@@ -441,6 +446,7 @@ export const towerDefenceRuntime: FeatureRuntime = {
       projs: [],
       prevFlags: [],
       prevTypes: [],
+      typeQueue: [],
       drawn: new Set<number>(),
       buildable: new Set<number>(tdBuildableCells(tdMapById(TD_DEFAULT_CONFIG.map))),
     };

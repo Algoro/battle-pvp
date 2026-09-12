@@ -127,6 +127,25 @@ test("td-runtime: башня стреляет по линии и убивает 
   assert.strictEqual(emu.getTowerDefence().points - before, 100, "очки за убийство не начислены");
 });
 
+test("td-runtime: волна выдаёт типы врагов из своей очереди", () => {
+  const emu = boot();
+  emu.tdOrder({ type: "startWave" });
+  idle(emu, 1);
+  const m = emu.cpu.mem;
+  const spawn = () => {
+    m[RAM.TANK_FLAG + 2] = 0; // слот пуст
+    idle(emu, 1);
+    m[RAM.TANK_FLAG + 2] = 0x90; // новый спавн
+    m[RAM.TANK_TYPE + 2] = 0xff; // ROM поставил что-то — рантайм должен переопределить
+    idle(emu, 1);
+    return m[RAM.TANK_TYPE + 2];
+  };
+  // Волна 1: [0x80, 0x80, 0xa0, 0x80] (см. shared TD_WAVES).
+  assert.strictEqual(spawn(), 0x80, "первый враг — базовый");
+  assert.strictEqual(spawn(), 0x80, "второй враг — базовый");
+  assert.strictEqual(spawn(), 0xa0, "третий враг — быстрая пуля");
+});
+
 test("td-runtime: вражеская пуля снимает прочность башни", () => {
   const emu = boot();
   emu.tdOrder({ type: "place", cell: CELL(2, 1), towerType: "gun" });

@@ -112,20 +112,32 @@ export function towerStats(type: TowerTypeInfo, level: number): {
 export interface TdWaveDef {
   count: number;
   interval: number;
+  /** Типы врагов по порядку спавна (значения ram_tank_type; список зацикливается). */
+  types: number[];
 }
 
+// Типы танков ROM: 0x80 базовый, 0xa0 быстрая пуля, 0xc0 быстрый, 0xe? бронированный
+// (младшие биты — остаток брони). Волны постепенно подмешивают более сильных врагов.
+export const TD_TANK_BASE = 0x80;
+export const TD_TANK_FAST_BULLET = 0xa0;
+export const TD_TANK_FAST = 0xc0;
+export const TD_TANK_ARMOR = 0xe2;
+
 export const TD_WAVES: TdWaveDef[] = [
-  { count: 4, interval: 60 },
-  { count: 5, interval: 58 },
-  { count: 6, interval: 55 },
-  { count: 7, interval: 52 },
-  { count: 8, interval: 50 },
-  { count: 10, interval: 46 },
-  { count: 12, interval: 42 },
-  { count: 14, interval: 38 },
-  { count: 16, interval: 34 },
-  { count: 20, interval: 30 },
+  { count: 4, interval: 60, types: [0x80, 0x80, 0xa0, 0x80] },
+  { count: 5, interval: 58, types: [0x80, 0x80, 0xa0, 0x80, 0x80] },
+  { count: 6, interval: 55, types: [0x80, 0xa0, 0x80, 0xc0, 0x80, 0xa0] },
+  { count: 7, interval: 52, types: [0x80, 0xa0, 0xc0, 0x80, 0xa0, 0xc0, 0x80] },
+  { count: 8, interval: 50, types: [0x80, 0xa0, 0x80, 0xc0, 0xa0, 0x80, 0xc0, 0xa0] },
+  { count: 10, interval: 46, types: [0x80, 0x80, 0xa0, 0xc0, 0xa0, 0xc0, 0xe2, 0xa0, 0x80, 0xc0] },
+  { count: 12, interval: 42, types: [0x80, 0xa0, 0xc0, 0xa0, 0xe2, 0xc0, 0x80, 0xa0, 0xe2, 0xc0, 0xa0, 0x80] },
+  { count: 14, interval: 38, types: [0xa0, 0xc0, 0x80, 0xe2, 0xa0, 0xc0, 0xe2, 0x80, 0xc0, 0xa0, 0xe2, 0xc0, 0x80, 0xa0] },
+  { count: 16, interval: 34, types: [0x80, 0xa0, 0xe2, 0xc0, 0xa0, 0xe2, 0xc0, 0x80, 0xe2, 0xa0, 0xc0, 0xe2, 0x80, 0xc0, 0xa0, 0xe2] },
+  { count: 20, interval: 30, types: [0xa0, 0xc0, 0xe2, 0xa0, 0xe2, 0xc0, 0xe2, 0xa0, 0xc0, 0xe2, 0xe2, 0xc0, 0xa0, 0xe2, 0xc0, 0xa0, 0xe2, 0xc0, 0xe2, 0xc0] },
 ];
+
+/** Пул моделей башен в рендере. */
+export const TD_MAX_TOWERS = 16;
 
 export const TD_DIFFICULTIES: { id: TdDifficulty; title: string; startPoints: number; countScale: number }[] = [
   { id: "easy", title: "Легко", startPoints: 350, countScale: 0.75 },

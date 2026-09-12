@@ -59,6 +59,7 @@ export function stageScene(emulator: { getStage?: (s: number) => any } | null | 
     tanks: [],
     bullets: [],
     prize: null,
+    towers: [],
     eagle: { col: b.col0 + 12, row: b.row0 + 24, fortified: false, destroyed: false },
     effects: { freezeTimer: 0, dotsLeft: null },
     pixels: null,

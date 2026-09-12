@@ -10,6 +10,7 @@ import { buildAtlas, type TextureAtlas } from "./atlas.ts";
 import { createMaterials, type VoxelMaterials } from "./materials.ts";
 import { createFieldWorld, type FieldWorld } from "./world/field.ts";
 import { createVoxelTank, type VoxelTank } from "./models/tank.ts";
+import { towerCellCenter, towerToSceneTank } from "../../tower-visual.ts";
 import { createVoxelBase, type VoxelBase } from "./models/base.ts";
 import { createVoxelProps, type VoxelProps } from "./models/props.ts";
 import { createSky, type Sky } from "./sky/sky.ts";
@@ -35,6 +36,8 @@ export function createMcVoxelDriver(): RenderDriver {
   let particles: VoxelParticles | null = null;
   let ambient: VoxelAmbient | null = null;
   let tanks: VoxelTank[] = [];
+  let towerModels: VoxelTank[] = [];
+  const MAX_TOWERS = 16;
   let root: THREE.Group | null = null;
   let world: THREE.Group | null = null;
   let hemi: THREE.HemisphereLight | null = null;
@@ -74,8 +77,10 @@ export function createMcVoxelDriver(): RenderDriver {
     particles = createParticles();
     ambient = createAmbient(atlas);
     tanks = Array.from({ length: 8 }, () => createVoxelTank(atlas!, options.shadows === "soft"));
+    towerModels = Array.from({ length: MAX_TOWERS }, () => createVoxelTank(atlas!, options.shadows === "soft"));
     world.add(field.group, base.group, props.group, particles.points, ambient.group);
     for (const t of tanks) world.add(t.group);
+    for (const t of towerModels) world.add(t.group);
     boot.scene.add(sky.group);
 
     hemi = new THREE.HemisphereLight(0xa9c8ee, 0x3a2f22, 0.9);
@@ -109,7 +114,9 @@ export function createMcVoxelDriver(): RenderDriver {
     particles?.dispose();
     ambient?.dispose();
     for (const t of tanks) t.dispose();
+    for (const t of towerModels) t.dispose();
     tanks = [];
+    towerModels = [];
     materials?.dispose();
     root = null;
     world = null;
@@ -213,6 +220,19 @@ export function createMcVoxelDriver(): RenderDriver {
         const p = tankCenter(state.bounds, t.x, t.y);
         model.group.position.set(p.x, 0, p.z);
         model.update(t, dtMs, time);
+      }
+
+      // Башни TD: неподвижные voxel-танки.
+      for (let i = 0; i < towerModels.length; i++) {
+        const tw = state.towers[i];
+        const model = towerModels[i];
+        if (!tw) {
+          model.group.visible = false;
+          continue;
+        }
+        const c = towerCellCenter(state.bounds, tw.cell);
+        model.group.position.set(c.x, 0, c.z);
+        model.update(towerToSceneTank(tw, i), dtMs, time);
       }
 
       base.update(state.eagle, state.bounds, time);

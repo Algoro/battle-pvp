@@ -53,6 +53,20 @@ export interface ScenePrize {
   y: number;
 }
 
+/** Неподвижная башня tower defence (из JS-рантайма, не из RAM). */
+export interface SceneTower {
+  /** Клетка поля r*13+c (блок 16×16 px). */
+  cell: number;
+  /** id типа башни (см. shared/tower-defence). */
+  type: string;
+  /** Уровень апгрейда 0..2. */
+  level: number;
+  hp: number;
+  maxHp: number;
+  /** Направление ствола 0..3. */
+  dir: 0 | 1 | 2 | 3;
+}
+
 export interface SceneEagle {
   col: number;
   row: number;
@@ -73,6 +87,8 @@ export interface SceneState {
   tanks: SceneTank[];
   bullets: SceneBullet[];
   prize: ScenePrize | null;
+  /** Башни tower defence (пусто в обычных режимах). */
+  towers: SceneTower[];
   eagle: SceneEagle;
   effects: SceneEffects;
   /** Ссылка на пиксельный буфер PPU (для драйвера pixel-2d; не копия). */

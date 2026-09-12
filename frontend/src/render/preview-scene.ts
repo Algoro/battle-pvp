@@ -102,6 +102,7 @@ function demo(): SceneState {
     tanks,
     bullets: [{ owner: 0, team: "DEF", dir: 3, x: px(6), y: py(20) + 4 }],
     prize: { id: 3, x: px(12), y: py(10) },
+    towers: [],
     eagle: { col: b.col0 + 12, row: b.row0 + 24, fortified: false, destroyed: false },
     effects: { freezeTimer: 0, dotsLeft: null },
     pixels: null,
