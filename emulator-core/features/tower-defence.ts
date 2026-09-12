@@ -7,8 +7,8 @@
 //
 // Авторитетное состояние — ctx.state (соло, rollback не нужен). В RAM — только фаза
 // TD_STATE (её читает ROM-хук завершения стадии) и штатные счётчики спавна/врагов.
-// Управление приходит через startOptions.tdOrders (см. PvPNes.tdOrder), статус для UI —
-// через startOptions.tdStatus (PvPNes.getTowerDefence).
+// Управление приходит через ctx.orders (PvPNes.featureCommand), статус для UI —
+// через ctx.status (PvPNes.getFeatureState). Ядро о TD ничего не знает.
 //
 // Относительный путь: ./emulator-core/features/tower-defence.ts
 import { RAM } from "../rom-contract.ts";
@@ -183,9 +183,8 @@ function upgradeTower(ctx: FeatureContext, cell: number): void {
 }
 
 function processOrders(ctx: FeatureContext): void {
-  const opts = ctx.startOptions as { tdOrders?: TdOrder[] };
-  const orders = opts.tdOrders;
-  if (!orders || orders.length === 0) return;
+  const orders = ctx.orders as TdOrder[];
+  if (orders.length === 0) return;
   while (orders.length) {
     const o = orders.shift()!;
     switch (o.type) {
@@ -415,7 +414,7 @@ function renderOverlay(ctx: FeatureContext): void {
 function publishStatus(ctx: FeatureContext): void {
   const s = st(ctx);
   const mem = ctx.kernel.mem;
-  (ctx.startOptions as { tdStatus?: unknown }).tdStatus = {
+  Object.assign(ctx.status, {
     phase: s.phase,
     started: s.gameStarted,
     map: s.config.map,
@@ -436,7 +435,7 @@ function publishStatus(ctx: FeatureContext): void {
       maxHp: t.maxHp,
       dir: t.dir,
     })),
-  };
+  });
 }
 
 export const towerDefenceRuntime: FeatureRuntime = {
@@ -456,6 +455,7 @@ export const towerDefenceRuntime: FeatureRuntime = {
       buildable: new Set<number>(tdBuildableCells(tdMapById(TD_DEFAULT_CONFIG.map))),
     };
     ctx.state.td = s;
+    ctx.orders.length = 0;
     ctx.kernel.mem[RAM.TD_STATE] = TD_PHASE.BUILD;
   },
 

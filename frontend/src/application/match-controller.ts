@@ -128,7 +128,7 @@ export class MatchController {
     emu.setStartPistol?.(false);
     emu.reset?.({ attAI: "lookahead", defAI: "off", defMode: "none" });
     if (opts.mobileTank) emu.setHumanDefTank?.(0);
-    emu.tdOrder?.({
+    emu.featureCommand?.("tower-defence", {
       type: "configure",
       map: opts.map,
       difficulty: opts.difficulty,

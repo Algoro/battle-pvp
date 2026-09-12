@@ -68,11 +68,11 @@ export class EmulatorDriver {
     return this;
   }
 
-  // ---- tower defence (фича tower-defence) ----
-  // Приказ рантайму (configure/place/sell/upgrade/startWave) — обрабатывается ядром.
-  tdOrder(order: any) { this.nes?.tdOrder?.(order); return this; }
-  // Снимок состояния TD для HUD/редактора.
-  getTowerDefence(): any { return this.nes?.getTowerDefence?.() ?? null; }
+  // ---- обобщённый канал фич (ядро не знает конкретных фич) ----
+  // Приказ рантайму фичи; обрабатывается ядром в preFrame.
+  featureCommand(id: string, order: unknown) { this.nes?.featureCommand?.(id, order); return this; }
+  // Снимок состояния, который фича публикует для UI.
+  getFeatureState(id: string): any { return this.nes?.getFeatureState?.(id) ?? null; }
 
   getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
   getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }

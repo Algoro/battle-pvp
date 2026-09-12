@@ -36,8 +36,8 @@ emu.patching;                        // отчёт применения патч
 | `setPlayerNames(map)` | Карта `порт → имя` для фичи `player-names`: имя рисуется над танком (BG-overlay nametable, шрифт ROM). Не влияет на хэш/rollback. |
 | `getStage(stage)` / `getStageBlocks(stage)` / `getStageCount()` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
 | `getBlockTiles(id)` / `getBlockAttribute(id)` | Тайлы CHR и палитра блока стадии (нужно для предпросмотра TD-карт из `shared/`). |
-| `tdOrder(order)` | Приказ режиму `tower-defence`: `configure/place/sell/upgrade/startWave`; обрабатывается в `preFrame`. |
-| `getTowerDefence()` | Снимок состояния TD для UI (фаза, очки, волна, башни, снаряды). |
+| `featureCommand(id, order)` | Обобщённый канал приказов фиче: `id` — id фичи, `order` кладётся в её очередь (обрабатывается рантаймом в `preFrame`). |
+| `getFeatureState(id)` | Снимок состояния, которое фича публикует для UI (объект фичи или `null`). |
 | `setAudioSuppressed(bool)` | Гейт аудио: при `true` `onAudioSample` не вызывается (переигровка при откате). |
 | `setHumanTank(port)` / `setHumanDefTank(port)` | Пометить танк человеческим (ИИ за него не играет). |
 | `setAttAI(mode)` / `setDefAI(mode)` | Режим ИИ (см. `docs/ai.md`). |

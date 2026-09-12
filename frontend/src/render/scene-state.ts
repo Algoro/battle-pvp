@@ -128,7 +128,7 @@ export function readScene(emu: any): SceneState {
 
 // Башни TD живут в JS-рантайме (не в RAM) — забираем снимок через API драйвера.
 function readTowers(emu: any): SceneTower[] {
-  const td = emu?.getTowerDefence?.();
+  const td = emu?.getFeatureState?.("tower-defence");
   if (!td || !Array.isArray(td.towers)) return [];
   return td.towers.map((t: any) => ({
     cell: t.cell | 0,

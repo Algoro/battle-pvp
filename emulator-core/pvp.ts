@@ -115,6 +115,8 @@ class PvPNes extends NESBase {
   declare _jsDir: any[];
   declare _frameHash: string;
   declare _runtimes: { id: string; runtime: any; ctx: FeatureContext }[];
+  declare _featureOrders: Record<string, unknown[]>;
+  declare _featureStatus: Record<string, Record<string, any>>;
   declare _kernelApi: KernelApi;
   declare _attAI: string;
   declare _defMode: string;
@@ -228,12 +230,17 @@ class PvPNes extends NESBase {
 
   // Собрать JS-рантаймы активных фич (детерминированный порядок) и инициализировать их.
   _buildRuntimes(): void {
+    this._featureOrders = {};
+    this._featureStatus = {};
     this._runtimes = resolveFeatureRuntimes(this._features).map(({ id, runtime }) => {
       const ctx: FeatureContext = {
         kernel: this._kernelApi,
         frame: this._frame,
         state: {},
         startOptions: this.opts,
+        id,
+        orders: (this._featureOrders[id] = []),
+        status: (this._featureStatus[id] = {}),
       };
       runtime.init?.(ctx);
       return { id, runtime, ctx };
@@ -307,17 +314,16 @@ class PvPNes extends NESBase {
     return this;
   }
 
-  // ---- tower defence (фича tower-defence) ----
-  // Приказ рантайму (configure/place/sell/upgrade/startWave). Обрабатывается в preFrame.
-  tdOrder(order: any): this {
-    if (!Array.isArray(this.opts.tdOrders)) this.opts.tdOrders = [];
-    this.opts.tdOrders.push(order);
+  // ---- обобщённый канал фич (ядро не знает конкретных фич) ----
+  // Приказ рантайму фичи: кладём в её очередь, обрабатывается в preFrame.
+  featureCommand(id: string, order: unknown): this {
+    (this._featureOrders[id] ??= []).push(order);
     return this;
   }
 
-  // Снимок состояния TD для UI (точки, волна, башни, фаза) — обновляет рантайм.
-  getTowerDefence(): any {
-    return this.opts.tdStatus ?? null;
+  // Снимок состояния, который фича публикует для UI (объект фичи или null).
+  getFeatureState(id: string): any {
+    return this._featureStatus?.[id] ?? null;
   }
 
 

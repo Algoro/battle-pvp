@@ -88,7 +88,7 @@ test("td-render: башни попадают в SceneState (3D-драйверы)
   assert.deepStrictEqual(direct.towers, towers);
 
   const fake: any = {
-    getTowerDefence: () => ({ towers }),
+    getFeatureState: (id: string) => (id === "tower-defence" ? { towers } : null),
     nes: { cpu: { mem }, _frame: 3, ppu: { buffer: null } },
   };
   const viaEmu = readScene(fake);

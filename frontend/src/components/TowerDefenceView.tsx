@@ -54,7 +54,7 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
       const started = emulator.readMem(0x68) === 0x80;
       const buttons = !started ? (frame % 30 === 0 ? BTN_START : 0) : config.mobileTank ? keyboard.mask() : 0;
       emulator.step([{ port: 0, buttons }]);
-      setStatus((emulator.getTowerDefence() as TdStatus) ?? null);
+      setStatus((emulator.getFeatureState("tower-defence") as TdStatus) ?? null);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -82,12 +82,12 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
   const onCell = (cell: number) => {
     if (phase !== TD_PHASE.BUILD) return;
     const existing = towers.find((t) => t.cell === cell);
-    if (existing) emulator.tdOrder({ type: "upgrade", cell });
-    else emulator.tdOrder({ type: "place", cell, towerType: selectedType });
+    if (existing) emulator.featureCommand("tower-defence", { type: "upgrade", cell });
+    else emulator.featureCommand("tower-defence", { type: "place", cell, towerType: selectedType });
   };
   const onContextCell = (cell: number) => {
     if (phase !== TD_PHASE.BUILD) return;
-    emulator.tdOrder({ type: "sell", cell });
+    emulator.featureCommand("tower-defence", { type: "sell", cell });
   };
 
   return (
@@ -129,7 +129,7 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
             <button
               className="btn btn--primary"
               disabled={!status?.started || (phase !== TD_PHASE.BUILD && phase !== TD_PHASE.INTERMISSION)}
-              onClick={() => emulator.tdOrder({ type: "startWave" })}
+              onClick={() => emulator.featureCommand("tower-defence", { type: "startWave" })}
             >
               {status?.started ? "▶ В бой" : "Загрузка…"}
             </button>

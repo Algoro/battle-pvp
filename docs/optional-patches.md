@@ -111,9 +111,9 @@
 - **RAM**: `RAM.TD_STATE` (`0x01FF`) — фаза: 0 off, 1 BUILD, 2 WAVE, 3 INTERMISSION,
   4 VICTORY, 5 DEFEAT. Остальное состояние TD — `ctx.state` (соло, rollback не нужен).
 - **JS-рантайм** (`features/tower-defence.ts`): экономика (очки за убийства),
-  расстановка (`configure/place/sell/upgrade/startWave` через `PvPNes.tdOrder`),
+  расстановка (`configure/place/sell/upgrade/startWave` через `PvPNes.featureCommand(id, order)`),
   таргетинг/снаряды, урон по башням, волны, победа/поражение. Снимок для UI —
-  `PvPNes.getTowerDefence()`.
+  `PvPNes.getFeatureState(id)`. Ядро при этом не знает конкретных фич — канал обобщённый.
 - **Общий урон**: `features/enemy-damage.ts` (броня/приз/смерть) используется и
   friendly-fire, и башнями.
 - **Рендер**: 2D — блендинг спрайтов танка/пуль прямо в пиксельный буфер PPU (render-хук); 3D (`topdown-3d`/`mc-voxel`) —

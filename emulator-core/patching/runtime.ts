@@ -42,6 +42,12 @@ export interface FeatureContext {
   state: Record<string, any>;
   /** Стартовые опции ядра (opts). */
   startOptions: Record<string, any>;
+  /** id этой фичи (для адресации канала). */
+  readonly id: string;
+  /** Очередь приказов этой фичи от хоста (UI). Читается/очищается в preFrame. */
+  readonly orders: unknown[];
+  /** Канал «фича → хост»: сюда фича публикует снимок состояния для UI. */
+  readonly status: Record<string, any>;
 }
 
 export interface FeatureRuntime {

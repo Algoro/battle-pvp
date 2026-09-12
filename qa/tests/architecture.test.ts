@@ -153,6 +153,22 @@ test("architecture: shared/tower-defence.ts без импортов", () => {
   assert.deepStrictEqual(imports(join(ROOT, "shared", "tower-defence.ts")), []);
 });
 
+test("architecture: ядро feature-agnostic (нет имён фич в pvp/runtime)", () => {
+  const files = [
+    join(ROOT, "emulator-core", "pvp.ts"),
+    join(ROOT, "emulator-core", "patching", "runtime.ts"),
+  ];
+  const banned = [/tower/i, /tdOrder/, /getTowerDefence/, /tdOrders/, /tdStatus/];
+  for (const f of files) {
+    const src = readFileSync(f, "utf8");
+    for (const re of banned) assert.ok(!re.test(src), `${relative(ROOT, f)} содержит имя фичи: ${re}`);
+  }
+  // Обобщённый канал присутствует.
+  const pvp = readFileSync(files[0], "utf8");
+  assert.match(pvp, /featureCommand\s*\(/);
+  assert.match(pvp, /getFeatureState\s*\(/);
+});
+
 test("architecture: слой рендера не зависит от ядра pvp (только read-only сцена)", () => {
   const files = walk(join(ROOT, "frontend", "src", "render"), (p) => p.endsWith(".ts"));
   const bad = [];

@@ -138,7 +138,7 @@ UI и рантайм используют один модуль `shared/tower-de
 |---|---|---|
 | `0x01FF` | `TD_STATE` | 0=off, 1=BUILD, 2=WAVE, 3=INTERMISSION, 4=VICTORY, 5=DEFEAT |
 
-Выбранная карта передаётся через `tdOrder({type:"configure"})` (не через RAM).
+Выбранная карта передаётся через `featureCommand("tower-defence", {type:"configure"})` (не через RAM).
 
 Адреса фиксируются в `rom-contract.ts`; сочетаемость TD с другими фичами
 проверяется тестами патчинга (при пересечении рутин линкер даёт `PATCH_OVERLAP`).
@@ -160,7 +160,7 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 Хуки:
 
 - `init`: `TD_STATE=BUILD`, состояние, точки; RAM до старта игры не трогается.
-- `preFrame`: обработка `startOptions.tdOrders`; в BUILD после старта матча
+- `preFrame`: обработка `ctx.orders` (канал фичи); в BUILD после старта матча
   обнуляются счётчики спавна, чтобы волны не пошли до «В бой».
 - `postFrame`: очки за переход врага `alive→взрыв`; выдача типа волны на спавне;
   наведение/выстрелы башен; движение снарядов и урон; урон по башням от вражеских
@@ -172,10 +172,10 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 
 Взаимодействие с ядром (`pvp.ts`):
 
-- `tdOrder(order)` — приказы `configure/place/sell/upgrade/startWave` (очередь в
-  `startOptions.tdOrders`, обрабатывается в `preFrame`).
-- `getTowerDefence()` — снимок для UI: фаза, очки, волна/всего волн, список башен,
-  снаряды, `started`.
+- `featureCommand("tower-defence", order)` — приказы `configure/place/sell/upgrade/startWave`
+  (кладёт в `ctx.orders`, обрабатывается в `preFrame`).
+- `getFeatureState("tower-defence")` — снимок для UI: фаза, очки, волна/всего волн,
+  список башен, снаряды, `started`.
 - Валидность/стоимость считаются в рантайме по `shared/tower-defence.ts` (UI не
   дублирует правила). `MatchController.startTowerDefence(config)` настраивает матч.
 
@@ -205,15 +205,15 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
 
 - Ведёт цикл эмулятора (авто-старт матча, затем rAF `stepFrame`), рендерит боевой
   вид через общий `RenderSystem`.
-- В BUILD показывает редактор и магазин, шлёт `emu.tdOrder(...)`; HUD читает
-  `emu.getTowerDefence()`; результат — по фазе `TD_STATE` (не `determineWinner`).
+- В BUILD показывает редактор и магазин, шлёт `emu.featureCommand("tower-defence", ...)`;
+  HUD читает `emu.getFeatureState("tower-defence")`; результат — по фазе `TD_STATE`.
 
 ### 7.4 Интеграция
 
 - `App.tsx`: экран `{ name: "td" }` + модалка настройки (`showTdSetup`);
   `GameCanvas` не меняется — TD рисует отдельный `TowerDefenceView`.
 - HUD — внутри `TowerDefenceView` (очки, волна `n/N`, фаза, магазин, результат).
-- `engine/emulator.ts`: прокси `tdOrder`/`getTowerDefence`; `styles.css`: стили TD.
+- `engine/emulator.ts`: прокси `featureCommand`/`getFeatureState`; `styles.css`: стили TD.
 
 ## 8. Экономика и волны
 

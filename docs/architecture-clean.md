@@ -116,7 +116,7 @@ frontend/src/
 | Область | Состояние |
 |---|---|
 | Порты netcode (`ports.ts`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
-| Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (18 проверок, включая `shared/tower-defence.ts` без импортов и слои рендера) |
+| Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (19 проверок: слои, feature-agnostic ядро, `shared/tower-defence.ts` без импортов, рендер) |
 | Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.ts`; relay/HTTP — тонкие адаптеры |
 | Frontend application (контроллеры) | ✅ `frontend/src/application/{use-lobby,use-match,use-spectate}.ts` + `MatchController`; `App.tsx` — композиция экранов |
 | Domain-сущности (Room/Lobby/Matchmaker/Chat) | ✅ `backend/domain/` (чистые классы), SQLite за портом `ChatRepository` |
