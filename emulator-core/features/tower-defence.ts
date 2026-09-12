@@ -345,51 +345,60 @@ function awardKills(ctx: FeatureContext): void {
   }
 }
 
-// OAM-рендер башен/снарядов. BG здесь не годится: фоновая таблица указывает на
-// PT1, а графика танков — в PT0 (8×16: чётность номера тайла выбирает PT). Пишем в
-// ppuSpriteMem в preFrame (ДО frame()), иначе композиция кадра уже завершена и спрайты
-// не попадут в буфер. Свободные слоты — Y>=0xF0 (как railgun).
+// 2D-оверлей: блитим пиксели спрайтов танка/пули прямо в кадровый буфер PPU.
 //
-// Живой DEF-танк (type=0, dir): левая половина = dir*8, правая = +2, палитра 0
-// (проверено по OAM: OAM[5] t=0 x=0x50, OAM[6] t=2 x=0x58 при pos=0x58).
+// BG не подходит (фоновая таблица указывает на PT1, танки — в PT0), а запись в OAM
+// до/после frame() до видимого кадра не доживает. Зато пиксельный буфер 2D-драйвер
+// забирает сразу после stepFrame, поэтому рисуем в render-хуке. Только пиксели, без
+// записи в cpu.mem — hash/сеть не затрагиваются.
+//
+// Живой DEF-танк (проверено по OAM): 8×16 на dir*8 и dir*8+2, палитра 0.
 const TOWER_TILE_BASE = 0x00;
 const BULLET_TILE_BASE = 0xb1; // sub_E0FB, палитра 2
+const FRAME_W = 256;
+
+// 8×16 спрайт: tileTop и tileTop+1 (верх/низ), пиксель = pal[palIdx*4+v].
+function blitSprite(ctx: FeatureContext, tileTop: number, dstX: number, dstY: number, palIdx: number): void {
+  const vram = ctx.kernel.ppuVram;
+  const buf = ctx.kernel.ppuBuffer;
+  const pal = ctx.kernel.ppuSpritePalette;
+  if (!buf || !pal) return;
+  // 8×16: бит0 номера тайла выбирает pattern table (0 — PT0, 1 — PT1).
+  const ptBase = tileTop & 1 ? 0x1000 : 0x0000;
+  const base = tileTop & 0xfe;
+  for (let half = 0; half < 2; half++) {
+    const off = ptBase + (base + half) * 16;
+    for (let y = 0; y < 8; y++) {
+      const py = dstY + half * 8 + y;
+      if (py < 0 || py >= 240) continue;
+      const p0 = vram[off + y];
+      const p1 = vram[off + 8 + y];
+      for (let x = 0; x < 8; x++) {
+        const v = ((p0 >> (7 - x)) & 1) | (((p1 >> (7 - x)) & 1) << 1);
+        if (v === 0) continue;
+        const px = dstX + x;
+        if (px < 0 || px >= FRAME_W) continue;
+        buf[py * FRAME_W + px] = pal[palIdx * 4 + v];
+      }
+    }
+  }
+}
 
 function renderOverlay(ctx: FeatureContext): void {
   const s = ctx.state.td as TdState | undefined;
   if (!s) return;
   if (s.towers.length === 0 && s.projs.length === 0) return;
-  const sm = ctx.kernel.ppuSpriteMem as Uint8Array | undefined;
-  if (!sm) return;
-
-  const free: number[] = [];
-  for (let i = 0; i < 64; i++) if (sm[i * 4] >= 0xf0) free.push(i);
-  let fi = 0;
 
   for (const tw of s.towers) {
-    if (fi + 1 >= free.length) break; // нет свободных спрайтов — пропускаем
     const base = (TOWER_TILE_BASE + (tw.dir & 3) * 8) & 0xff;
-    const cx = 24 + 16 * cellC(tw.cell);
-    const cy = 24 + 16 * cellR(tw.cell);
-    const i0 = free[fi++];
-    const i1 = free[fi++];
-    sm[i0 * 4] = (cy - 8) & 0xff;
-    sm[i0 * 4 + 1] = base;
-    sm[i0 * 4 + 2] = 0x00; // палитра 0 (DEF p1)
-    sm[i0 * 4 + 3] = (cx - 8) & 0xff;
-    sm[i1 * 4] = (cy - 8) & 0xff;
-    sm[i1 * 4 + 1] = (base + 2) & 0xff;
-    sm[i1 * 4 + 2] = 0x00;
-    sm[i1 * 4 + 3] = cx & 0xff;
+    const x = 16 + 16 * cellC(tw.cell);
+    const y = 16 + 16 * cellR(tw.cell);
+    blitSprite(ctx, base, x, y, 0); // левая половина
+    blitSprite(ctx, base + 2, x + 8, y, 0); // правая половина
   }
 
   for (const p of s.projs) {
-    if (fi >= free.length) break;
-    const i = free[fi++];
-    sm[i * 4] = (p.y - 8) & 0xff;
-    sm[i * 4 + 1] = (BULLET_TILE_BASE + (p.dir & 3) * 2) & 0xff;
-    sm[i * 4 + 2] = 0x02; // палитра 2 (пули ROM)
-    sm[i * 4 + 3] = (p.x - 5) & 0xff;
+    blitSprite(ctx, (BULLET_TILE_BASE + (p.dir & 3) * 2) & 0xff, p.x - 5, p.y - 8, 2);
   }
 }
 
@@ -443,7 +452,6 @@ export const towerDefenceRuntime: FeatureRuntime = {
   preFrame(ctx) {
     const s = st(ctx);
     processOrders(ctx);
-    renderOverlay(ctx); // до frame(): спрайты должны попасть в композицию кадра
     const mem = ctx.kernel.mem;
     if (mem[RAM.GAME_OVER] === 0x80) s.gameStarted = true;
     // В BUILD враги не спавнятся (ROM-хук при этом не даёт стадии завершиться).
@@ -494,6 +502,10 @@ export const towerDefenceRuntime: FeatureRuntime = {
     }
 
     publishStatus(ctx);
+  },
+
+  render(ctx) {
+    renderOverlay(ctx); // после frame(), но до отрисовки драйвером (2D-буфер)
   },
 
   onLoadState(ctx) {

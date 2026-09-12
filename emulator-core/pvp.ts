@@ -167,6 +167,8 @@ class PvPNes extends NESBase {
       get ppuNameTable() { return self.ppu.nameTable; },
       get ppuSpriteMem() { return self.ppu.spriteMem; },
       get ppuVram() { return self.ppu.vramMem; },
+      get ppuBuffer() { return self.ppu.buffer; },
+      get ppuSpritePalette() { return self.ppu.sprPalette; },
       get playerFire() { return self._playerFire; },
       hasFeature: (id: string) => self.hasFeature(id),
       setAudioSuppressed: (v: boolean) => self.setAudioSuppressed(v),

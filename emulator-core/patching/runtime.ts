@@ -24,6 +24,10 @@ export interface KernelApi {
   readonly ppuSpriteMem: Uint8Array;
   /** VRAM PPU (память палитр $3F00..$3F1F и pattern/nametable). */
   readonly ppuVram: Uint8Array;
+  /** Пиксельный буфер кадра PPU 256×240 (0x00RRGGBB) для 2D-оверлея. */
+  readonly ppuBuffer: Uint32Array;
+  /** Палитра спрайтов PPU (16 цветов, 0x00RRGGBB). */
+  readonly ppuSpritePalette: Uint32Array;
   /** Кнопка A (edge) по логическому порту за текущий кадр. */
   readonly playerFire: Record<number, boolean>;
   hasFeature(id: string): boolean;
