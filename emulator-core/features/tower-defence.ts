@@ -70,7 +70,6 @@ interface TdState {
   projs: Proj[];
   prevFlags: number[];
   prevTypes: number[];
-  drawn: Set<number>;
   typeQueue: number[];
   buildable: Set<number>;
 }
@@ -346,55 +345,52 @@ function awardKills(ctx: FeatureContext): void {
   }
 }
 
-// BG-тайлы танков по типу башни. В CHR (одна 8K-таблица) танки лежат так же, как
-// спрайтовые тайлы: base & 0xF0 по типу, +dir*8, квадранты 2×2 = [T, T+2, T+1, T+3]
-// (левая 8×16 = T/T+1, правая = T+2/T+3 — как sub_DA7B).
-const TOWER_TILE_BASE: Record<string, number> = { gun: 0x80, rapid: 0xa0, sniper: 0xc0, cannon: 0xe0 };
-// Тайлы пуль: base 0xB1 + dir*2 (sub_E0FB).
-const BULLET_TILE_BASE = 0xb1;
+// OAM-рендер башен/снарядов. BG здесь не годится: фоновая таблица указывает на
+// PT1, а графика танков — в PT0 (8×16: чётность номера тайла выбирает PT). Пишем в
+// ppuSpriteMem в preFrame (ДО frame()), иначе композиция кадра уже завершена и спрайты
+// не попадут в буфер. Свободные слоты — Y>=0xF0 (как railgun).
+//
+// Живой DEF-танк (type=0, dir): левая половина = dir*8, правая = +2, палитра 0
+// (проверено по OAM: OAM[5] t=0 x=0x50, OAM[6] t=2 x=0x58 при pos=0x58).
+const TOWER_TILE_BASE = 0x00;
+const BULLET_TILE_BASE = 0xb1; // sub_E0FB, палитра 2
 
-function blockCellOff(r: number, c: number): number {
-  return (2 + 2 * r) * 32 + (2 + 2 * c);
-}
-
-// BG-overlay: башни 2×2 (тайлы танков), снаряды 1 тайл (тайлы пуль).
 function renderOverlay(ctx: FeatureContext): void {
   const s = ctx.state.td as TdState | undefined;
   if (!s) return;
-  const nts = ctx.kernel.ppuNameTable;
-  const towerPal = 0x0c; // BG-палитра 3 (сталь/белый): танк читается на тёмном поле
-  const bulletPal = 0x0c;
-  const next = new Map<number, { tile: number; pal: number }>();
+  if (s.towers.length === 0 && s.projs.length === 0) return;
+  const sm = ctx.kernel.ppuSpriteMem as Uint8Array | undefined;
+  if (!sm) return;
+
+  const free: number[] = [];
+  for (let i = 0; i < 64; i++) if (sm[i * 4] >= 0xf0) free.push(i);
+  let fi = 0;
 
   for (const tw of s.towers) {
-    const base = TOWER_TILE_BASE[tw.type] ?? 0x80;
-    const t = (base + (tw.dir & 3) * 8) & 0xff;
-    const off = blockCellOff(cellR(tw.cell), cellC(tw.cell));
-    // TL, TR, BL, BR
-    next.set(off, { tile: t, pal: towerPal });
-    next.set(off + 1, { tile: (t + 2) & 0xff, pal: towerPal });
-    next.set(off + 32, { tile: (t + 1) & 0xff, pal: towerPal });
-    next.set(off + 33, { tile: (t + 3) & 0xff, pal: towerPal });
-  }
-  for (const p of s.projs) {
-    const off = (p.y >> 3) * 32 + (p.x >> 3);
-    next.set(off, { tile: (BULLET_TILE_BASE + (p.dir & 3) * 2) & 0xff, pal: bulletPal });
+    if (fi + 1 >= free.length) break; // нет свободных спрайтов — пропускаем
+    const base = (TOWER_TILE_BASE + (tw.dir & 3) * 8) & 0xff;
+    const cx = 24 + 16 * cellC(tw.cell);
+    const cy = 24 + 16 * cellR(tw.cell);
+    const i0 = free[fi++];
+    const i1 = free[fi++];
+    sm[i0 * 4] = (cy - 8) & 0xff;
+    sm[i0 * 4 + 1] = base;
+    sm[i0 * 4 + 2] = 0x00; // палитра 0 (DEF p1)
+    sm[i0 * 4 + 3] = (cx - 8) & 0xff;
+    sm[i1 * 4] = (cy - 8) & 0xff;
+    sm[i1 * 4 + 1] = (base + 2) & 0xff;
+    sm[i1 * 4 + 2] = 0x00;
+    sm[i1 * 4 + 3] = cx & 0xff;
   }
 
-  for (const cell of s.drawn) {
-    if (next.has(cell)) continue;
-    for (const nt of nts) {
-      nt.tile[cell] = 0;
-      nt.attrib[cell] = 0;
-    }
+  for (const p of s.projs) {
+    if (fi >= free.length) break;
+    const i = free[fi++];
+    sm[i * 4] = (p.y - 8) & 0xff;
+    sm[i * 4 + 1] = (BULLET_TILE_BASE + (p.dir & 3) * 2) & 0xff;
+    sm[i * 4 + 2] = 0x02; // палитра 2 (пули ROM)
+    sm[i * 4 + 3] = (p.x - 5) & 0xff;
   }
-  for (const [cell, v] of next) {
-    for (const nt of nts) {
-      nt.tile[cell] = v.tile;
-      nt.attrib[cell] = v.pal;
-    }
-  }
-  s.drawn = new Set(next.keys());
 }
 
 function publishStatus(ctx: FeatureContext): void {
@@ -437,7 +433,6 @@ export const towerDefenceRuntime: FeatureRuntime = {
       projs: [],
       prevFlags: [],
       prevTypes: [],
-      drawn: new Set<number>(),
       typeQueue: [],
       buildable: new Set<number>(tdBuildableCells(tdMapById(TD_DEFAULT_CONFIG.map))),
     };
@@ -448,6 +443,7 @@ export const towerDefenceRuntime: FeatureRuntime = {
   preFrame(ctx) {
     const s = st(ctx);
     processOrders(ctx);
+    renderOverlay(ctx); // до frame(): спрайты должны попасть в композицию кадра
     const mem = ctx.kernel.mem;
     if (mem[RAM.GAME_OVER] === 0x80) s.gameStarted = true;
     // В BUILD враги не спавнятся (ROM-хук при этом не даёт стадии завершиться).
@@ -498,10 +494,6 @@ export const towerDefenceRuntime: FeatureRuntime = {
     }
 
     publishStatus(ctx);
-  },
-
-  render(ctx) {
-    renderOverlay(ctx);
   },
 
   onLoadState(ctx) {
