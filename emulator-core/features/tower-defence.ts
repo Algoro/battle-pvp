@@ -31,6 +31,8 @@ import {
 const ENEMY_FIRST = DEF_PORTS; // 2
 const ENEMY_LAST = 7;
 const HIT_RADIUS = 0x0a;
+// Допуск совпадения оси при наведении (px): центры башен и танков расходятся на 8.
+const AIM_TOLERANCE = 0x0a;
 const PROJ_TTL = 180;
 // Направления (0=Up,1=Left,2=Down,3=Right) — без аллокаций в горячем пути.
 const DIR_DX = [0, -1, 0, 1];
@@ -232,8 +234,8 @@ function tickTowers(ctx: FeatureContext): void {
     if (!type) continue;
     const stats = towerStats(type, tw.level);
     if (tw.cd > 0) tw.cd -= 1;
-    if (tw.cd > 0) continue;
-    if (enemies.length === 0) continue;
+
+    // Наводим ствол каждый кадр (даже на перезарядке), затем при готовности стреляем.
     const c = cellTopLeft(tw.cell);
     const tcx = c.x + 8;
     const tcy = c.y + 8;
@@ -248,24 +250,32 @@ function tickTowers(ctx: FeatureContext): void {
       const dy = ey - tcy;
       const d = Math.abs(dx) + Math.abs(dy);
       if (d > rangePx) continue;
-      let dir = -1;
-      if (Math.abs(dx) <= 6) dir = dy < 0 ? 0 : 2;
-      else if (Math.abs(dy) <= 6) dir = dx < 0 ? 1 : 3;
-      if (dir < 0) continue;
+      // Центры башен (24+16c) и танков на дорожках расходятся на 8 px, поэтому допуск
+      // по поперечной оси — 10 px (примерно клетка). Направление — по доминирующей оси,
+      // иначе для врага строго по горизонтали «вертикаль» давала бы нулевую дистанцию.
       const ec = ex >> 3;
       const er = ey >> 3;
+      let dir = -1;
+      const ax = Math.abs(dx);
+      const ay = Math.abs(dy);
+      if (ax >= ay) {
+        if (ay <= AIM_TOLERANCE) dir = dx < 0 ? 1 : 3;
+      } else if (ax <= AIM_TOLERANCE) {
+        dir = dy < 0 ? 0 : 2;
+      }
+      if (dir < 0) continue;
       const steps = dir === 0 || dir === 2 ? Math.abs(er - tr) : Math.abs(ec - tc);
       if (!losClear(mem, tc, tr, dir, steps)) continue;
       if (!best || d < best.d) best = { t, dir, d };
     }
     if (!best) continue;
-    tw.dir = best.dir;
+    tw.dir = best.dir; // поворот ствола к цели
+    if (tw.cd > 0) continue; // ещё перезаряжается — только навелись
     tw.cd = stats.fireInterval;
-    const dx = DIR_DX[best.dir];
-    const dy = DIR_DY[best.dir];
+    // Из центра башни: при цели вплотную смещённый вперёд снаряд «перелетал» бы её.
     s.projs.push({
-      x: tcx + dx * 6,
-      y: tcy + dy * 6,
+      x: tcx,
+      y: tcy,
       dir: best.dir,
       speed: type.projectileSpeed,
       damage: stats.damage,

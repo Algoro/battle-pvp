@@ -146,6 +146,25 @@ test("td-runtime: волна выдаёт типы врагов из своей 
   assert.strictEqual(spawn(), 0xa0, "третий враг — быстрая пуля");
 });
 
+test("td-runtime: башня наводится на врага со сдвигом 8 px (дорожки)", () => {
+  const emu = boot();
+  emu.tdOrder({ type: "place", cell: CELL(2, 1), towerType: "gun" }); // центр башни (40,56)
+  emu.tdOrder({ type: "startWave" });
+  idle(emu, 1);
+  const before = emu.getTowerDefence().points;
+  let killed = false;
+  for (let i = 0; i < 150 && !killed; i++) {
+    pinEnemy(emu, 2, 40, 48); // центр врага (48,56): сдвиг ровно 8 px
+    emu.stepFrame([{ port: 0, buttons: 0 }]);
+    const now = emu.readMem(RAM.TANK_FLAG + 2);
+    if (!((now & 0x80) !== 0 && now < 0xe0)) killed = true;
+  }
+  assert.ok(killed, "башня не убила врага со сдвигом 8 px");
+  assert.strictEqual(emu.getTowerDefence().towers[0].dir, 3, "ствол должен повернуться вправо");
+  idle(emu, 1);
+  assert.strictEqual(emu.getTowerDefence().points - before, 100, "очки за убийство не начислены");
+});
+
 test("td-runtime: вражеская пуля снимает прочность башни", () => {
   const emu = boot();
   emu.tdOrder({ type: "place", cell: CELL(2, 1), towerType: "gun" });
