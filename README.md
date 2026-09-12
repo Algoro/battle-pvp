@@ -22,7 +22,7 @@
 - Чат в бою, HUD соединения (ping, rollback, DESYNC), конец матча с возвратом в лобби.
 - **Выбор стадии (1–35) с предпросмотром** и **стартовых звёзд защитников (0–3)** — из ROM в памяти, старт детерминирован.
 - **Опциональные патч-фичи** (первая — «Пистолет»: приз и 4-я звезда дают супер-оружие) — хост/соло выбирает набор, все клиенты собирают один ROM; см. `docs/optional-patches.md`.
-- **Соло-режим «Tower Defence»** (скрытая фича `tower-defence`): покупка/расстановка неподвижных танков-башен за очки, волны врагов, экономика и редактор расстановки на TD-картах; см. `docs/tower-defense-plan.md`.
+- **Соло-режим «Tower Defence»** (скрытая фича `tower-defence`): покупка/расстановка неподвижных танков-башен за очки, волны врагов, экономика и редактор расстановки на TD-картах; см. `docs/tower-defense.md`.
 - **Драйверы и расширения рендера** (отдельный от патчей слой): пиксельный NES-вид, **3D-вид сверху** и **воксельный «sandbox» вид** (кубические блоки, пиксельные текстуры, небо/день-ночь, вода, частицы, «живой мир» — птицы, блочные облака, мышки). Камеры: **орбита**, **от третьего лица**, **из глаз** (с авто-доворотом за танком), настройки/пресеты для каждого драйвера, живой предпросмотр уровня до старта. Расширения — миникарта, частицы. Выбор локальный, на матч/детерминизм не влияет; см. `docs/render-extensions.md`.
 - **Звук и музыка** из APU (jsnes) с раздельными громкостью/mute для музыки и эффектов; откаты не дают щелчков.
 - Детерминированный `saveState/loadState` и `getFrameHash` — основа побед/поражений и netcode.
@@ -154,9 +154,11 @@ git push -u origin main
 - [docs/ai.md](docs/ai.md) — ИИ атакующих/защитников.
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
 - [docs/render-extensions.md](docs/render-extensions.md) — драйверы/расширения рендера.
-- [docs/3d-view-plan.md](docs/3d-view-plan.md) — драйвер `topdown-3d` (реализован).
-- [docs/minecraft-look-plan.md](docs/minecraft-look-plan.md) — драйвер `mc-voxel` (воксельный стиль, реализован).
-- [docs/tower-defense-plan.md](docs/tower-defense-plan.md) — соло-режим Tower Defence (реализован).
+- [docs/render-3d.md](docs/render-3d.md) — драйвер `topdown-3d`.
+- [docs/render-voxel.md](docs/render-voxel.md) — драйвер `mc-voxel` (воксельный стиль).
+- [docs/tower-defense.md](docs/tower-defense.md) — соло-режим Tower Defence.
+- [docs/pistol-powerup.md](docs/pistol-powerup.md) — приз «Пистолет» и супер-оружие.
+- [docs/typescript.md](docs/typescript.md) — конвенции TypeScript и раскладка типов.
 
 ## Лицензия и правовой статус
 

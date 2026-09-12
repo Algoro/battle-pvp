@@ -1,7 +1,6 @@
-# Чистая архитектура: целевая модель и план миграции
+# Чистая архитектура: целевая модель
 
-Документ описывает идеальную (clean) архитектуру для Battle City PvP и поэтапный
-переход к ней. Главный принцип — **правило зависимостей**: внутренние слои не знают
+Документ описывает идеальную (clean) архитектуру Battle City PvP. Главный принцип — **правило зависимостей**: внутренние слои не знают
 о внешних; все связи идут через порты (интерфейсы), реализуемые адаптерами.
 
 ## 1. Особенность проекта
@@ -99,42 +98,30 @@ frontend/src/
   App.tsx          composition root: только маршрутизация экранов
 ```
 
-## 5. План миграции (по фазам, каждая — зелёный CI)
-
-| Фаза | Содержание | Риск |
-|---|---|---|
-| **1. Порты netcode** | `netcode/ports.ts` (`GameCore/Transport/Clock/EventSink`), инъекция `Clock` в `RollbackSession`, убрать прямые `Date.now` | низкий |
-| **2. Enforcement** | `architecture.test.ts` (правило зависимостей) | низкий |
-| **3. Backend application** | вынести use cases `startMatch/finishMatch/sendChat`; relay → тонкий WS-адаптер; репозитории за портами | средний |
-| **4. Frontend application** | контроллеры-хуки (`useMatch`, `useSpectate`) поверх шлюзов; презентеры не знают о сети | средний |
-| **5. Domain-сущности** | `backend/domain/` (Room/Lobby/Matchmaker) как чистые классы; SQLite за `*Repository` | средний |
-| **6. GameCore-порт** | формализовать `GameCore`; `EmulatorDriver`/`PvPNes` — адаптеры; тесты через fake GameCore | средний |
-| **7. Полный свод** | удалить прямые межслойные импорты, добиться нулевых нарушений и строгих портов | высокий |
-
-## 6. Тестовая стратегия
+## 5. Тестовая стратегия
 
 - Golden/детерминизм (`golden-replay`, `patching`, `domain`) — контракт ядра, не менять.
 - Use cases — юнит-тесты с fake-портами (in-memory репозитории, fake Clock/Transport).
 - Architecture test — правило зависимостей.
 - E2E — сквозной сценарий (лобби→матч→чат→spectator).
 
-## 7. Что не переносим
+## 6. Что не переносим
 
 - Правила игры в коде — остаются в ROM (исполняются jsnes). Это не «грязная»
   архитектура, а осознанная граница: ROM+jsnes = внешний драйвер за портом `GameCore`.
 - jsnes не редактируем (immutable), патчинг ROM — адаптер в `emulator-core/patching`.
 
-## 8. Статус миграции
+## 7. Текущее состояние
 
-| Фаза | Статус |
+| Область | Состояние |
 |---|---|
-| 1. Порты netcode (`ports.ts`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
-| 2. Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (18 проверок, включая `shared/tower-defence.ts` без импортов и слои рендера) |
-| 3. Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.ts`; relay/HTTP — тонкие адаптеры |
-| 4. Frontend application (контроллеры) | ✅ `frontend/src/application/{use-lobby,use-match,use-spectate}.ts` + `MatchController`; `App.tsx` — композиция экранов |
-| 5. Domain-сущности (Room/Lobby/Matchmaker/Chat) | ✅ `backend/domain/` (чистые классы), SQLite за портом `ChatRepository` |
-| 6. Порт `GameCore` | ✅ контракт в `netcode/ports.ts`; тест `game-core-port.test.ts` на fake-ядре |
-| 7. Полный свод (нулевые нарушения) | ✅ `architecture.test.ts` стережёт слои domain←application←adapters и frontend engine←application←components |
+| Порты netcode (`ports.ts`, Clock/Logger) | ✅ сделано: `RollbackSession` берёт время из порта `Clock` |
+| Enforcement (правило зависимостей) | ✅ `qa/tests/architecture.test.ts` (18 проверок, включая `shared/tower-defence.ts` без импортов и слои рендера) |
+| Backend application (use cases матча/чата) | ✅ `backend/application/{match-lifecycle,chat}.ts`; relay/HTTP — тонкие адаптеры |
+| Frontend application (контроллеры) | ✅ `frontend/src/application/{use-lobby,use-match,use-spectate}.ts` + `MatchController`; `App.tsx` — композиция экранов |
+| Domain-сущности (Room/Lobby/Matchmaker/Chat) | ✅ `backend/domain/` (чистые классы), SQLite за портом `ChatRepository` |
+| Порт `GameCore` | ✅ контракт в `netcode/ports.ts`; тест `game-core-port.test.ts` на fake-ядре |
+| Полный свод (нулевые нарушения) | ✅ `architecture.test.ts` стережёт слои domain←application←adapters и frontend engine←application←components |
 
 `netcode/ports.ts` и `frontend/src/ports.ts` — самодостаточные контракты без импортов
 (это тоже проверяет `architecture.test.ts`). Backend-порты описаны в `backend/ports.ts`

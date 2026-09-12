@@ -80,7 +80,7 @@ export default RENDER_MANIFEST;
 import type { CameraRig } from "./camera-rig";
 
 /** Авторитетный срез для отрисовки. Неизменяемый; формируется из RAM (readScene). */
-export interface SceneState { /* см. docs/3d-view-plan.md §4 */ }
+export interface SceneState { /* см. docs/render-3d.md §4 */ }
 
 /** Общий контекст, который хост даёт любому драйверу/расширению. */
 export interface RenderHost {
@@ -248,18 +248,7 @@ render.setDriver(savedDriver()); render.setExtensions(savedExtensions());
 
 ## 10. Примеры сущностей (демонстрация «кардинально разного вида»)
 
-- **Драйверы**: `pixel-2d` (текущий), `topdown-3d` (см. `docs/3d-view-plan.md`),
+- **Драйверы**: `pixel-2d` (текущий), `topdown-3d` (см. `docs/render-3d.md`),
   `voxel`, `isometric-3d`, `ascii` (текстовая карта), `thermal`.
 - **Расширения**: `crt` (пост-эффект к 2D), `particles` (three), `cartoon-outline`
   (three), `minimap` (DOM-оверлей), `team-labels`, `night-vision` (шейдер-фильтр).
-
-## 11. Этапы
-
-| Фаза | Что |
-|---|---|
-| A | Тип сущностей: `shared/renderers.ts`, `render/types.ts`, `render/registry.ts`, `assertRenderersConsistent` + тесты |
-| B | `RenderSystem` (гост): пайплайн, жизненный цикл, capabilities, откат; драйвер `pixel-2d` — перевод текущей отрисовки |
-| C | Интеграция в `GameCanvas`/`SpectateView`: `RenderSettings`, персист, `frame()` в тике; ядро без рендера |
-| D | Первый альтернативный драйвер `topdown-3d` (по `docs/3d-view-plan.md`) |
-| E | Расширения (`crt`, `particles`, `minimap`) как проверка композиции |
-| F | Enforcement-тесты, детерминизм-тест, docs (`docs/emulator-api.md`, README, `THIRD_PARTY.md`) |

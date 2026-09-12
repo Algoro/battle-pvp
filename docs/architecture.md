@@ -41,7 +41,7 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
   луч пистолета — `features/railgun.ts` (`fireRailgun`/`renderRailgunFx`), соло `tower-defence` —
   `features/tower-defence.ts`. Контракт — `patching/runtime.ts`.
 - **`patching/patches/pistol.ts`** — приз «пистолет» (выпадение/подбор/4-я звезда/сброс);
-  эффект луча — в JS (`features/railgun.ts`). См. `docs/pistol-powerup-plan.md`.
+  эффект луча — в JS (`features/railgun.ts`). См. `docs/pistol-powerup.md`.
 - **`io/trace.ts`** — трейс ИИ вынесен из `PvPNes` (декомпозиция god-объекта);
   `stepFrame` разбит на `_resetNetZone/_readInputs/_applyAttAIDecisions`.
 - **`ai/rollforward.ts`** — предсказание будущего на **реальном эмуляторе** (saveState +

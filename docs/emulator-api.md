@@ -75,8 +75,8 @@ emu.patching;                        // отчёт применения патч
 **драйвер рендера**:
 
 - `pixel-2d` (по умолчанию) — кадр PPU 256×240;
-- `topdown-3d` — объёмное поле (`docs/3d-view-plan.md`);
-- `mc-voxel` — воксельный «sandbox» (`docs/minecraft-look-plan.md`).
+- `topdown-3d` — объёмное поле (`docs/render-3d.md`);
+- `mc-voxel` — воксельный «sandbox» (`docs/render-voxel.md`).
 
 Расширения (`minimap`, `particles`) накладываются хостом `RenderSystem`. Драйверы читают
 только `SceneState` (`readScene`, из RAM/PPU) и не влияют на шаг ядра, хэши, save/load и

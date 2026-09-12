@@ -35,7 +35,7 @@ fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+
 - **RAM** `$01EE` (`ram_pistol`) / `$01F0` (`ram_pistol_ammo`), рутины в `$FF50–$FFF9`.
 - Сам **эффект луча** (hitscan: уничтожение тайлов, танков, пуль, базы) исполняет
   JS-ядро `PvPNes` (фаза 3 плана): правила получения — в ROM, эффект — детерминированно
-  в `stepFrame`, состояние в RAM → rollback-safe. См. `docs/pistol-powerup-plan.md`
+  в `stepFrame`, состояние в RAM → rollback-safe. См. `docs/pistol-powerup.md`
   и `docs/optional-patches.md`.
 
 Полный разбор — `docs/asm-label-map.md`. Отпечатки: база `pvp` — `94cb0636`,
