@@ -68,6 +68,12 @@ export class EmulatorDriver {
     return this;
   }
 
+  // ---- tower defence (фича tower-defence) ----
+  // Приказ рантайму (configure/place/sell/upgrade/startWave) — обрабатывается ядром.
+  tdOrder(order: any) { this.nes?.tdOrder?.(order); return this; }
+  // Снимок состояния TD для HUD/редактора.
+  getTowerDefence(): any { return this.nes?.getTowerDefence?.() ?? null; }
+
   getStageCount(): number { return this.nes?.getStageCount?.() ?? 35; }
   getStage(stage: number): any { return this.nes?.getStage?.(stage) ?? null; }
   // Пиксели CHR-тайла ФОНА (64 значения 0..3). В Battle City BG pattern table — $1000

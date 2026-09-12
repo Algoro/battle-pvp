@@ -474,3 +474,22 @@ body { margin: 0; }
   border-radius: 7px; padding: 4px 7px; font-family: inherit; font-size: 12px;
 }
 .rform__row input[type="range"] { width: 150px; }
+
+/* ---- Tower Defence ---- */
+.td-setup-box { width: min(560px, 94vw); }
+.td-setup { display: flex; flex-direction: column; gap: 12px; }
+.td-setup h2 { margin: 0; }
+.td-setup__hint { margin: 0; font-size: 13px; color: #9aa4b2; }
+.td-setup__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.td-setup__maps { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+.td-setup__label { font-size: 13px; color: #c7ccd6; }
+.td-setup__stat { font-size: 12px; color: #7d8798; }
+.td-setup__check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #c7ccd6; }
+.td-setup__actions { display: flex; justify-content: flex-end; gap: 8px; }
+.td__build { display: flex; gap: 16px; align-items: flex-start; padding: 12px; }
+.td__shop { display: flex; flex-direction: column; gap: 8px; width: 240px; }
+.td__shop-title { font-weight: 600; color: #c7ccd6; }
+.td__shop .btn { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; }
+.td__shop .btn small { font-weight: 400; opacity: 0.75; }
+.td__tip { font-size: 12px; color: #7d8798; line-height: 1.4; }
+.td-editor { image-rendering: pixelated; border-radius: 8px; border: 1px solid rgba(255,255,255,0.12); cursor: pointer; }

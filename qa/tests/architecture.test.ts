@@ -149,6 +149,10 @@ test("architecture: shared/renderers.ts без импортов", () => {
   assert.deepStrictEqual(imports(join(ROOT, "shared", "renderers.ts")), []);
 });
 
+test("architecture: shared/tower-defence.ts без импортов", () => {
+  assert.deepStrictEqual(imports(join(ROOT, "shared", "tower-defence.ts")), []);
+});
+
 test("architecture: слой рендера не зависит от ядра pvp (только read-only сцена)", () => {
   const files = walk(join(ROOT, "frontend", "src", "render"), (p) => p.endsWith(".ts"));
   const bad = [];

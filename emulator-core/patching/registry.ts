@@ -20,12 +20,14 @@ import { friendlyFireDef } from "./patches/friendly-fire-def.ts";
 import { friendlyFireAtt } from "./patches/friendly-fire-att.ts";
 import { playerNames } from "./patches/player-names.ts";
 import { pacman } from "./patches/pacman.ts";
+import { towerDefence } from "./patches/tower-defence.ts";
 import { pistolRuntime } from "../features/pistol.ts";
 import { enemyPrizesRuntime } from "../features/enemy-prizes.ts";
 import { friendlyFireDefRuntime } from "../features/friendly-fire-def.ts";
 import { friendlyFireAttRuntime } from "../features/friendly-fire-att.ts";
 import { playerNamesRuntime } from "../features/player-names.ts";
 import { pacmanDotsRuntime } from "../features/pacman-dots.ts";
+import { towerDefenceRuntime } from "../features/tower-defence.ts";
 import { FEATURE_MANIFEST } from "../../shared/features.ts";
 
 const SETS = new Map<any, any>();
@@ -179,7 +181,13 @@ registerFeature({
   runtime: pacmanDotsRuntime,
 });
 
+registerFeature({
+  id: "tower-defence",
+  patch: towerDefence,
+  runtime: towerDefenceRuntime,
+});
+
 // Манифест и реестр обязаны совпадать (добавил фичу — зарегистрируй патч, и наоборот).
 assertFeaturesConsistent();
 
-export { baseNrom, pvp, pistol, enemyPrizes, friendlyFireDef, friendlyFireAtt, playerNames, pacman };
+export { baseNrom, pvp, pistol, enemyPrizes, friendlyFireDef, friendlyFireAtt, playerNames, pacman, towerDefence };

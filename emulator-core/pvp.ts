@@ -305,6 +305,19 @@ class PvPNes extends NESBase {
     return this;
   }
 
+  // ---- tower defence (фича tower-defence) ----
+  // Приказ рантайму (configure/place/sell/upgrade/startWave). Обрабатывается в preFrame.
+  tdOrder(order: any): this {
+    if (!Array.isArray(this.opts.tdOrders)) this.opts.tdOrders = [];
+    this.opts.tdOrders.push(order);
+    return this;
+  }
+
+  // Снимок состояния TD для UI (точки, волна, башни, фаза) — обновляет рантайм.
+  getTowerDefence(): any {
+    return this.opts.tdStatus ?? null;
+  }
+
 
   getStageCount(): number {
     return STAGE_COUNT;

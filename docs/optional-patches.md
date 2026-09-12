@@ -97,3 +97,25 @@
   детерминированы (без `Date.now/performance.now/Math.random`).
 - `qa/tests/features.test.ts` — списки backend/core/frontend совпадают.
 - `qa/golden`, `golden-replay` — база `pvp` (без фич).
+
+## Tower Defence (соло-режим)
+
+Фича `tower-defence` (`hidden: true` — включается не чекбоксом, а кнопкой
+«Tower Defence» в лобби):
+
+- **ROM-часть** (`patches/tower-defence.ts`): пишет 3 TD-карты в стадии 1..3
+  (геометрия — `shared/tower-defence.ts`, упаковка 91 байт) и хукает завершение
+  стадии `sub_C728` рутиной `sub_td_stage_end_check` в свободной зоне `$FF50..$FFF9`.
+  Пока `TD_STATE != 0`, стадия не завершается по `enemies_left == 0` (волнами рулит
+  рантайм); поражение (base destroyed) проходит всегда.
+- **RAM**: `RAM.TD_STATE` (`0x01FF`) — фаза: 0 off, 1 BUILD, 2 WAVE, 3 INTERMISSION,
+  4 VICTORY, 5 DEFEAT. Остальное состояние TD — `ctx.state` (соло, rollback не нужен).
+- **JS-рантайм** (`features/tower-defence.ts`): экономика (очки за убийства),
+  расстановка (`configure/place/sell/upgrade/startWave` через `PvPNes.tdOrder`),
+  таргетинг/снаряды, урон по башням, волны, победа/поражение. Снимок для UI —
+  `PvPNes.getTowerDefence()`.
+- **Общий урон**: `features/enemy-damage.ts` (броня/приз/смерть) используется и
+  friendly-fire, и башнями.
+- **Рендер**: башни/снаряды — BG-overlay (как точки pacman), OAM не трогаем.
+
+Ограничение: TD — только соло; `saveState/loadState` в TD не поддерживаются.

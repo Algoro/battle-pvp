@@ -13,7 +13,9 @@ export default function FeaturePicker({ features, onChange, title = "Опцио�
   const toggle = (id: string) => {
     onChange(features.includes(id) ? features.filter((x) => x !== id) : [...features, id]);
   };
-  const selected = OPTIONAL_FEATURES.filter((f) => features.includes(f.id));
+  // hidden-фичи (напр. tower-defence) включаются отдельным режимом, не чекбоксом.
+  const visible = OPTIONAL_FEATURES.filter((f) => !f.hidden);
+  const selected = visible.filter((f) => features.includes(f.id));
 
   return (
     <div className="fpick">
@@ -22,7 +24,7 @@ export default function FeaturePicker({ features, onChange, title = "Опцио�
         <span className="fpick__count">{selected.length ? `выбрано: ${selected.length}` : "ванильная игра"}</span>
       </div>
       <div className="fpick__list">
-        {OPTIONAL_FEATURES.map((f) => {
+        {visible.map((f) => {
           const on = features.includes(f.id);
           return (
             <label key={f.id} className={`fpick__item${on ? " fpick__item--on" : ""}${disabled ? " fpick__item--disabled" : ""}`}>

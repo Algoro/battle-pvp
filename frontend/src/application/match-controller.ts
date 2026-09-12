@@ -6,6 +6,7 @@ import type { EmulatorDriver } from "../engine/emulator";
 import type { MatchStart } from "../engine/lobby-client";
 import { buildSoloInputs, isGameplayStarted, isTankAlive, BTN_START } from "../engine/game-state";
 import { bytesToBase64 } from "../engine/b64";
+import { tdMapStage, type TdConfig } from "../../../shared/tower-defence.ts";
 import type {
   FrameInput,
   MatchGateway,
@@ -35,7 +36,7 @@ export const INITIAL_NET: NetStats = {
 };
 
 export interface MatchReadyInfo {
-  mode: "solo" | "online";
+  mode: "solo" | "online" | "td";
   team: Team;
   port: number;
   matchId?: string;
@@ -114,6 +115,31 @@ export class MatchController {
     this.deps.onPaused(false);
     this.updateNet({ ...INITIAL_NET, status: "solo", mode: "solo" });
     this.deps.onReady({ mode: "solo", team, port: team === "DEF" ? 0 : 2 });
+  }
+
+  // --- соло tower defence ---
+  startTowerDefence(opts: TdConfig): void {
+    const emu = this.deps.emu();
+    if (!emu) return;
+    emu.setPatchFeatures?.(["tower-defence"]);
+    emu.setPlayerNames?.({});
+    emu.setStartStage(tdMapStage(opts.map));
+    emu.setStartStars(0);
+    emu.setStartPistol?.(false);
+    emu.reset?.({ attAI: "lookahead", defAI: "off", defMode: "none" });
+    if (opts.mobileTank) emu.setHumanDefTank?.(0);
+    emu.tdOrder?.({
+      type: "configure",
+      map: opts.map,
+      difficulty: opts.difficulty,
+      startPoints: opts.startPoints,
+      waves: opts.waves,
+      mobileTank: opts.mobileTank,
+    });
+    this.clearRuntime();
+    this.deps.onPaused(false);
+    this.updateNet({ ...INITIAL_NET, status: "solo", mode: "tower-defence" });
+    this.deps.onReady({ mode: "td", team: "DEF", port: 0 });
   }
 
   // --- онлайн-матч из лобби ---

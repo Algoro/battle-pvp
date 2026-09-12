@@ -13,6 +13,8 @@ export interface FeatureInfo {
   id: string;
   title: string;
   description: string;
+  /** true — не показывать в общем выборе патчей (включается отдельным режимом). */
+  hidden?: boolean;
 }
 
 export const FEATURE_MANIFEST: FeatureInfo[] = [
@@ -45,6 +47,12 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
     id: "pacman",
     title: "Pac-Man (сбор точек)",
     description: "Лабиринт из бетона, DEF собирают точки; бомбы-призы; победа по зачистке.",
+  },
+  {
+    id: "tower-defence",
+    title: "Tower Defence",
+    description: "Соло-режим обороны: покупка и расстановка неподвижных танков-башен, волны врагов.",
+    hidden: true,
   },
 ];
 

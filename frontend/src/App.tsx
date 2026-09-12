@@ -7,6 +7,9 @@ import LobbyRoom from "./components/LobbyRoom";
 import CreateRoomDialog from "./components/CreateRoomDialog";
 import GameCanvas from "./components/GameCanvas";
 import SpectateView from "./components/SpectateView";
+import TowerDefenceSetup from "./components/TowerDefenceSetup";
+import TowerDefenceView from "./components/TowerDefenceView";
+import type { TdConfig } from "../../shared/tower-defence.ts";
 import { EmulatorDriver } from "./engine/emulator";
 import { KeyboardInput } from "./engine/input";
 import { AudioOutput } from "./engine/audio";
@@ -24,6 +27,7 @@ type Screen =
   | { name: "lobby" }
   | { name: "game"; mode: "solo"; team: Team }
   | { name: "game"; mode: "online"; team: Team; port: number }
+  | { name: "td" }
   | { name: "spectate"; matchId: string };
 
 function loadId(): string {
@@ -52,6 +56,8 @@ export default function App() {
   const [rom, setRom] = useState<ArrayBuffer | null>(null);
   const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
   const [meId] = useState(loadId);
+  const [showTdSetup, setShowTdSetup] = useState(false);
+  const [tdConfig, setTdConfig] = useState<TdConfig | null>(null);
 
   const emuRef = useRef<EmulatorDriver | null>(null);
   const kbRef = useRef<KeyboardInput | null>(null);
@@ -74,7 +80,11 @@ export default function App() {
       lRef.current?.setLobby(null);
       lRef.current?.setMatchChat([]);
       setCurrentMatchId(matchId ?? null);
-      setScreen(mode === "solo" ? { name: "game", mode: "solo", team } : { name: "game", mode: "online", team, port });
+      if (mode === "td") {
+        setScreen({ name: "td" });
+      } else {
+        setScreen(mode === "solo" ? { name: "game", mode: "solo", team } : { name: "game", mode: "online", team, port });
+      }
     },
     onError: (message) => lRef.current?.setError(message),
   });
@@ -193,6 +203,17 @@ export default function App() {
     );
   }
 
+  if (screen.name === "td" && tdConfig) {
+    return (
+      <TowerDefenceView
+        emulator={emuRef.current!}
+        keyboard={kbRef.current!}
+        config={tdConfig}
+        onExit={returnToLobby}
+      />
+    );
+  }
+
   if (screen.name === "game") {
     return (
       <GameCanvas
@@ -246,9 +267,25 @@ export default function App() {
           onQuickMatch={() => startQuickMatch("DEF")}
           onSolo={(team, stage, stars, pistol, features) =>
             match.controller.startSolo(team, stage, stars, pistol, features, L.meName ? { [team === "DEF" ? 0 : 2]: L.meName } : {})}
+          onTowerDefence={() => setShowTdSetup(true)}
           chat={L.globalChat}
           onSendChat={L.actions.sendGlobalChat}
         />
+      )}
+      {showTdSetup && (
+        <div className="modal">
+          <div className="modal__box td-setup-box">
+            <TowerDefenceSetup
+              emulator={emuRef.current}
+              onCancel={() => setShowTdSetup(false)}
+              onStart={(cfg) => {
+                setShowTdSetup(false);
+                setTdConfig(cfg);
+                match.controller.startTowerDefence(cfg);
+              }}
+            />
+          </div>
+        </div>
       )}
       {L.showCreate && (
         <CreateRoomDialog

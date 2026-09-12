@@ -20,6 +20,7 @@ export const RAM = {
   GAME_OVER: 0x68, // ram_game_over_flag (0x80 = игра идёт)
   STUN: 0x6f, // ram_plr_stun_timer (+i, только DEF)
   ENEMIES_LEFT: 0x80, // ram_enemies_left_cnt (0xFF — игра не начата)
+  SPAWN_CNT: 0x7f, // ram_enemy_spawn_cnt: сколько врагов ещё выйдет
   SPAWN_TIMER: 0x82, // ram_enemy_timer_before_spawn
   SPAWN_INTERVAL: 0x84, // ram_enemy_spawn_interval
   STAGE: 0x85, // ram_stage
@@ -62,6 +63,8 @@ export const RAM = {
   PRIZE_FREEZE: 0x01fa, // 2 байта: таймер заморозки DEF-танков (clock у врага)
   DOTS_LEFT: 0x01fc, // 2 байта: остаток точек (режим pacman); 0 — поле зачищено
   PACMAN_WIN: 0x01fe, // 1 байт: 1 — DEF зачистили поле (победа в матче)
+  // режим tower-defence: фаза TD (0=off,1=BUILD,2=WAVE,3=INTERMISSION,4=VICTORY,5=DEFEAT)
+  TD_STATE: 0x01ff, // 1 байт: читается ROM-хуком завершения стадии (sub_C728)
 };
 
 export const FIELD_SIZE = 32;

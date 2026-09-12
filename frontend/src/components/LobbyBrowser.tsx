@@ -17,6 +17,7 @@ interface Props {
   onCreate: () => void;
   onQuickMatch: () => void;
   onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean, features: string[]) => void;
+  onTowerDefence: () => void;
   chat: ChatMessage[];
   onSendChat: (text: string) => void;
   meId: string;
@@ -27,7 +28,7 @@ interface Props {
 }
 
 export default function LobbyBrowser({
-  lobbies, emulator, onJoin, onJoinCode, onCreate, onQuickMatch, onSolo, chat, onSendChat, meId, meName, onNameChange, error, busy,
+  lobbies, emulator, onJoin, onJoinCode, onCreate, onQuickMatch, onSolo, onTowerDefence, chat, onSendChat, meId, meName, onNameChange, error, busy,
 }: Props) {
   const [code, setCode] = useState("");
   const [soloStage, setSoloStage] = useState(1);
@@ -57,6 +58,7 @@ export default function LobbyBrowser({
             <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
             <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло 🛡</button>
             <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло ⚔</button>
+            <button className="btn btn--ghost" onClick={onTowerDefence} disabled={busy}>🏰 Tower Defence</button>
           </div>
           <div className="browser__stage">
             <StageSelect emulator={emulator ?? null} stage={soloStage} onChange={setSoloStage} previewSize={140} />
