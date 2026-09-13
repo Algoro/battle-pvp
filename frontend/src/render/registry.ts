@@ -93,6 +93,7 @@ export function assertRenderersConsistent(): void {
 registerRenderer("pixel-2d", async () => (await import("./drivers/pixel-2d.ts")).createPixelDriver());
 registerRenderer("topdown-3d", async () => (await import("./drivers/topdown-3d/driver.ts")).createTopdown3DDriver());
 registerRenderer("mc-voxel", async () => (await import("./drivers/mc-voxel/driver.ts")).createMcVoxelDriver());
+registerRenderer("meine-tank", async () => (await import("./drivers/meine-tank/driver.ts")).createMeineTankDriver());
 registerRenderer("minimap", async () => (await import("./extensions/minimap.ts")).createMinimapExtension());
 registerRenderer("particles", async () => (await import("./extensions/particles.ts")).createParticlesExtension());
 

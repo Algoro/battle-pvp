@@ -27,6 +27,11 @@ Third-party components included in this distribution:
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
 
+- Faithful 32x resource pack (selected textures) — https://faithfulpack.net/
+  Copyright © Faithful Resource Pack. Licensed under the Faithful License v3
+  (see textures/meine-tank/LICENSE.txt). Only a curated subset is included.
+  This project is free and non-commercial; credit to the Faithful authors.
+
 Battle City is a trademark of Bandai Namco Entertainment Inc. This is an
 unofficial, non-commercial fan project, not affiliated with or endorsed by
 Bandai Namco. The original ROM is not distributed.

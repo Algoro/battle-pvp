@@ -31,6 +31,10 @@ emulator-core/.jsnes-lock
 # генерируется scripts/prepare.mjs; дизассемблер — в сабмодуле vendor/nes-disasm
 rom/disasm/
 
+# Ресурс-паки-источники (из них извлекается только курированный набор текстур)
+Faithful-*.zip
+*-resource-pack.zip
+
 # Инструменты/редакторы
 .DS_Store
 .kilo/

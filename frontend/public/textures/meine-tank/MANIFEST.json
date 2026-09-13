@@ -1,0 +1,1049 @@
+{
+  "source": "Faithful-32x",
+  "textures": [
+    {
+      "name": "bricks",
+      "kind": "block",
+      "file": "block/bricks.png",
+      "animated": 1
+    },
+    {
+      "name": "cracked_stone_bricks",
+      "kind": "block",
+      "file": "block/cracked_stone_bricks.png",
+      "animated": 1
+    },
+    {
+      "name": "iron_block",
+      "kind": "block",
+      "file": "block/iron_block.png",
+      "animated": 1
+    },
+    {
+      "name": "netherite_block",
+      "kind": "block",
+      "file": "block/netherite_block.png",
+      "animated": 1
+    },
+    {
+      "name": "water_still",
+      "kind": "block",
+      "file": "block/water_still.png",
+      "animated": 32
+    },
+    {
+      "name": "water_flow",
+      "kind": "block",
+      "file": "block/water_flow.png",
+      "animated": 32
+    },
+    {
+      "name": "blue_ice",
+      "kind": "block",
+      "file": "block/blue_ice.png",
+      "animated": 1
+    },
+    {
+      "name": "packed_ice",
+      "kind": "block",
+      "file": "block/packed_ice.png",
+      "animated": 1
+    },
+    {
+      "name": "oak_leaves",
+      "kind": "block",
+      "file": "block/oak_leaves.png",
+      "animated": 1
+    },
+    {
+      "name": "dirt_path_top",
+      "kind": "block",
+      "file": "block/dirt_path_top.png",
+      "animated": 1
+    },
+    {
+      "name": "dirt_path_side",
+      "kind": "block",
+      "file": "block/dirt_path_side.png",
+      "animated": 1
+    },
+    {
+      "name": "grass_block_top",
+      "kind": "block",
+      "file": "block/grass_block_top.png",
+      "animated": 1
+    },
+    {
+      "name": "grass_block_side",
+      "kind": "block",
+      "file": "block/grass_block_side.png",
+      "animated": 1
+    },
+    {
+      "name": "dirt",
+      "kind": "block",
+      "file": "block/dirt.png",
+      "animated": 1
+    },
+    {
+      "name": "coarse_dirt",
+      "kind": "block",
+      "file": "block/coarse_dirt.png",
+      "animated": 1
+    },
+    {
+      "name": "gravel",
+      "kind": "block",
+      "file": "block/gravel.png",
+      "animated": 1
+    },
+    {
+      "name": "cobblestone",
+      "kind": "block",
+      "file": "block/cobblestone.png",
+      "animated": 1
+    },
+    {
+      "name": "mossy_cobblestone",
+      "kind": "block",
+      "file": "block/mossy_cobblestone.png",
+      "animated": 1
+    },
+    {
+      "name": "bedrock",
+      "kind": "block",
+      "file": "block/bedrock.png",
+      "animated": 1
+    },
+    {
+      "name": "stone_bricks",
+      "kind": "block",
+      "file": "block/stone_bricks.png",
+      "animated": 1
+    },
+    {
+      "name": "sand",
+      "kind": "block",
+      "file": "block/sand.png",
+      "animated": 1
+    },
+    {
+      "name": "sandstone_top",
+      "kind": "block",
+      "file": "block/sandstone_top.png",
+      "animated": 1
+    },
+    {
+      "name": "quartz_block_top",
+      "kind": "block",
+      "file": "block/quartz_block_top.png",
+      "animated": 1
+    },
+    {
+      "name": "quartz_block_side",
+      "kind": "block",
+      "file": "block/quartz_block_side.png",
+      "animated": 1
+    },
+    {
+      "name": "chiseled_quartz_block",
+      "kind": "block",
+      "file": "block/chiseled_quartz_block.png",
+      "animated": 1
+    },
+    {
+      "name": "gold_block",
+      "kind": "block",
+      "file": "block/gold_block.png",
+      "animated": 1
+    },
+    {
+      "name": "gilded_blackstone",
+      "kind": "block",
+      "file": "block/gilded_blackstone.png",
+      "animated": 1
+    },
+    {
+      "name": "obsidian",
+      "kind": "block",
+      "file": "block/obsidian.png",
+      "animated": 1
+    },
+    {
+      "name": "crying_obsidian",
+      "kind": "block",
+      "file": "block/crying_obsidian.png",
+      "animated": 1
+    },
+    {
+      "name": "iron_bars",
+      "kind": "block",
+      "file": "block/iron_bars.png",
+      "animated": 1
+    },
+    {
+      "name": "deepslate_tiles",
+      "kind": "block",
+      "file": "block/deepslate_tiles.png",
+      "animated": 1
+    },
+    {
+      "name": "blackstone_top",
+      "kind": "block",
+      "file": "block/blackstone_top.png",
+      "animated": 1
+    },
+    {
+      "name": "anvil_top",
+      "kind": "block",
+      "file": "block/anvil_top.png",
+      "animated": 1
+    },
+    {
+      "name": "polished_blackstone_bricks",
+      "kind": "block",
+      "file": "block/polished_blackstone_bricks.png",
+      "animated": 1
+    },
+    {
+      "name": "lodestone_top",
+      "kind": "block",
+      "file": "block/lodestone_top.png",
+      "animated": 1
+    },
+    {
+      "name": "beacon",
+      "kind": "block",
+      "file": "block/beacon.png",
+      "animated": 1
+    },
+    {
+      "name": "yellow_concrete",
+      "kind": "block",
+      "file": "block/yellow_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "white_concrete",
+      "kind": "block",
+      "file": "block/white_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "light_gray_concrete",
+      "kind": "block",
+      "file": "block/light_gray_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "gray_concrete",
+      "kind": "block",
+      "file": "block/gray_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "red_concrete",
+      "kind": "block",
+      "file": "block/red_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "black_concrete",
+      "kind": "block",
+      "file": "block/black_concrete.png",
+      "animated": 1
+    },
+    {
+      "name": "polished_blackstone",
+      "kind": "block",
+      "file": "block/polished_blackstone.png",
+      "animated": 1
+    },
+    {
+      "name": "smooth_stone",
+      "kind": "block",
+      "file": "block/smooth_stone.png",
+      "animated": 1
+    },
+    {
+      "name": "cut_copper",
+      "kind": "block",
+      "file": "block/cut_copper.png",
+      "animated": 1
+    },
+    {
+      "name": "dispenser_front",
+      "kind": "block",
+      "file": "block/dispenser_front.png",
+      "animated": 1
+    },
+    {
+      "name": "dropper_front",
+      "kind": "block",
+      "file": "block/dropper_front.png",
+      "animated": 1
+    },
+    {
+      "name": "piston_top",
+      "kind": "block",
+      "file": "block/piston_top.png",
+      "animated": 1
+    },
+    {
+      "name": "lightning_rod",
+      "kind": "block",
+      "file": "block/lightning_rod.png",
+      "animated": 1
+    },
+    {
+      "name": "redstone_lamp",
+      "kind": "block",
+      "file": "block/redstone_lamp.png",
+      "animated": 1
+    },
+    {
+      "name": "sea_lantern",
+      "kind": "block",
+      "file": "block/sea_lantern.png",
+      "animated": 1
+    },
+    {
+      "name": "shroomlight",
+      "kind": "block",
+      "file": "block/shroomlight.png",
+      "animated": 1
+    },
+    {
+      "name": "glass",
+      "kind": "block",
+      "file": "block/glass.png",
+      "animated": 1
+    },
+    {
+      "name": "tnt_top",
+      "kind": "block",
+      "file": "block/tnt_top.png",
+      "animated": 1
+    },
+    {
+      "name": "tnt_side",
+      "kind": "block",
+      "file": "block/tnt_side.png",
+      "animated": 1
+    },
+    {
+      "name": "tnt_bottom",
+      "kind": "block",
+      "file": "block/tnt_bottom.png",
+      "animated": 1
+    },
+    {
+      "name": "magma",
+      "kind": "block",
+      "file": "block/magma.png",
+      "animated": 1
+    },
+    {
+      "name": "glowstone",
+      "kind": "block",
+      "file": "block/glowstone.png",
+      "animated": 1
+    },
+    {
+      "name": "bee_nest_side",
+      "kind": "block",
+      "file": "block/bee_nest_side.png",
+      "animated": 1
+    },
+    {
+      "name": "beehive_side",
+      "kind": "block",
+      "file": "block/beehive_side.png",
+      "animated": 1
+    },
+    {
+      "name": "torch",
+      "kind": "block",
+      "file": "block/torch.png",
+      "animated": 1
+    },
+    {
+      "name": "lantern",
+      "kind": "block",
+      "file": "block/lantern.png",
+      "animated": 1
+    },
+    {
+      "name": "short_grass",
+      "kind": "block",
+      "file": "block/short_grass.png",
+      "animated": 1
+    },
+    {
+      "name": "fern",
+      "kind": "block",
+      "file": "block/fern.png",
+      "animated": 1
+    },
+    {
+      "name": "dead_bush",
+      "kind": "block",
+      "file": "block/dead_bush.png",
+      "animated": 1
+    },
+    {
+      "name": "poppy",
+      "kind": "block",
+      "file": "block/poppy.png",
+      "animated": 1
+    },
+    {
+      "name": "dandelion",
+      "kind": "block",
+      "file": "block/dandelion.png",
+      "animated": 1
+    },
+    {
+      "name": "cornflower",
+      "kind": "block",
+      "file": "block/cornflower.png",
+      "animated": 1
+    },
+    {
+      "name": "allium",
+      "kind": "block",
+      "file": "block/allium.png",
+      "animated": 1
+    },
+    {
+      "name": "azure_bluet",
+      "kind": "block",
+      "file": "block/azure_bluet.png",
+      "animated": 1
+    },
+    {
+      "name": "oxeye_daisy",
+      "kind": "block",
+      "file": "block/oxeye_daisy.png",
+      "animated": 1
+    },
+    {
+      "name": "blue_orchid",
+      "kind": "block",
+      "file": "block/blue_orchid.png",
+      "animated": 1
+    },
+    {
+      "name": "red_tulip",
+      "kind": "block",
+      "file": "block/red_tulip.png",
+      "animated": 1
+    },
+    {
+      "name": "orange_tulip",
+      "kind": "block",
+      "file": "block/orange_tulip.png",
+      "animated": 1
+    },
+    {
+      "name": "white_tulip",
+      "kind": "block",
+      "file": "block/white_tulip.png",
+      "animated": 1
+    },
+    {
+      "name": "lily_of_the_valley",
+      "kind": "block",
+      "file": "block/lily_of_the_valley.png",
+      "animated": 1
+    },
+    {
+      "name": "cactus_top",
+      "kind": "block",
+      "file": "block/cactus_top.png",
+      "animated": 1
+    },
+    {
+      "name": "cactus_side",
+      "kind": "block",
+      "file": "block/cactus_side.png",
+      "animated": 1
+    },
+    {
+      "name": "oak_log",
+      "kind": "block",
+      "file": "block/oak_log.png",
+      "animated": 1
+    },
+    {
+      "name": "cobweb",
+      "kind": "block",
+      "file": "block/cobweb.png",
+      "animated": 1
+    },
+    {
+      "name": "snow",
+      "kind": "block",
+      "file": "block/snow.png",
+      "animated": 1
+    },
+    {
+      "name": "stone",
+      "kind": "block",
+      "file": "block/stone.png",
+      "animated": 1
+    },
+    {
+      "name": "andesite",
+      "kind": "block",
+      "file": "block/andesite.png",
+      "animated": 1
+    },
+    {
+      "name": "granite",
+      "kind": "block",
+      "file": "block/granite.png",
+      "animated": 1
+    },
+    {
+      "name": "diorite",
+      "kind": "block",
+      "file": "block/diorite.png",
+      "animated": 1
+    },
+    {
+      "name": "ice",
+      "kind": "block",
+      "file": "block/ice.png",
+      "animated": 1
+    },
+    {
+      "name": "powder_snow",
+      "kind": "block",
+      "file": "block/powder_snow.png",
+      "animated": 1
+    },
+    {
+      "name": "spruce_log",
+      "kind": "block",
+      "file": "block/spruce_log.png",
+      "animated": 1
+    },
+    {
+      "name": "spruce_leaves",
+      "kind": "block",
+      "file": "block/spruce_leaves.png",
+      "animated": 1
+    },
+    {
+      "name": "birch_log",
+      "kind": "block",
+      "file": "block/birch_log.png",
+      "animated": 1
+    },
+    {
+      "name": "birch_leaves",
+      "kind": "block",
+      "file": "block/birch_leaves.png",
+      "animated": 1
+    },
+    {
+      "name": "dark_oak_leaves",
+      "kind": "block",
+      "file": "block/dark_oak_leaves.png",
+      "animated": 1
+    },
+    {
+      "name": "podzol_top",
+      "kind": "block",
+      "file": "block/podzol_top.png",
+      "animated": 1
+    },
+    {
+      "name": "mycelium_top",
+      "kind": "block",
+      "file": "block/mycelium_top.png",
+      "animated": 1
+    },
+    {
+      "name": "red_sand",
+      "kind": "block",
+      "file": "block/red_sand.png",
+      "animated": 1
+    },
+    {
+      "name": "red_sandstone_top",
+      "kind": "block",
+      "file": "block/red_sandstone_top.png",
+      "animated": 1
+    },
+    {
+      "name": "terracotta",
+      "kind": "block",
+      "file": "block/terracotta.png",
+      "animated": 1
+    },
+    {
+      "name": "white_terracotta",
+      "kind": "block",
+      "file": "block/white_terracotta.png",
+      "animated": 1
+    },
+    {
+      "name": "orange_terracotta",
+      "kind": "block",
+      "file": "block/orange_terracotta.png",
+      "animated": 1
+    },
+    {
+      "name": "brown_terracotta",
+      "kind": "block",
+      "file": "block/brown_terracotta.png",
+      "animated": 1
+    },
+    {
+      "name": "clay",
+      "kind": "block",
+      "file": "block/clay.png",
+      "animated": 1
+    },
+    {
+      "name": "basalt_side",
+      "kind": "block",
+      "file": "block/basalt_side.png",
+      "animated": 1
+    },
+    {
+      "name": "basalt_top",
+      "kind": "block",
+      "file": "block/basalt_top.png",
+      "animated": 1
+    },
+    {
+      "name": "smooth_basalt",
+      "kind": "block",
+      "file": "block/smooth_basalt.png",
+      "animated": 1
+    },
+    {
+      "name": "blackstone",
+      "kind": "block",
+      "file": "block/blackstone.png",
+      "animated": 1
+    },
+    {
+      "name": "lava_still",
+      "kind": "block",
+      "file": "block/lava_still.png",
+      "animated": 32
+    },
+    {
+      "name": "lava_flow",
+      "kind": "block",
+      "file": "block/lava_flow.png",
+      "animated": 32
+    },
+    {
+      "name": "nether_star",
+      "kind": "item",
+      "file": "item/nether_star.png",
+      "animated": 1
+    },
+    {
+      "name": "iron_helmet",
+      "kind": "item",
+      "file": "item/iron_helmet.png",
+      "animated": 1
+    },
+    {
+      "name": "iron_shovel",
+      "kind": "item",
+      "file": "item/iron_shovel.png",
+      "animated": 1
+    },
+    {
+      "name": "golden_apple",
+      "kind": "item",
+      "file": "item/golden_apple.png",
+      "animated": 1
+    },
+    {
+      "name": "crossbow_standby",
+      "kind": "item",
+      "file": "item/crossbow_standby.png",
+      "animated": 1
+    },
+    {
+      "name": "fire_charge",
+      "kind": "item",
+      "file": "item/fire_charge.png",
+      "animated": 1
+    },
+    {
+      "name": "ender_pearl",
+      "kind": "item",
+      "file": "item/ender_pearl.png",
+      "animated": 1
+    },
+    {
+      "name": "gold_nugget",
+      "kind": "item",
+      "file": "item/gold_nugget.png",
+      "animated": 1
+    },
+    {
+      "name": "iron_ingot",
+      "kind": "item",
+      "file": "item/iron_ingot.png",
+      "animated": 1
+    },
+    {
+      "name": "gunpowder",
+      "kind": "item",
+      "file": "item/gunpowder.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_0",
+      "kind": "particle",
+      "file": "particle/explosion_0.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_1",
+      "kind": "particle",
+      "file": "particle/explosion_1.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_2",
+      "kind": "particle",
+      "file": "particle/explosion_2.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_3",
+      "kind": "particle",
+      "file": "particle/explosion_3.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_4",
+      "kind": "particle",
+      "file": "particle/explosion_4.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_5",
+      "kind": "particle",
+      "file": "particle/explosion_5.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_6",
+      "kind": "particle",
+      "file": "particle/explosion_6.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_7",
+      "kind": "particle",
+      "file": "particle/explosion_7.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_8",
+      "kind": "particle",
+      "file": "particle/explosion_8.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_9",
+      "kind": "particle",
+      "file": "particle/explosion_9.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_10",
+      "kind": "particle",
+      "file": "particle/explosion_10.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_11",
+      "kind": "particle",
+      "file": "particle/explosion_11.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_12",
+      "kind": "particle",
+      "file": "particle/explosion_12.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_13",
+      "kind": "particle",
+      "file": "particle/explosion_13.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_14",
+      "kind": "particle",
+      "file": "particle/explosion_14.png",
+      "animated": 1
+    },
+    {
+      "name": "explosion_15",
+      "kind": "particle",
+      "file": "particle/explosion_15.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_0",
+      "kind": "particle",
+      "file": "particle/big_smoke_0.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_1",
+      "kind": "particle",
+      "file": "particle/big_smoke_1.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_2",
+      "kind": "particle",
+      "file": "particle/big_smoke_2.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_3",
+      "kind": "particle",
+      "file": "particle/big_smoke_3.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_4",
+      "kind": "particle",
+      "file": "particle/big_smoke_4.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_5",
+      "kind": "particle",
+      "file": "particle/big_smoke_5.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_6",
+      "kind": "particle",
+      "file": "particle/big_smoke_6.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_7",
+      "kind": "particle",
+      "file": "particle/big_smoke_7.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_8",
+      "kind": "particle",
+      "file": "particle/big_smoke_8.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_9",
+      "kind": "particle",
+      "file": "particle/big_smoke_9.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_10",
+      "kind": "particle",
+      "file": "particle/big_smoke_10.png",
+      "animated": 1
+    },
+    {
+      "name": "big_smoke_11",
+      "kind": "particle",
+      "file": "particle/big_smoke_11.png",
+      "animated": 1
+    },
+    {
+      "name": "flame",
+      "kind": "particle",
+      "file": "particle/flame.png",
+      "animated": 1
+    },
+    {
+      "name": "critical_hit",
+      "kind": "particle",
+      "file": "particle/critical_hit.png",
+      "animated": 1
+    },
+    {
+      "name": "enchanted_hit",
+      "kind": "particle",
+      "file": "particle/enchanted_hit.png",
+      "animated": 1
+    },
+    {
+      "name": "flash",
+      "kind": "particle",
+      "file": "particle/flash.png",
+      "animated": 1
+    },
+    {
+      "name": "lava",
+      "kind": "particle",
+      "file": "particle/lava.png",
+      "animated": 1
+    },
+    {
+      "name": "bubble",
+      "kind": "particle",
+      "file": "particle/bubble.png",
+      "animated": 1
+    },
+    {
+      "name": "glow",
+      "kind": "particle",
+      "file": "particle/glow.png",
+      "animated": 1
+    },
+    {
+      "name": "heart",
+      "kind": "particle",
+      "file": "particle/heart.png",
+      "animated": 1
+    },
+    {
+      "name": "note",
+      "kind": "particle",
+      "file": "particle/note.png",
+      "animated": 1
+    },
+    {
+      "name": "angry",
+      "kind": "particle",
+      "file": "particle/angry.png",
+      "animated": 1
+    },
+    {
+      "name": "sun",
+      "kind": "environment",
+      "file": "environment/sun.png",
+      "animated": 1
+    },
+    {
+      "name": "moon_full",
+      "kind": "environment",
+      "file": "environment/moon_full.png",
+      "animated": 1
+    },
+    {
+      "name": "bee",
+      "kind": "entity",
+      "file": "entity/bee.png",
+      "animated": 1
+    },
+    {
+      "name": "parrot_green",
+      "kind": "entity",
+      "file": "entity/parrot_green.png",
+      "animated": 1
+    },
+    {
+      "name": "parrot_blue",
+      "kind": "entity",
+      "file": "entity/parrot_blue.png",
+      "animated": 1
+    },
+    {
+      "name": "parrot_grey",
+      "kind": "entity",
+      "file": "entity/parrot_grey.png",
+      "animated": 1
+    },
+    {
+      "name": "parrot_red_blue",
+      "kind": "entity",
+      "file": "entity/parrot_red_blue.png",
+      "animated": 1
+    },
+    {
+      "name": "parrot_yellow_blue",
+      "kind": "entity",
+      "file": "entity/parrot_yellow_blue.png",
+      "animated": 1
+    },
+    {
+      "name": "chicken",
+      "kind": "entity",
+      "file": "entity/chicken.png",
+      "animated": 1
+    },
+    {
+      "name": "bat",
+      "kind": "entity",
+      "file": "entity/bat.png",
+      "animated": 1
+    },
+    {
+      "name": "allay",
+      "kind": "entity",
+      "file": "entity/allay.png",
+      "animated": 1
+    },
+    {
+      "name": "rabbit_brown",
+      "kind": "entity",
+      "file": "entity/rabbit_brown.png",
+      "animated": 1
+    },
+    {
+      "name": "fox",
+      "kind": "entity",
+      "file": "entity/fox.png",
+      "animated": 1
+    },
+    {
+      "name": "fox_snow",
+      "kind": "entity",
+      "file": "entity/fox_snow.png",
+      "animated": 1
+    },
+    {
+      "name": "dragon",
+      "kind": "entity",
+      "file": "entity/dragon.png",
+      "animated": 1
+    },
+    {
+      "name": "cow",
+      "kind": "entity",
+      "file": "entity/cow.png",
+      "animated": 1
+    },
+    {
+      "name": "pig",
+      "kind": "entity",
+      "file": "entity/pig.png",
+      "animated": 1
+    },
+    {
+      "name": "frog",
+      "kind": "entity",
+      "file": "entity/frog.png",
+      "animated": 1
+    },
+    {
+      "name": "axolotl",
+      "kind": "entity",
+      "file": "entity/axolotl.png",
+      "animated": 1
+    }
+  ]
+}
