@@ -156,7 +156,7 @@ Implemented by two modules:
 - `features/tower-defence.ts` — hook dispatcher and state: economy,
   placement/sale/upgrade, targeting/LOS, projectiles, damage to towers, waves, phases.
 - `features/enemy-damage.ts` — the shared `damageEnemy()` (armor/prize carrier/death),
-  extracted from `friendly-fire-att.ts` and reused by it and by towers.
+  extracted from `friendly-fire.ts` and reused by it and by towers.
 
 Hooks:
 

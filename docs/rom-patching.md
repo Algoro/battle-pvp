@@ -57,7 +57,7 @@ fingerprint зависит от набора. База `pvp` = `94cb0636`; `pvp+
 | `patches/pvp.ts` | сетевые патчи (рутины токенами + хуки) |
 | `patches/pistol.ts` | приз «пистолет»: выпадение/подбор/4-я звезда/сброс |
 | `patches/tower-defence.ts` | TD-карты в стадиях 1..3 + хук завершения стадии `sub_td_stage_end_check` (`$FF50`) |
-| `patches/{pacman,enemy-prizes,friendly-fire-def,friendly-fire-att,player-names}.ts` | прочие опциональные фичи |
+| `patches/{pacman,enemy-prizes,friendly-fire,player-names}.ts` | прочие опциональные фичи |
 | `registry.ts` | именованные наборы (`pvp` = base+pvp, `base`) + реестр опциональных фич |
 
 ## Инварианты и защита

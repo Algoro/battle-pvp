@@ -367,10 +367,12 @@ test("lobby: featureOptions нормализуются по манифесту",
   const s = normalizeSettings({
     featureOptions: {
       "friendly-fire-att": { damage: 9, nope: 1, selfDamage: 0 },
+      "friendly-fire": { defenders: 0 },
       ghost: { a: 1 },
     },
   });
+  // old split ids are folded into the merged `friendly-fire` (later values win)
   assert.deepStrictEqual(s.featureOptions, {
-    "friendly-fire-att": { damage: 3, selfDamage: false },
+    "friendly-fire": { defenders: false, damage: 3, selfDamage: false },
   });
 });

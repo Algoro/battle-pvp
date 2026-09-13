@@ -1,4 +1,4 @@
-// friendly-fire.test.ts — the friendly-fire-def / friendly-fire-att features.
+// friendly-fire.test.ts — the merged `friendly-fire` feature (defenders + attackers).
 //   def: the ROM sets stun 0xC8 on a friendly hit — the runtime turns it into death.
 //   att: the runtime adds enemy-bullet→enemy-tank collision (armor, prize).
 // Run: node --test tests/friendly-fire.test.ts
@@ -85,7 +85,7 @@ function aimEnemy2AtEnemy3(emu: any, type3 = 0x80) {
 }
 
 test("ff-def: попадание защитника в защитника убивает (фича включена)", () => {
-  const emu = boot(["friendly-fire-def"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { attackers: false } });
   aimP0AtP1(emu);
   emu.stepFrame([]);
   emu.stepFrame([]);
@@ -100,7 +100,7 @@ test("ff-def: без фичи союзник остаётся жив (стан)"
 });
 
 test("ff-att: попадание врага во врага убивает (фича включена)", () => {
-  const emu = boot(["friendly-fire-att"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   aimEnemy2AtEnemy3(emu, 0x80);
   emu.stepFrame([]);
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG + 3], 0x73, "враг не убит friendly fire");
@@ -115,7 +115,7 @@ test("ff-att: без фичи враг не получает урон", () => {
 });
 
 test("ff-att: броня поглощает попадание союзника", () => {
-  const emu = boot(["friendly-fire-att"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   aimEnemy2AtEnemy3(emu, 0xa1); // armor&3 = 1
   emu.stepFrame([]);
   assert.notStrictEqual(emu.cpu.mem[RAM.TANK_FLAG + 3], 0x73, "танк должен выжить");
@@ -123,7 +123,7 @@ test("ff-att: броня поглощает попадание союзника"
 });
 
 test("ff-att: убийство носителя приза заставляет приз выпасть", () => {
-  const emu = boot(["friendly-fire-att"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   emu.cpu.mem[RAM.PRIZE_X] = 0; // prize not active
   aimEnemy2AtEnemy3(emu, 0x84); // carrier, armor&3 = 0 -> death
   emu.stepFrame([]);
@@ -134,7 +134,7 @@ test("ff-att: убийство носителя приза заставляет 
 // The shooter and its own bullet: at the moment of firing the bullet is inside the hitbox, so
 // self-damage is allowed only after the bullet has left the "barrel".
 test("ff-att: в момент выстрела стрелок не гибнет от своей пули", () => {
-  const emu = boot(["friendly-fire-att"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   const c = emptyCell(emu);
   parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
   emu.cpu.mem[RAM.TANK_X + 2] = c.x;
@@ -150,7 +150,7 @@ test("ff-att: в момент выстрела стрелок не гибнет 
 });
 
 test("ff-att: пуля, покинувшая стрелка, убивает его при возврате", () => {
-  const emu = boot(["friendly-fire-att"]);
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   const c = emptyCell(emu);
   parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
   const put = () => {
@@ -177,19 +177,19 @@ test("ff-att: пуля, покинувшая стрелка, убивает ег
 });
 
 test("ff-att: настройка damage снимает больше брони", () => {
-  const one = boot(["friendly-fire-att"]);
+  const one = boot(["friendly-fire"], { "friendly-fire": { defenders: false } });
   aimEnemy2AtEnemy3(one, 0xe3); // armor 3
   one.stepFrame([]);
   assert.strictEqual(one.cpu.mem[RAM.TANK_TYPE + 3], 0xe2, "урон по умолчанию = 1");
 
-  const three = boot(["friendly-fire-att"], { "friendly-fire-att": { damage: 3 } });
+  const three = boot(["friendly-fire"], { "friendly-fire": { defenders: false, damage: 3 } });
   aimEnemy2AtEnemy3(three, 0xe3);
   three.stepFrame([]);
   assert.strictEqual(three.cpu.mem[RAM.TANK_TYPE + 3], 0xe0, "урон 3 должен снять всю броню");
 });
 
 test("ff-att: selfDamage=false отключает самоурон стрелка", () => {
-  const emu = boot(["friendly-fire-att"], { "friendly-fire-att": { selfDamage: false } });
+  const emu = boot(["friendly-fire"], { "friendly-fire": { defenders: false, selfDamage: false } });
   const c = emptyCell(emu);
   parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
   const put = () => {

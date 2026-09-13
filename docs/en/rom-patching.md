@@ -57,7 +57,7 @@ Full analysis — `asm-label-map.md`. Fingerprints: base `pvp` — `94cb0636`,
 | `patches/pvp.ts` | network patches (routines as tokens + hooks) |
 | `patches/pistol.ts` | "pistol" prize: drop/pickup/4th star/reset |
 | `patches/tower-defence.ts` | TD maps in stages 1..3 + stage-completion hook `sub_td_stage_end_check` (`$FF50`) |
-| `patches/{pacman,enemy-prizes,friendly-fire-def,friendly-fire-att,player-names}.ts` | other optional features |
+| `patches/{pacman,enemy-prizes,friendly-fire,player-names}.ts` | other optional features |
 | `registry.ts` | named sets (`pvp` = base+pvp, `base`) + registry of optional features |
 
 ## Invariants and protection

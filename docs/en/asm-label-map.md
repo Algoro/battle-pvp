@@ -80,7 +80,7 @@ the submodule `cyneprepou4uk/NES-Games-Disassembly`. A copy of the asm is not co
 | ram_td_state | `$01FF` | 1 byte: `tower-defence` phase |
 
 Separately, after the sound engine (`$031C–$03FB`), `$03FC–$03FF` are free; `$03FC`
-is used by the `friendly-fire-att` feature:
+is used by the `friendly-fire` feature:
 
 | Label | Address | Purpose |
 |---|---|---|

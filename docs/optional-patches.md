@@ -14,7 +14,7 @@
   Включаются списком, собираются в ROM детерминированно; fingerprint зависит от ROM-части
   набора: `pvp` без фич = `94cb0636`, `pvp+pistol` = `d370108f`, `pvp+enemy-prizes` = `b1940f80`,
   `pvp+pistol+enemy-prizes` = `0f0d445d`. Фичи, реализованные только JS-рантаймом
-  (`friendly-fire-def`, `friendly-fire-att`), ROM не меняют — их fingerprint совпадает с
+  (`friendly-fire`), ROM не меняют — их fingerprint совпадает с
   базой, а совместимость обеспечивается списком фич (неизвестная фича отвергается).
 
 Фича = ROM-дескриптор (`patching/patches/*`) + опциональный JS-рантайм
@@ -47,8 +47,7 @@
 
 Настраиваемые параметры существующих фич: `pistol` (ширина луча, снос ландшафта),
 `enemy-prizes` (какие типы призов доступны врагу + действие каждого: каска, заморозка,
-снятие защиты базы, броня, граната, подкрепление, боезапас пистолета), `friendly-fire-def` (смертельный стан),
-`friendly-fire-att` (урон, самоурон), `player-names` (макс. длина), `pacman` (бомбы),
+снятие защиты базы, броня, граната, подкрепление, боезапас пистолета), `friendly-fire` (огонь по своим у защитников/атакующих, смертельность, урон, самоурон), `player-names` (макс. длина), `pacman` (бомбы),
 `wrap-borders` (перенос по X/Y). У `tower-defence` свои настройки на отдельном экране.
 
 ## Ядро: реестр и API (`emulator-core/patching/`)
@@ -112,10 +111,10 @@
 - `emulator-core/tests/enemy-prizes.test.ts` — `enemy-prizes`: враг забирает приз и
   получает эффект (clock/shovel/grenade/tank/star/pistol), без фичи — нет; игрок
   подбирает как раньше; комбинация с `pistol` собирается без перекрытий.
-- `emulator-core/tests/friendly-fire.test.ts` — `friendly-fire-def` (свой убивает своего)
-  и `friendly-fire-att` (урон союзнику с бронёй и выпадением приза; стрелок может погибнуть
-  от своей пули, но только после того, как она вышла из его «дула» — флаг в `ram_ff_att_cleared`),
-  без фич — нет.
+- `emulator-core/tests/friendly-fire.test.ts` — `friendly-fire`: свой убивает своего у DEF,
+  урон союзному врагу с бронёй и выпадением приза; стрелок может погибнуть от своей пули,
+  но только после того, как она вышла из его «дула» (флаг `ram_ff_att_cleared`); без фичи — нет.
+  Настройки: `defenders`/`defLethal` (защитники), `attackers`/`damage`/`selfDamage` (атакующие).
 - `emulator-core/tests/player-names.test.ts` — имя над танком (глифы/центровка/движение),
   нет имён/фичи — ничего, хэш не меняется, overlay не попадает в `saveState`.
 - `emulator-core/tests/pacman.test.ts` — режим `pacman`: ROM-лабиринт (стадия 1), замуровка

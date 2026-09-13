@@ -16,16 +16,14 @@ import { baseNrom } from "./patches/base-nrom.ts";
 import { pvp } from "./patches/pvp.ts";
 import { pistol } from "./patches/pistol.ts";
 import { enemyPrizes } from "./patches/enemy-prizes.ts";
-import { friendlyFireDef } from "./patches/friendly-fire-def.ts";
-import { friendlyFireAtt } from "./patches/friendly-fire-att.ts";
+import { friendlyFire } from "./patches/friendly-fire.ts";
 import { playerNames } from "./patches/player-names.ts";
 import { pacman } from "./patches/pacman.ts";
 import { towerDefence } from "./patches/tower-defence.ts";
 import { wrapBorders } from "./patches/wrap-borders.ts";
 import { pistolRuntime } from "../features/pistol.ts";
 import { enemyPrizesRuntime } from "../features/enemy-prizes.ts";
-import { friendlyFireDefRuntime } from "../features/friendly-fire-def.ts";
-import { friendlyFireAttRuntime } from "../features/friendly-fire-att.ts";
+import { friendlyFireRuntime } from "../features/friendly-fire.ts";
 import { playerNamesRuntime } from "../features/player-names.ts";
 import { pacmanDotsRuntime } from "../features/pacman-dots.ts";
 import { towerDefenceRuntime } from "../features/tower-defence.ts";
@@ -160,15 +158,9 @@ registerFeature({
 });
 
 registerFeature({
-  id: "friendly-fire-def",
-  patch: friendlyFireDef,
-  runtime: friendlyFireDefRuntime,
-});
-
-registerFeature({
-  id: "friendly-fire-att",
-  patch: friendlyFireAtt,
-  runtime: friendlyFireAttRuntime,
+  id: "friendly-fire",
+  patch: friendlyFire,
+  runtime: friendlyFireRuntime,
 });
 
 registerFeature({
@@ -198,4 +190,4 @@ registerFeature({
 // The manifest and the registry must match (added a feature — register the patch, and vice versa).
 assertFeaturesConsistent();
 
-export { baseNrom, pvp, pistol, enemyPrizes, friendlyFireDef, friendlyFireAtt, playerNames, pacman, wrapBorders, towerDefence };
+export { baseNrom, pvp, pistol, enemyPrizes, friendlyFire, playerNames, pacman, wrapBorders, towerDefence };

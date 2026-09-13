@@ -163,30 +163,35 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
     },
   },
   {
-    id: "friendly-fire-def",
-    title: "Friendly fire (защитники)",
-    description: "Попадание защитника в союзника убивает его.",
+    id: "friendly-fire",
+    title: "Friendly fire",
+    description: "Свои убивают своих: пули защитников — по союзным DEF, пули атакующих — по союзным врагам.",
     settings: {
       fields: [
         {
-          id: "lethal",
-          label: "Смертельный огонь по союзнику",
+          id: "defenders",
+          label: "Защитники: огонь по своим",
           type: "toggle",
           default: true,
-          hint: "Выкл — остаётся штатный стан ROM (союзник выживает).",
+          hint: "Попадание DEF-пули в союзный DEF-танк убивает его (вместо штатного стана).",
         },
-      ],
-    },
-  },
-  {
-    id: "friendly-fire-att",
-    title: "Friendly fire (атакующие)",
-    description: "Попадание врага в союзного врага наносит урон.",
-    settings: {
-      fields: [
+        {
+          id: "defLethal",
+          label: "Защитники: смертельно",
+          type: "toggle",
+          default: true,
+          hint: "Выкл — остаётся штатный стан ROM, союзник выживает.",
+        },
+        {
+          id: "attackers",
+          label: "Атакующие: огонь по своим",
+          type: "toggle",
+          default: true,
+          hint: "Пули врагов наносят урон союзным вражеским танкам.",
+        },
         {
           id: "damage",
-          label: "Урон по союзному врагу",
+          label: "Атакующие: урон",
           type: "range",
           default: 1,
           min: 1,
@@ -196,7 +201,7 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
         },
         {
           id: "selfDamage",
-          label: "Стрелок гибнет от своей пули",
+          label: "Атакующие: стрелок гибнет от своей пули",
           type: "toggle",
           default: true,
           hint: "Самоурон возможен только после того, как пуля вышла из «дула» стрелка.",
@@ -263,6 +268,12 @@ export const FEATURE_IDS: string[] = FEATURE_MANIFEST.map((f) => f.id);
 
 const BY_ID = new Map(FEATURE_MANIFEST.map((f) => [f.id, f]));
 
+// Renamed features: settings/assets saved under the old id are folded into the new one.
+const FEATURE_OPTION_ALIASES: Record<string, string> = {
+  "friendly-fire-def": "friendly-fire",
+  "friendly-fire-att": "friendly-fire",
+};
+
 export function featureInfo(id: string): FeatureInfo | undefined {
   return BY_ID.get(id);
 }
@@ -306,11 +317,12 @@ function coerce(spec: FeatureSettingSpec, value: unknown): FeatureSettingValue {
 export function normalizeFeatureOptions(raw: unknown): Record<string, Record<string, FeatureSettingValue>> {
   const out: Record<string, Record<string, FeatureSettingValue>> = {};
   if (!raw || typeof raw !== "object") return out;
-  for (const [featureId, values] of Object.entries(raw as Record<string, unknown>)) {
+  for (const [rawId, values] of Object.entries(raw as Record<string, unknown>)) {
+    const featureId = FEATURE_OPTION_ALIASES[rawId] ?? rawId;
     const spec = BY_ID.get(featureId)?.settings;
     if (!spec || !values || typeof values !== "object") continue;
     const src = values as Record<string, unknown>;
-    const clean: Record<string, FeatureSettingValue> = {};
+    const clean: Record<string, FeatureSettingValue> = { ...(out[featureId] || {}) };
     for (const field of spec.fields) {
       if (Object.prototype.hasOwnProperty.call(src, field.id)) clean[field.id] = coerce(field, src[field.id]);
     }

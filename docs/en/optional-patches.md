@@ -14,7 +14,7 @@ A mechanism that allows enabling/disabling game ROM patches ("pistol",
   They are enabled as a list and composed into the ROM deterministically; the fingerprint depends on the ROM part
   of the set: `pvp` without features = `94cb0636`, `pvp+pistol` = `d370108f`, `pvp+enemy-prizes` = `b1940f80`,
   `pvp+pistol+enemy-prizes` = `0f0d445d`. Features implemented only by the JS runtime
-  (`friendly-fire-def`, `friendly-fire-att`) do not change the ROM — their fingerprint matches the
+  (`friendly-fire`) do not change the ROM — their fingerprint matches the
   base, and compatibility is ensured by the feature list (an unknown feature is rejected).
 
 A feature = a ROM descriptor (`patching/patches/*`) + an optional JS runtime
@@ -46,8 +46,7 @@ host); they are not part of the ROM fingerprint, since settings currently affect
 
 Configurable parameters of existing features: `pistol` (beam width, terrain removal),
 `enemy-prizes` (which prize types are available to the enemy + the action of each: helmet, freeze,
-base shield removal, armor, grenade, reinforcement, pistol ammo), `friendly-fire-def` (lethal stun),
-`friendly-fire-att` (damage, self-damage), `player-names` (max length), `pacman` (bombs),
+base shield removal, armor, grenade, reinforcement, pistol ammo), `friendly-fire` (defender/attacker friendly fire, lethality, damage, self-damage), `player-names` (max length), `pacman` (bombs),
 `wrap-borders` (X/Y wrap). `tower-defence` has its own settings on a separate screen.
 
 ## Core: registry and API (`emulator-core/patching/`)

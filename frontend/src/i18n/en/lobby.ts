@@ -159,5 +159,14 @@ const messages: Record<string, string> = {
   "Игрок": "Player",
   "Вас исключили из комнаты": "You were kicked from the room",
   "Нет связи с сервером": "No connection to the server",
+  "Свои убивают своих: пули защитников — по союзным DEF, пули атакующих — по союзным врагам.": "Friend or foe: defender bullets hit allied DEF, attacker bullets hit allied enemies.",
+  "Защитники: огонь по своим": "Defenders: friendly fire",
+  "Попадание DEF-пули в союзный DEF-танк убивает его (вместо штатного стана).": "A DEF bullet hitting a friendly DEF tank kills it (instead of the stock stun).",
+  "Защитники: смертельно": "Defenders: lethal",
+  "Выкл — остаётся штатный стан ROM, союзник выживает.": "Off — the stock ROM stun remains, the ally survives.",
+  "Атакующие: огонь по своим": "Attackers: friendly fire",
+  "Пули врагов наносят урон союзным вражеским танкам.": "Enemy bullets damage allied enemy tanks.",
+  "Атакующие: урон": "Attackers: damage",
+  "Атакующие: стрелок гибнет от своей пули": "Attackers: shooter can die from own bullet",
 };
 export default messages;
