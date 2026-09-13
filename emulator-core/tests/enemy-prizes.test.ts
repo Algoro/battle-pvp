@@ -196,3 +196,57 @@ test("enemy-prizes: без фичи pistol враг не получает суп
   assert.strictEqual(emu.cpu.mem[RAM.ENEMY_PISTOL_AMMO], 0, "супер-оружие выдано без фичи pistol");
 });
 
+
+test("enemy-prizes: запрещённый тип враг не забирает (приз остаётся)", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { allowClock: false } });
+  enemyOnBonus(emu, 1, 100, 100);
+  idle(emu, 4);
+  assert.notStrictEqual(emu.cpu.mem[RAM.PRIZE_X], 0, "приз-часы должен остаться на поле");
+  assert.strictEqual(emu.cpu.mem[RAM.PRIZE_FREEZE], 0, "заморозки быть не должно");
+  assert.strictEqual(emu.cpu.mem[RAM.ENEMY_PRIZE_IDX], 0xff, "события подбора быть не должно");
+});
+
+test("enemy-prizes: starLevels=2 повышает броню на две ступени", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { starLevels: 2 } });
+  emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
+  pickByEnemy(emu, 3);
+  assert.strictEqual(emu.cpu.mem[RAM.TANK_TYPE + 2], 0xc0, "броня не повышена на 2 уровня");
+});
+
+test("enemy-prizes: pistolAmmo задаёт боезапас врагу", () => {
+  const emu = boot(["enemy-prizes", "pistol"], { "enemy-prizes": { pistolAmmo: 5 } });
+  pickByEnemy(emu, 6);
+  assert.strictEqual(emu.cpu.mem[RAM.ENEMY_PISTOL_AMMO], 5, "боезапас не применён");
+});
+
+test("enemy-prizes: grenadeLethal=false — защитники получают стан", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { grenadeLethal: false } });
+  emu.cpu.mem[RAM.TANK_FLAG] = 0x90;
+  pickByEnemy(emu, 4);
+  assert.notStrictEqual(emu.cpu.mem[RAM.TANK_FLAG], 0x73, "защитник не должен взорваться");
+  assert.strictEqual(emu.cpu.mem[RAM.STUN], 0xc8, "должен быть стан");
+});
+
+test("enemy-prizes: shovelMode=bricks не снимает сталь", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { shovelMode: "bricks" } });
+  const c = 25 * 32 + 13;
+  emu.cpu.mem[RAM.FIELD + c] = 0x0f; // кирпич
+  emu.cpu.mem[RAM.FIELD + c + 1] = 0x10; // сталь
+  pickByEnemy(emu, 2);
+  assert.strictEqual(emu.cpu.mem[RAM.FIELD + c], 0, "кирпич должен быть снят");
+  assert.strictEqual(emu.cpu.mem[RAM.FIELD + c + 1], 0x10, "сталь должна остаться");
+});
+
+test("enemy-prizes: helmetEffect=armor — каска повышает броню врага", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { helmetEffect: "armor" } });
+  emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
+  pickByEnemy(emu, 0);
+  assert.strictEqual(emu.cpu.mem[RAM.TANK_TYPE + 2], 0xa0, "каска не повысила броню");
+});
+
+test("enemy-prizes: reinforceCount=3 добавляет троих врагов", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { reinforceCount: 3 } });
+  const before = emu.cpu.mem[RAM.ENEMIES_LEFT];
+  pickByEnemy(emu, 5);
+  assert.strictEqual(emu.cpu.mem[RAM.ENEMIES_LEFT], (before + 3) & 0xff, "добавлено не трое");
+});
