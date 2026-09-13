@@ -1,7 +1,7 @@
 // en/render.ts — English translations (source Russian string -> English).
 // Filled by localization; keep keys exactly as the Russian source strings.
 const messages: Record<string, string> = {
-  // --- Выбор драйвера/расширений (RenderSettings) -----------------------------
+  // --- Driver/extension selection (RenderSettings) -----------------------------
   "Вид: {name}": "View: {name}",
   "Драйвер": "Driver",
   "Расширения": "Extensions",
@@ -22,13 +22,13 @@ const messages: Record<string, string> = {
   "Применить пресет": "Apply preset",
   "Пиксельный вид (ROM)": "Pixel view (ROM)",
 
-  // --- Статусы RenderSystem ----------------------------------------------------
+  // --- RenderSystem statuses ----------------------------------------------------
   "неизвестное расширение": "unknown extension",
   "нет capabilities: {caps}": "missing capabilities: {caps}",
   "3D-карта · кадр {n}": "3D map · frame {n}",
   "particles: three-контекст недоступен": "particles: three context unavailable",
 
-  // --- Манифест: драйверы ------------------------------------------------------
+  // --- Manifest: drivers ------------------------------------------------------
   "Пиксельный (NES)": "Pixel (NES)",
   "Оригинальный кадр PPU, 256×240, pixel-perfect.": "Original PPU frame, 256×240, pixel-perfect.",
   "3D сверху": "3D top-down",
@@ -37,13 +37,13 @@ const messages: Record<string, string> = {
   "Кубические блоки, пиксельные текстуры, небо и день/ночь — настраиваемый стиль.":
     "Cubic blocks, pixel textures, sky and day/night — a customizable style.",
 
-  // --- Манифест: расширения ----------------------------------------------------
+  // --- Manifest: extensions ----------------------------------------------------
   "Миникарта": "Minimap",
   "Угловая схема поля поверх любого драйвера.": "Corner field map over any driver.",
   "Частицы и искры": "Particles and sparks",
   "Вспышки взрывов и атмосферные частицы (только 3D).": "Explosion flashes and atmospheric particles (3D only).",
 
-  // --- Настройки драйвера (shared/renderers.ts) --------------------------------
+  // --- Driver settings (shared/renderers.ts) --------------------------------
   "Обзор (орбита)": "Overview (orbit)",
   "От третьего лица": "Third person",
   "Из глаз": "First person",
@@ -83,7 +83,7 @@ const messages: Record<string, string> = {
   "Виньетка": "Vignette",
   "Дрейф облаков": "Cloud drift",
 
-  // --- Пресеты драйвера (shared/renderers.ts) ---------------------------------
+  // --- Driver presets (shared/renderers.ts) ---------------------------------
   "Классика": "Classic",
   "Выживание": "Survival",
   "Кинематограф": "Cinematic",

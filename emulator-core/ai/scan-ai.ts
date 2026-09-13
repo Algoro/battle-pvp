@@ -1,51 +1,51 @@
-// scan-ai.js — ИИ с полным сканированием игровой ситуации.
+// scan-ai.js — AI with a full scan of the game situation.
 //
-// Каждый шаг (кадр) для каждого ИИ-танка мозг сканирует ВСЮ карту:
-//   - поле (тайлы, проходимость, кирпичи для прострела),
-//   - пули (позиция, направление, владелец) и их траектории,
-//   - призы (позиция, тип),
-//   - орёл (цель атакующих) и защитники (цели/угрозы),
-//   - направления движения противников (вектор скорости).
-// На основе этого строится модель ситуации и выбирается САМЫЙ ВЫГОДНЫЙ шаг из
-// всех возможных: цена достижения цели (BFS-поле) + безопасность от пуль +
-// плавность (инерция направления). Танк всегда двигается или стреляет (не
-// замирает и не застревает), а стоять может только чтобы прострелить кирпич.
+// Each step (frame) for each AI tank the brain scans the WHOLE map:
+//   - field (tiles, passability, bricks for line-of-fire),
+//   - bullets (position, direction, owner) and their trajectories,
+//   - prizes (position, type),
+//   - eagle (attackers' goal) and defenders (targets/threats),
+//   - movement directions of opponents (velocity vector).
+// Based on this a situation model is built and the MOST ADVANTAGEOUS step is chosen from
+// all possible ones: cost to reach the goal (BFS field) + safety from bullets +
+// smoothness (direction inertia). The tank always moves or shoots (it does not
+// freeze or get stuck), and it can stand still only to shoot through a brick.
 //
-// Архитектура (чистые функции, легко тестировать):
+// Architecture (pure functions, easy to test):
 //   scanPlan(mem, prev) -> { decisions: Map<idx,{dir,fire,goal}>, state }
-//     - readBattlefield / readBullets / readPrizes — сканирование состояния;
-//     - threatSet()            — клетки, куда летят вражеские пули;
-//     - costToGoal()           — BFS-поле расстояний к цели;
-//     - bestStep()             — выбор направления (цель+безопасность+плавность);
-//     - bestShoot() / chooseGoal() — выбор стрельбы и цели;
-//     - decideAttacker()       — финальное решение по одному танку.
+//     - readBattlefield / readBullets / readPrizes — scanning the state;
+//     - threatSet()            — cells that enemy bullets are flying into;
+//     - costToGoal()           — BFS distance field to the goal;
+//     - bestStep()             — choosing the direction (goal+safety+smoothness);
+//     - bestShoot() / chooseGoal() — choosing the shot and the target;
+//     - decideAttacker()       — final decision for one tank.
 import { readState, DX, DY, FIELD, inBounds, cellIdx, tankPassable, isBrick,
   blocksBullet, cellPassable, dist, dirTo, lineClear } from "../model/game-view.ts";
 import { costField, UNREACHABLE } from "../model/pathfind.ts";
 import { trajectoryCells } from "../model/perception.ts";
 import { RAM } from "../rom-contract.ts";
 
-// --- параметры ---
-const INTERCEPT_MIN = 2;   // мин. дистанция для перехвата пули выстрелом
-const DODGE_RADIUS = 6;    // радиус реального уворота от пули
-const SPAWN_ROWS = 6;      // верхние ряды спавна: там не уворачиваемся
-const PURSUIT_RANGE = 14;  // радиус охоты за защитником
-const PRIZE_RANGE = 9;     // радиус, на котором идём за призом
-const BASE_COMMIT_RANGE = 11; // рядом с базой — всегда идём к ней (финальный рывок)
-const GUARD_PRIZE_REACH = 12; // защитник: радиус сбора ценного приза
-const KILL_ZONE = 6;       // перекрёстный огонь: радиус вокруг базы для focus-fire
-const DEFEND_RADIUS = 15;  // защитник: вернуться к базе, если угроза и мы недалеко
-const GUARD_HUNT_RANGE = 10; // при многих врагах защитник гонится только за ближними
-// UNREACHABLE и costField — из общего слоя pathfind.js.
+// --- parameters ---
+const INTERCEPT_MIN = 2;   // min distance for intercepting a bullet with a shot
+const DODGE_RADIUS = 6;    // real dodge radius from a bullet
+const SPAWN_ROWS = 6;      // top spawn rows: there we don't dodge
+const PURSUIT_RANGE = 14;  // hunt radius for a defender
+const PRIZE_RANGE = 9;     // radius at which we go for a prize
+const BASE_COMMIT_RANGE = 11; // near the base — always head to it (final dash)
+const GUARD_PRIZE_REACH = 12; // defender: radius for collecting a valuable prize
+const KILL_ZONE = 6;       // crossfire: radius around the base for focus-fire
+const DEFEND_RADIUS = 15;  // defender: return to the base if there is a threat and we are not far
+const GUARD_HUNT_RANGE = 10; // with many enemies the defender chases only nearby ones
+// UNREACHABLE and costField — from the shared pathfind.js layer.
 
-const THREAT_PENALTY = 6;  // штраф за клетку под вражеской пулей
+const THREAT_PENALTY = 6;  // penalty for a cell under an enemy bullet
 
-// Проходима ли клетка для шага танка (движение ИЛИ прострел кирпича).
+// Is the cell passable for a tank step (movement OR line-of-fire through a brick).
 function stepPassable(f: any, c: any, r: any) {
   return inBounds(c, r) && (tankPassable(f[cellIdx(c, r)]) || isBrick(f[cellIdx(c, r)]));
 }
 
-// Попадёт ли пуля в клетку (с остановкой на препятствии/границе).
+// Will the bullet hit the cell (stopping at an obstacle/border).
 function bulletPathHits(field: any, bullet: any, cell: any, steps = 20) {
   const dx = DX[bullet.dir], dy = DY[bullet.dir];
   let c = bullet.cell.col, r = bullet.cell.row;
@@ -58,8 +58,8 @@ function bulletPathHits(field: any, bullet: any, cell: any, steps = 20) {
   return false;
 }
 
-// Клетки, которые в ближайшие кадры пройдут вражеские пули (для уворота).
-// Делегирует в общий слой (trajectoryCells, 14 шагов).
+// Cells that enemy bullets will pass through in the coming frames (for dodging).
+// Delegates to the shared layer (trajectoryCells, 14 steps).
 function threatSet(bf: any) {
   const set = new Set();
   for (const b of bf.bullets) {
@@ -69,10 +69,10 @@ function threatSet(bf: any) {
   return set;
 }
 
-// BFS-поле стоимости достижения цели — перенесено в общий слой pathfind.js (`costField`).
-// (Движение = 1, «прострел» кирпича = max(1, прочность).) См. costField.
+// BFS cost field for reaching the goal — moved to the shared pathfind.js layer (`costField`).
+// (Movement = 1, brick "punch-through" = max(1, durability).) See costField.
 
-// Лучшее направление к цели: минимизируем стоимость + штраф за пули, с инерцией.
+// Best direction to the goal: minimize cost + bullet penalty, with inertia.
 function bestStep(bf: any, cell: any, goalCell: any, cost: any, threatSet_: any, prevDir: any) {
   const field = bf.field;
   const heur = (nc: any, nr: any) => Math.abs(nc - goalCell.col) + Math.abs(nr - goalCell.row);
@@ -80,15 +80,15 @@ function bestStep(bf: any, cell: any, goalCell: any, cost: any, threatSet_: any,
   let best = null, bestScore = Infinity;
   for (let d = 0; d < 4; d++) {
     const nc = cell.col + DX[d], nr = cell.row + DY[d];
-    if (!stepPassable(field, nc, nr)) continue; // либо проходимо, либо кирпич для прострела
+    if (!stepPassable(field, nc, nr)) continue; // either passable or a brick for line-of-fire
     const idx = cellIdx(nc, nr);
     const c = cost[idx] === UNREACHABLE ? heur(nc, nr) + 1000 : cost[idx];
     const threat = threatSet_.has(idx) ? THREAT_PENALTY : 0;
     const score = c + threat;
     if (score < bestScore) { bestScore = score; best = d; }
   }
-  if (best === null) return null; // полностью заперт
-  // плавность: если предыдущее направление ведёт к цели не хуже и безопасно — держим
+  if (best === null) return null; // fully boxed in
+  // smoothness: if the previous direction leads to the goal no worse and is safe — keep it
   if (prevDir !== null) {
     const nc = cell.col + DX[prevDir], nr = cell.row + DY[prevDir];
     if (stepPassable(field, nc, nr)) {
@@ -101,10 +101,10 @@ function bestStep(bf: any, cell: any, goalCell: any, cost: any, threatSet_: any,
   return best;
 }
 
-// Вражеская команда для роли: атакующий бьёт DEF, защитник бьёт ATT.
+// Enemy team for the role: the attacker hits DEF, the defender hits ATT.
 function enemyTeamOf(role: any) { return role === "att" ? "DEF" : "ATT"; }
 
-// Лучшая цель для выстрела: выровненный враг с линией огня (кирпич — ок).
+// Best target to shoot: an aligned enemy with a line of fire (brick — ok).
 function bestShoot(bf: any, tank: any, role: any): any {
   const cell = tank.cell;
   const enemy = enemyTeamOf(role);
@@ -122,7 +122,7 @@ function bestShoot(bf: any, tank: any, role: any): any {
   return best ? { dir: bestFd, enemy: best, d: bestD } : null;
 }
 
-// Лучший приз для сбора: учёт ценности (граната/каска — приоритет) и близости.
+// Best prize to collect: accounts for value (grenade/helmet — priority) and proximity.
 function bestPrize(bf: any, cell: any, baseReach: any) {
   let best = null, bestScore = -Infinity;
   for (const p of bf.prizes) {
@@ -136,8 +136,8 @@ function bestPrize(bf: any, cell: any, baseReach: any) {
   return best;
 }
 
-// Выбор цели движения АТАКУЮЩЕГО: база — главный приоритет. Пока далеко — можно
-// охотиться/собирать приз; РЯДОМ с базой — всегда к орлу (финальный рывок).
+// Movement goal choice for the ATTACKER: the base is the main priority. While far — it may
+// hunt/collect a prize; NEAR the base — always to the eagle (final dash).
 function chooseGoalAtt(bf: any, tank: any) {
   const cell = tank.cell;
   const distToBase = Math.abs(cell.col - bf.eagle.col) + Math.abs(cell.row - bf.eagle.row);
@@ -157,9 +157,9 @@ function chooseGoalAtt(bf: any, tank: any) {
   return { cell: { col: bf.eagle.col + lane, row: bf.eagle.row }, kind: "base" };
 }
 
-// Выбор цели движения ЗАЩИТНИКА — человеческая ОХОТА: бьём мигающего врага (приз),
-// иначе ближайшего; к базе возвращаемся, только когда нет врагов. (Враг у базы уже
-// обрабатывается focus-fire выше в decideTank.)
+// Movement goal choice for the DEFENDER — human HUNT: we hit the flashing enemy (prize),
+// otherwise the nearest one; we return to the base only when there are no enemies. (An enemy at the base is
+// already handled by focus-fire above in decideTank.)
 function chooseGoalDef(bf: any, tank: any, subRole: any) {
   const cell = tank.cell;
   let flash = null, nearest = null, nd = Infinity;
@@ -170,13 +170,13 @@ function chooseGoalDef(bf: any, tank: any, subRole: any) {
     if (d < nd) { nd = d; nearest = e; }
   }
   if (flash) return { cell: leadCell(flash), kind: "hunt" };
-  // D: много врагов — охраняем базу (гоняемся только за близкими), мало — финиш
+  // D: many enemies — guard the base (we chase only nearby ones), few — finish
   const manyLeft = bf.enemiesLeft > 10;
   const fewLeft = bf.enemiesLeft <= 3;
   if (nearest && (fewLeft || !manyLeft || dist(cell, nearest.cell) <= GUARD_HUNT_RANGE)) {
     return { cell: leadCell(nearest), kind: "hunt" };
   }
-  // ценный приз (защитники — «игроки», призы им важны)
+  // valuable prize (defenders are "players", prizes matter to them)
   const p = bestPrize(bf, cell, GUARD_PRIZE_REACH);
   if (p) return { cell: p.cell, kind: "prize" };
   const side = tank.index === 0 ? -1 : 1;
@@ -185,14 +185,14 @@ function chooseGoalDef(bf: any, tank: any, subRole: any) {
   return { cell: anchor, kind: "guard" };
 }
 
-// Упреждение по направлению/скорости врага (B): быстрый враг (speedClass>1) —
-// целиться на клетку вперёд по его движению; медленный — в саму клетку.
+// Lead by the enemy's direction/speed (B): a fast enemy (speedClass>1) —
+// aim at the cell ahead along its movement; a slow one — at its own cell.
 function leadCell(e: any) {
   if (!e.inField || !(e.speedClass > 1.3)) return e.cell;
   return { col: e.cell.col + DX[e.dir], row: e.cell.row + DY[e.dir] };
 }
 
-// Решение по одному танку (атака или защита).
+// Per-tank decision (attack or defense).
 function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
   const field = bf.field;
   const cell = tank.cell;
@@ -202,7 +202,7 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
     .filter((b: any) => b.team === enemy && bulletPathHits(field, b, cell))
     .sort((a: any, b: any) => dist(a.cell, cell) - dist(b.cell, cell));
 
-  // 1. ПЕРЕХВАТ: сбить летящую в нас пулю своим выстрелом.
+  // 1. INTERCEPT: shoot down a bullet flying at us with our shot.
   if (!ourBusy && incoming.length && dist(incoming[0].cell, cell) >= INTERCEPT_MIN) {
     const fd = dirTo(cell, incoming[0].cell);
     if (fd !== null && lineClear(field, cell, incoming[0].cell)) {
@@ -210,9 +210,9 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
     }
   }
 
-  // 1b. ПЕРЕКРЁСТНЫЙ ОГОНЬ (def): самый опасный атакующий у базы — общая цель обоих
-  //     защитников. Реагируем, только если мы САМИ недалеко от базы; иначе бежим к
-  //     базе по своей цели (иначе гард застревает у врага вдали от базы).
+  // 1b. CROSSFIRE (def): the most dangerous attacker at the base — a shared target for both
+  //     defenders. We react only if we OURSELVES are not far from the base; otherwise we run to the
+  //     base on our own goal (otherwise the guard gets stuck at an enemy far from the base).
   if (role === "def") {
     let focus = null, focusD = Infinity;
     for (const e of bf.tanks) {
@@ -240,15 +240,15 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
     }
   }
 
-  // 2. СТРЕЛЬБА: выровненный враг в линии огня (в т.ч. через кирпич).
+  // 2. SHOOTING: an aligned enemy in the line of fire (including through a brick).
   const shoot = bestShoot(bf, tank, role);
   if (shoot && !ourBusy) {
     const nc = cell.col + DX[shoot.dir], nr = cell.row + DY[shoot.dir];
-    const move = cellPassable(field, nc, nr) ? shoot.dir : null; // вперёд или стоим и бьём
+    const move = cellPassable(field, nc, nr) ? shoot.dir : null; // forward or stand and shoot
     return { dir: move, fire: true, goal: "kill" };
   }
 
-  // 3. УВОРОТ: близкая пуля — перпендикулярно (в спавне атакующий не уворачивается).
+  // 3. DODGE: a close bullet — perpendicular (at spawn the attacker does not dodge).
   const nearIncoming = incoming.filter((b: any) => dist(b.cell, cell) <= DODGE_RADIUS);
   if (nearIncoming.length && !tank.helmet && (role === "def" || cell.row >= SPAWN_ROWS)) {
     const b = nearIncoming[0];
@@ -259,17 +259,17 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
     }
   }
 
-  // 4. ДВИЖЕНИЕ к цели.
+  // 4. MOVEMENT to the goal.
   const subRole = role === "def" ? (tank.index === 0 ? "guard" : "raider") : null;
   const goal = role === "att" ? chooseGoalAtt(bf, tank) : chooseGoalDef(bf, tank, subRole);
-  // гард: уже на посту у базы и нет угрозы — держим позицию (не бродим); рейдер — всегда преследует
+  // guard: already at the post by the base and no threat — hold position (don't wander); raider — always pursues
   if (role === "def" && subRole === "guard" && goal.kind === "guard" && dist(cell, goal.cell) <= 1) {
     return { dir: null, fire: false, goal: "guard" };
   }
   const cost = costField(field, goal.cell);
   const dir = bestStep(bf, cell, goal.cell, cost, bf.threatSet, st.prevDir);
 
-  // 5. ПРОСТРЕЛ: шаг ведёт в кирпич и можем стрелять — бьём его.
+  // 5. LINE-OF-FIRE: the step leads into a brick and we can shoot — hit it.
   if (dir !== null) {
     const fwd = field[cellIdx(cell.col + DX[dir], cell.row + DY[dir])];
     if (isBrick(fwd) && !tankPassable(fwd)) {
@@ -277,7 +277,7 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
     }
   }
 
-  // 6. Заперт — жадный шаг к своей цели (не стоим).
+  // 6. Boxed in — greedy step toward our own goal (don't stand).
   if (dir === null) {
     let best = null, bestH = Infinity;
     for (let d = 0; d < 4; d++) {
@@ -293,9 +293,9 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any) {
   return { dir, fire: false, goal: goal.kind };
 }
 
-// --- ГЛАВНАЯ ФУНКЦИЯ ---
-// role: "att" — атаковать (враги DEF, цель база), "def" — защищать (враги ATT,
-// цель база-позиция). Возвращает { decisions, state } для своей команды.
+// --- MAIN FUNCTION ---
+// role: "att" — attack (enemies DEF, goal the base), "def" — defend (enemies ATT,
+// goal the base position). Returns { decisions, state } for its own team.
 export function scanPlan(mem: any, prev: any, role = "att") {
   const bf: any = readState(mem);
   bf.threatSet = threatSet(bf);

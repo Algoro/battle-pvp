@@ -1,5 +1,5 @@
-// wrap-borders.test.ts — фича «открытые края»: ROM убирает рамку, рантайм делает тор.
-// Запуск: node --test tests/wrap-borders.test.ts
+// wrap-borders.test.ts — the "open borders" feature: the ROM removes the frame, the runtime makes a torus.
+// Run: node --test tests/wrap-borders.test.ts
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -30,7 +30,7 @@ function boot(features: string[] = ["wrap-borders"], zeroField = true, featureOp
     if ((flag & 0x80) && flag < 0xe0) break;
     emu.stepFrame([{ port: 0, buttons: 0 }]);
   }
-  if (zeroField) emu.cpu.mem.fill(0, RAM.FIELD, RAM.FIELD + 1024); // чистое поле для проверки переноса
+  if (zeroField) emu.cpu.mem.fill(0, RAM.FIELD, RAM.FIELD + 1024); // clean field for the wrap check
   return emu;
 }
 const idle = (emu: PvPNes, n = 1) => {
@@ -58,15 +58,15 @@ test("wrap-borders: ROM-патч убирает рамку, fingerprint меня
 test("wrap-borders: танк переносится через шов по X и Y", () => {
   const emu = boot();
   const m = emu.cpu.mem;
-  m[RAM.TANK_FLAG] = 0x80; // стоящий DEF0
+  m[RAM.TANK_FLAG] = 0x80; // standing DEF0
   m[RAM.TANK_X] = LOW;
   m[RAM.TANK_Y] = 0x80;
-  idle(emu, 1); // запомнить позицию как предыдущую
-  m[RAM.TANK_X] = LOW - 8; // шаг наружу влево
+  idle(emu, 1); // remember the position as the previous one
+  m[RAM.TANK_X] = LOW - 8; // step outward to the left
   idle(emu, 1);
   assert.strictEqual(m[RAM.TANK_X], LOW - 8 + PERIOD, "перенос из левого шва в правый");
 
-  m[RAM.TANK_X] = HIGH + 8; // шаг наружу вправо
+  m[RAM.TANK_X] = HIGH + 8; // step outward to the right
   idle(emu, 1);
   assert.strictEqual(m[RAM.TANK_X], HIGH + 8 - PERIOD, "перенос из правого шва в левый");
 
@@ -88,7 +88,7 @@ test("wrap-borders: занятая противоположная сторона
   m[RAM.TANK_X] = LOW;
   m[RAM.TANK_Y] = cy;
   idle(emu, 1);
-  // назначаем сталь на противоположном (правом) краю
+  // assign steel on the opposite (right) edge
   const c0 = (LOW - 8 + PERIOD - 8) >> 3;
   const r0 = (cy - 8) >> 3;
   for (let r = r0; r <= r0 + 1; r++) for (let c = c0; c <= c0 + 1; c++) m[RAM.FIELD + r * 32 + c] = 0x10;
@@ -100,7 +100,7 @@ test("wrap-borders: занятая противоположная сторона
 test("wrap-borders: пуля переносится, а в стену — гаснет", () => {
   const emu = boot();
   const m = emu.cpu.mem;
-  m[RAM.BULLET_STATUS] = 0x41; // летит влево
+  m[RAM.BULLET_STATUS] = 0x41; // flying left
   m[RAM.BULLET_X] = LOW;
   m[RAM.BULLET_Y] = 0x80;
   idle(emu, 1);

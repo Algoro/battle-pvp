@@ -1,5 +1,5 @@
-// LobbyBrowser.tsx — экран списка игр: список лобби, создание, быстрый матч,
-// вход по коду и глобальный чат.
+// LobbyBrowser.tsx — game list screen: lobby list, creation, quick match,
+// join by code and global chat.
 import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";

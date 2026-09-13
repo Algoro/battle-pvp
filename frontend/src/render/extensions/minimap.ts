@@ -1,7 +1,7 @@
-// minimap.ts — расширение-оверлей: схема поля в углу. Работает поверх любого драйвера,
-// которому заявлена capability "overlay-dom". DOM-оверлей, не пишет в состояние игры.
+// minimap.ts — overlay extension: a field schematic in the corner. Works on top of any driver
+// that declares the "overlay-dom" capability. DOM overlay, does not write to game state.
 //
-// Относительный путь: ./frontend/src/render/extensions/minimap.ts
+// Relative path: ./frontend/src/render/extensions/minimap.ts
 import { isBrick, isSteel, isWater, isIce, isTree } from "@core/domain.ts";
 import { loadLang, translate } from "../../i18n/translate.ts";
 import type { RenderExtension, RenderHost, SceneState } from "../types.ts";
@@ -32,7 +32,7 @@ export function createMinimapExtension(): RenderExtension {
       }
     }
 
-    // орёл
+    // eagle
     const ex = (s.eagle.col - b.col0) * cell;
     const ez = (s.eagle.row - b.row0) * cell;
     ctx.fillStyle = s.eagle.destroyed ? "#5b5b5b" : "#f5c542";
@@ -41,14 +41,14 @@ export function createMinimapExtension(): RenderExtension {
     for (const t of s.tanks) {
       if (t.state === "dead") continue;
       ctx.fillStyle = t.team === "DEF" ? "#f2c14e" : "#cfd6dd";
-      // RAM (x,y) — центр танка (13×13 px); рисуем 2-клеточный квадрат вокруг центра.
+      // RAM (x,y) is the tank center (13×13 px); we draw a 2-cell square around the center.
       const x = (t.x / 8 - b.col0 - 1) * cell;
       const z = (t.y / 8 - b.row0 - 1) * cell;
       ctx.fillRect(x, z, cell * 2, cell * 2);
     }
     for (const bl of s.bullets) {
       ctx.fillStyle = "#ffe27a";
-      // RAM (x,y) — top-left 8×8 спрайта пули; центр = +0.5 клетки.
+      // RAM (x,y) is the top-left of the bullet's 8×8 sprite; center = +0.5 cell.
       const cx = (bl.x / 8 - b.col0 + 0.5) * cell;
       const cz = (bl.y / 8 - b.row0 + 0.5) * cell;
       ctx.fillRect(cx - cell * 0.35, cz - cell * 0.35, cell * 0.7, cell * 0.7);

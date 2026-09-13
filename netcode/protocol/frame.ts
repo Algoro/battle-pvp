@@ -1,20 +1,20 @@
-// frame.ts — компактный бинарный формат сетевых пакетов (не JSON).
+// frame.ts — compact binary format for network packets (not JSON).
 //
-// Все пакеты начинаются с байта-тега (type), что делает маршрутизацию однозначной
-// (раньше hash/прочие пакеты могли быть ошибочно декодированы как frame).
+// All packets start with a tag byte (type), which makes routing unambiguous
+// (previously hash/other packets could be mistakenly decoded as a frame).
 //
-// Разметка (little-endian):
+// Layout (little-endian):
 //   INPUT (1)   : uint32 frame, uint8 count, repeat{ uint8 port, uint8 buttons }
 //   BATCH (2)   : uint32 headFrame, uint8 frames, repeat{ uint32 frame, uint8 count, repeat{port,buttons} }
-//                 — избыточная отправка последних N кадров (redundancy против потерь);
-//                 headFrame = следующий кадр отправителя (для догона после resync).
+//                 — redundant sending of the last N frames (redundancy against loss);
+//                 headFrame = the sender's next frame (for catching up after resync).
 //   HASH  (3)   : uint32 frame, uint32 hash
 //   PING  (4)   : uint32 seq, uint32 t (ms sender)
-//   PONG  (5)   : uint32 seq, uint32 t (эхо)
+//   PONG  (5)   : uint32 seq, uint32 t (echo)
 //   SNAPREQ (6) : uint32 frame
 //   SNAP  (7)   : uint32 frame, uint32 hash, uint16 seq, uint16 total, ...bytes
 //
-// Относительный путь: ./netcode/protocol/frame.ts
+// Relative path: ./netcode/protocol/frame.ts
 import type { Input } from "../ports.ts";
 
 export const PROTOCOL_VERSION = 2;
@@ -35,7 +35,7 @@ const HASH_BYTES = 9; // type + uint32 + uint32
 const PING_BYTES = 9; // type + uint32 + uint32
 const SNAP_REQ_BYTES = 5; // type + uint32
 const SNAP_HEADER = 13; // type + uint32 + uint32 + uint16 + uint16
-export const SNAP_CHUNK_BYTES = 16 * 1024; // размер данных в одном chunk снапшота
+export const SNAP_CHUNK_BYTES = 16 * 1024; // data size in one snapshot chunk
 
 export type InputEntry = { frame: number; inputs: Input[] };
 export type DecodedFrame = { frame: number; inputs: Input[] };
@@ -61,7 +61,7 @@ function writeInputEntries(buf: Uint8Array, off: number, inputs: Input[]): numbe
   return off;
 }
 
-// --- INPUT (одиночный кадр) ---
+// --- INPUT (single frame) ---
 export function encodeFrame(frame: number, inputs: Input[]): Uint8Array {
   const n = inputs.length;
   const buf = new Uint8Array(INPUT_HEADER + 2 * n);
@@ -85,8 +85,8 @@ export function decodeFrame(buf: Uint8Array | null | undefined): DecodedFrame | 
   return { frame, inputs };
 }
 
-// --- BATCH (избыточная отправка последних N кадров) ---
-// entries: [{ frame, inputs: [{port,buttons}] }, ...]; headFrame — следующий кадр отправителя.
+// --- BATCH (redundant sending of the last N frames) ---
+// entries: [{ frame, inputs: [{port,buttons}] }, ...]; headFrame — the sender's next frame.
 export function encodeFrameBatch(entries: InputEntry[], headFrame = 0): Uint8Array {
   let size = BATCH_HEADER;
   for (const e of entries) size += 5 + 2 * e.inputs.length;
@@ -145,7 +145,7 @@ export function decodeHashCheck(buf: Uint8Array | null | undefined): DecodedHash
   };
 }
 
-// --- PING / PONG (измерение задержки) ---
+// --- PING / PONG (latency measurement) ---
 export function encodePing(seq: number, t: number): Uint8Array {
   const buf = new Uint8Array(PING_BYTES);
   const dv = new DataView(buf.buffer);
@@ -193,8 +193,8 @@ export function decodeSnapshotRequest(
   return { frame: dv.getUint32(1, true) };
 }
 
-// frame — кадр, к которому относится состояние (следующий к симуляции);
-// hash — хэш последнего симулированного кадра; data — кусок saveState().
+// frame — the frame the state refers to (the next one to simulate);
+// hash — the hash of the last simulated frame; data — a piece of saveState().
 export function encodeSnapshotChunk(chunk: {
   frame: number;
   hash: string;
@@ -228,7 +228,7 @@ export function decodeSnapshotChunk(
   };
 }
 
-// Разбивает бинарный снапшот на chunk-пакеты.
+// Splits a binary snapshot into chunk packets.
 export function encodeSnapshot(frame: number, hash: string, bytes: Uint8Array): Uint8Array[] {
   const total = Math.max(1, Math.ceil(bytes.length / SNAP_CHUNK_BYTES));
   const out: Uint8Array[] = [];

@@ -1,7 +1,7 @@
-// index.tsx — React-обвязка i18n: провайдер, хук t(), переключатель языка.
+// index.tsx — React i18n wrapper: provider, t() hook, language switcher.
 //
-// Язык по умолчанию — английский; выбор пользователя сохраняется в localStorage.
-// Относительный путь: ./frontend/src/i18n/index.tsx
+// The default language is English; the user's choice is stored in localStorage.
+// Relative path: ./frontend/src/i18n/index.tsx
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { DEFAULT_LANG, LANGS, loadLang, saveLang, translate, type Lang, type TranslationParams } from "./translate.ts";
 
@@ -30,7 +30,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
-/** Перевод строки: `const t = useT(); t("Отмена")`. */
+/** String translation: `const t = useT(); t("Отмена")`. */
 export function useT() {
   return useContext(I18nContext).t;
 }
@@ -39,7 +39,7 @@ export function useI18n(): I18nValue {
   return useContext(I18nContext);
 }
 
-/** Компактный переключатель языка (EN / RU). */
+/** Compact language switcher (EN / RU). */
 export function LanguageSwitcher() {
   const { lang, setLang } = useI18n();
   return (

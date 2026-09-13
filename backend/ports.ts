@@ -1,8 +1,8 @@
-// ports.ts — порты (интерфейсы) backend. Домен и application зависят только от них;
-// конкретные реализации (SQLite, WebSocket) подаются адаптерами извне.
+// ports.ts — backend ports (interfaces). Domain and application depend only on them;
+// concrete implementations (SQLite, WebSocket) are supplied by external adapters.
 //
-// Реализации: persistence/store.ts (matches/players), persistence/chat-repository.ts.
-// Модуль намеренно не импортирует ничего (только типы).
+// Implementations: persistence/store.ts (matches/players), persistence/chat-repository.ts.
+// The module intentionally imports nothing (types only).
 
 export type ChatMessage = {
   scope: string;

@@ -1,4 +1,4 @@
-// stage-scene.test.ts — предпросмотр уровня: ROM-блоки стадии → поле коллизий.
+// stage-scene.test.ts — level preview: ROM stage blocks → collision field.
 import { test } from "node:test";
 import assert from "node:assert";
 import { stageScene } from "../src/render/stage-scene.ts";
@@ -22,19 +22,19 @@ const at = (s: ReturnType<typeof stageScene>, fc: number, fr: number) => s.field
 test("stage-scene: полный кирпич, сталь, вода, пусто", () => {
   const emu = fakeEmu({ 0: 0x4, 1: 0xa, 2: 0xd }, () => 0x10);
   const s = stageScene(emu, 901);
-  // кирпич (id4) — 2×2 клетки в начале
+  // brick (id4) — 2×2 cells at the start
   assert.strictEqual(at(s, 0, 0), 0x0f);
   assert.strictEqual(at(s, 1, 1), 0x0f);
-  // вода (id a) в колонке блока 1 → клетки 2..3
+  // water (id a) in block column 1 → cells 2..3
   assert.strictEqual(at(s, 2, 0), 0x12);
   assert.strictEqual(at(s, 3, 1), 0x12);
-  // пусто (id d) в блоке 2 → клетки 4..5
+  // empty (id d) in block 2 → cells 4..5
   assert.strictEqual(at(s, 4, 0), 0);
   assert.strictEqual(s.tanks.length, 0);
 });
 
 test("stage-scene: частичный кирпич — заполнены только тайлы квадрантов", () => {
-  // id 3 = верхняя половина (TL,TR), нижние тайлы пустые
+  // id 3 = upper half (TL,TR), lower tiles empty
   const emu = fakeEmu({ 0: 0x3 }, (_id, k) => (k < 2 ? 0x0f : 0));
   const s = stageScene(emu, 902);
   assert.strictEqual(at(s, 0, 0), 0x0f);

@@ -1,13 +1,13 @@
-// game-view.js — ЕДИНЫЙ слой доступа к состоянию боя и общие примитивы для всех ИИ.
+// game-view.js — SINGLE access layer to the battle state and shared primitives for all AI.
 //
-// A. GameState/readState: чистая модель боя (танки, пули, призы, орёл, поле) +
-//    хелперы (passable/brick/lineClear/dist/dirTo/cellOf) вместо разрозненных
-//    функций и сырых адресов RAM.
-// B. buildState: декларативный построитель состояния для тестов (без магии адресов).
-// C. wrap: живой адаптер поверх PvPNes (GameState из RAM эмулятора + настройка ИИ).
-// D. runBrain: единая точка запуска любого ИИ-движка (унификация сигнатур).
+// A. GameState/readState: a pure battle model (tanks, bullets, prizes, eagle, field) +
+//    helpers (passable/brick/lineClear/dist/dirTo/cellOf) instead of scattered
+//    functions and raw RAM addresses.
+// B. buildState: a declarative state builder for tests (no address magic).
+// C. wrap: a live adapter over PvPNes (GameState from emulator RAM + AI setup).
+// D. runBrain: single entry point for launching any AI engine (unifying signatures).
 //
-// Все движки (tactical/scan/lookahead) и тесты используют этот слой.
+// All engines (tactical/scan/lookahead) and tests use this layer.
 
 import { RAM } from "../rom-contract.ts";
 import {
@@ -18,31 +18,31 @@ import {
 
 export const FIELD = 32;
 export const TILE = 8;
-export const DEF_END = 2; // первые 2 танка — защитники
+export const DEF_END = 2; // the first 2 tanks are defenders
 
-// Направления и примитивы тайлов — из domain.js (единый источник).
+// Directions and tile primitives — from domain.js (single source).
 export { DX, DY, DIR_BTN, isBrick, isSteel, isWater, isIce, isTree, isRoad, tankPassable, blocksBullet, brickHealth, isEagleTile, bulletProperty, bulletSpeed };
 export function inBounds(c: number, r: number) { return c >= 0 && r >= 0 && c < FIELD && r < FIELD; }
 export function cellIdx(c: number, r: number) { return r * FIELD + c; }
 export function dist(a: any, b: any) { return Math.abs(a.col - b.col) + Math.abs(a.row - b.row); }
 
-// Кирпич = 4 квадранта (биты): bit0=TL(1), bit1=TR(2), bit2=BL(4), bit3=BR(8).
-// Пуля убирает ПОЛОВИНУ, обращённую к ней (по направлению), а если она уже пуста —
-// продолжает и убирает дальнюю; если обе пусты — пуля проходит насквозь.
+// A brick = 4 quadrants (bits): bit0=TL(1), bit1=TR(2), bit2=BL(4), bit3=BR(8).
+// A bullet removes the HALF facing it (by direction), and if that is already empty —
+// it continues and removes the far one; if both are empty — the bullet passes through.
 const BRICK_HALF: Record<number, { near: number; far: number }> = {
-  0: { near: 0x0c, far: 0x03 }, // пуля вверх (из-под низа): ближняя=низ, дальняя=верх
-  2: { near: 0x03, far: 0x0c }, // пуля вниз (сверху): ближняя=верх, дальняя=низ
-  3: { near: 0x05, far: 0x0a }, // пуля вправо (слева): ближняя=лево, дальняя=право
-  1: { near: 0x0a, far: 0x05 }, // пуля влево (справа): ближняя=право, дальняя=лево
+  0: { near: 0x0c, far: 0x03 }, // bullet up (from below): near=bottom, far=top
+  2: { near: 0x03, far: 0x0c }, // bullet down (from above): near=top, far=bottom
+  3: { near: 0x05, far: 0x0a }, // bullet right (from the left): near=left, far=right
+  1: { near: 0x0a, far: 0x05 }, // bullet left (from the right): near=right, far=left
 };
 export function brickHit(tile: number, dir: number) {
   const h = BRICK_HALF[dir] ?? { near: 0, far: 0 };
   if (tile & h.near) return { next: tile & ~h.near, pass: false };
   if (tile & h.far) return { next: tile & ~h.far, pass: false };
-  return { next: tile, pass: true }; // весь кирпич пуст — пуля проходит
+  return { next: tile, pass: true }; // the whole brick is empty — the bullet passes through
 }
 
-// Класс скорости врага по типу (см. domain.tankSpeed).
+// Enemy speed class by type (see domain.tankSpeed).
 export function enemySpeedClass(type: number) { return tankSpeed(type); }
 export function dirTo(a: any, b: any) {
   if (a.row === b.row && a.col !== b.col) return b.col > a.col ? 3 : 1;
@@ -51,17 +51,17 @@ export function dirTo(a: any, b: any) {
 }
 export function cellOf(x: number, y: number) { return { col: Math.floor(x / TILE), row: Math.floor(y / TILE) }; }
 
-// Проходимость клетки для танка по полю.
+// Cell passability for a tank over the field.
 export function cellPassable(field: any, c: number, r: number) { return inBounds(c, r) && tankPassable(field[cellIdx(c, r)]); }
 
-// --- классификация тайлов (значения из буфера коллизий $0400) ---
-// 0x12 = вода (танк не проходит, пуля пролетает), 0x21 = лёд (танк скользит),
-// 0x22 = деревья/кусты (скрывают, но проходимы), 0x10/0x11 = сталь.
+// --- tile classification (values from the collision buffer $0400) ---
+// 0x12 = water (a tank doesn't pass, a bullet flies over), 0x21 = ice (a tank slides),
+// 0x22 = trees/bushes (conceal but are passable), 0x10/0x11 = steel.
 export const WATER_TILE = TILE_ID.WATER;
 export const ICE_TILE = TILE_ID.ICE;
 export const TREE_TILE = TILE_ID.TREE;
 
-// Семантический тип тайла (для стратегии): 'empty'|'brick'|'steel'|'water'|'tree'|'ice'|'road'.
+// Semantic tile type (for strategy): 'empty'|'brick'|'steel'|'water'|'tree'|'ice'|'road'.
 export function tileType(v: number) {
   if (v === 0x00) return "empty";
   if (isBrick(v)) return "brick";
@@ -73,9 +73,9 @@ export function tileType(v: number) {
   return "unknown";
 }
 
-// Стоимость прохода для маршрутизации (дизайн защитного ИИ):
-//   empty=1, road=1, brick=3 (простреливается), steel=∞, water=∞, tree=1.2, ice=1.5.
-// Возвращает бесконечность для непроходимых тайлов.
+// Traversal cost for routing (defender AI design):
+//   empty=1, road=1, brick=3 (shootable), steel=∞, water=∞, tree=1.2, ice=1.5.
+// Returns infinity for impassable tiles.
 export function tileCost(v: number) {
   switch (tileType(v)) {
     case "empty": case "road": return 1;
@@ -88,25 +88,25 @@ export function tileCost(v: number) {
 }
 export function tileCostAt(field: any, c: number, r: number) { return inBounds(c, r) ? tileCost(field[cellIdx(c, r)]) : Infinity; }
 
-// На льду ли клетка (для скольжения/нестабильных манёвров).
+// Is the cell on ice (for sliding/unstable maneuvers).
 export function onIceTile(field: any, c: number, r: number) { return inBounds(c, r) && isIce(field[cellIdx(c, r)]); }
 
 
 
-// Оставшиеся жизни игрока (0..): port 0 — $0051, port 1 — $0052.
+// Remaining lives of the player (0..): port 0 — $0051, port 1 — $0052.
 export function playerLives(mem: any, port: number) { return mem[RAM.LIVES + port]; }
-// Уровень апгрейда игрока (звёзды 0..3): $0101/$0102.
+// Player upgrade level (stars 0..3): $0101/$0102.
 export function playerLevel(mem: any, port: number) { return mem[RAM.TANK_UPGRADE + port]; }
 
-// Сколько попаданий выдерживает враг по типу. Мигающий (бонусный, bit2) — 1.
-// Бронированный (0xE0..0xE7): (type & 3) — число брони, финальный выстрел добивает.
+// How many hits an enemy withstands by type. Flashing (bonus, bit2) — 1.
+// Armored (0xE0..0xE7): (type & 3) — armor count, the final shot finishes it.
 export function hitsLeft(type: number) {
   if (type & 0x04) return 1;
   if ((type & 0xf0) === 0xe0) return (type & 0x03) + 1;
   return 1;
 }
 
-// Линия огня: проходит, если между клетками нет непробиваемых препятствий (кирпич — ок).
+// Line of fire: passes if there are no impenetrable obstacles between the cells (brick — ok).
 export function lineClear(field: any, a: any, b: any) {
   const dc = Math.sign(b.col - a.col), dr = Math.sign(b.row - a.row);
   let c = a.col + dc, r = a.row + dr;
@@ -117,7 +117,7 @@ export function lineClear(field: any, a: any, b: any) {
   return true;
 }
 
-// Ценность призов. id: 0=каска,1=часы,2=лопата,3=звезда,4=граната,5=жизнь.
+// Prize values. id: 0=helmet,1=clock,2=shovel,3=star,4=grenade,5=life.
 export const PRIZE_VALUE: Record<number, number> = { 0: 95, 1: 70, 2: 50, 3: 85, 4: 100, 5: 60 };
 export function prizeValue(id: number) { return PRIZE_VALUE[id] ?? 0; }
 
@@ -145,11 +145,11 @@ export class GameState {
   }
   _read(): void {
     const mem = this.mem;
-    // Состояние уровня/эффектов (для стратегии и эксплуатации).
-    this.enemiesLeft = mem[RAM.ENEMIES_LEFT];     // сколько врагов осталось до победы
-    this.spawnTimer = mem[RAM.SPAWN_TIMER];      // таймер спавна врагов
-    this.fortified = mem[RAM.FORTIFIED] > 0;   // лопата: база укреплена
-    this.clockTimer = mem[RAM.CLOCK_TIMER];    // часы: враги заморожены (не стреляют)
+    // Level/effect state (for strategy and exploitation).
+    this.enemiesLeft = mem[RAM.ENEMIES_LEFT];     // how many enemies remain until victory
+    this.spawnTimer = mem[RAM.SPAWN_TIMER];      // enemy spawn timer
+    this.fortified = mem[RAM.FORTIFIED] > 0;   // shovel: the base is fortified
+    this.clockTimer = mem[RAM.CLOCK_TIMER];    // clock: enemies frozen (don't shoot)
     this.tanks = [];
     for (let t = 0; t < 8; t++) {
       const flag = mem[RAM.TANK_FLAG + t], x = mem[RAM.TANK_X + t], y = mem[RAM.TANK_Y + t];
@@ -157,19 +157,19 @@ export class GameState {
       const cell = cellOf(x, y);
       this.tanks.push({
         index: t, team: t < DEF_END ? "DEF" : "ATT", x, y, flag, type,
-        dir: flag & 0x03,                          // направление взгляда (0..3)
+        dir: flag & 0x03,                          // facing direction (0..3)
         flashing: t >= DEF_END && (type & 0x04) !== 0,
         alive: isTankAlive(flag), inField: isTankAlive(flag) && x < 255,
-        helmet: t < DEF_END && mem[RAM.HELMET + t] > 0,  // каска (неуязвимость, DEF)
-        stunned: t < DEF_END && mem[RAM.STUN + t] > 0, // ошеломление (DEF)
-        speedClass: enemySpeedClass(type),         // класс скорости врага
+        helmet: t < DEF_END && mem[RAM.HELMET + t] > 0,  // helmet (invulnerability, DEF)
+        stunned: t < DEF_END && mem[RAM.STUN + t] > 0, // stun (DEF)
+        speedClass: enemySpeedClass(type),         // enemy speed class
         hitsLeft: t >= DEF_END ? hitsLeft(type) : 1,
-        bulletSpeed: bulletSpeed(type),            // скорость пули стрелка
+        bulletSpeed: bulletSpeed(type),            // shooter's bullet speed
         cell,
         onIce: t < DEF_END && isIce(this.field[cellIdx(cell.col, cell.row)]),
       });
     }
-    // Стратегическое состояние защитников (уровень/жизни).
+    // Strategic defender state (level/lives).
     this.defenders = [0, 1].map((p) => ({
       level: Math.min(3, playerLevel(mem, p)),
       lives: playerLives(mem, p),
@@ -194,19 +194,19 @@ export class GameState {
     }
     return { col: 15, row: 26 };
   }
-  // хелперы
+  // helpers
   passable(c: number, r: number) { return inBounds(c, r) && tankPassable(this.field[cellIdx(c, r)]); }
   brick(c: number, r: number) { return inBounds(c, r) && isBrick(this.field[cellIdx(c, r)]); }
   brickHealth(c: number, r: number) { return inBounds(c, r) ? brickHealth(this.field[cellIdx(c, r)]) : 0; }
   stepPassable(c: number, r: number) { return inBounds(c, r) && (tankPassable(this.field[cellIdx(c, r)]) || isBrick(this.field[cellIdx(c, r)])); }
   lineClear(a: any, b: any) { return lineClear(this.field, a, b); }
-  // классификация тайлов и стоимости (стратегический слой)
+  // tile classification and costs (strategic layer)
   tileType(c: number, r: number) { return inBounds(c, r) ? tileType(this.field[cellIdx(c, r)]) : "unknown"; }
   water(c: number, r: number) { return inBounds(c, r) && isWater(this.field[cellIdx(c, r)]); }
   tree(c: number, r: number) { return inBounds(c, r) && isTree(this.field[cellIdx(c, r)]); }
   ice(c: number, r: number) { return inBounds(c, r) && isIce(this.field[cellIdx(c, r)]); }
   tileCost(c: number, r: number) { return tileCostAt(this.field, c, r); }
-  // Тестовый хук: штатно активирует бонус (как в PvPNes.spawnBonus).
+  // Test hook: activates a bonus via the standard path (like PvPNes.spawnBonus).
   spawnBonus(id: number, x: number, y: number): void { this.mem[RAM.PRIZE_X] = x; this.mem[RAM.PRIZE_Y] = y; this.mem[RAM.PRIZE_ID] = id; this.mem[RAM.BONUS_TIMER] = 0; }
   refresh() { this._read(); return this; }
 }
@@ -214,15 +214,15 @@ export class GameState {
 export function readState(mem: any) { return new GameState(mem); }
 
 // ---------------------------------------------------------------------------
-// B. buildState — декларативный построитель состояния для тестов.
-//    field: массив строк, символы: '.' пусто, '#' стена/сталь, 'B' кирпич, 'E' орёл.
+// B. buildState — a declarative state builder for tests.
+//    field: array of strings, characters: '.' empty, '#' wall/steel, 'B' brick, 'E' eagle.
 //    tanks: [{i, x, y, team?}] ; bullets: [{i, x, y, dir, team?}] ; prize: {id, x, y}.
 // ---------------------------------------------------------------------------
 const TILE_CODE: Record<string, number> = { ".": 0x00, "#": 0x11, B: 0x0f, W: 0x12, I: 0x21, T: 0x22 };
 export function buildState({ field, tanks = [], bullets = [], prize = null, eagle = null }: any = {}) {
   const mem = new Uint8Array(0x10000);
-  mem[RAM.ENEMIES_LEFT] = 20; // игра началась
-  mem[0x7f] = 20; // счётчик спавна врагов (декрементится при спавне)
+  mem[RAM.ENEMIES_LEFT] = 20; // game has started
+  mem[0x7f] = 20; // enemy spawn counter (decremented on spawn)
   if (field) {
     for (let r = 0; r < field.length; r++) {
       for (let c = 0; c < field[r].length; c++) {
@@ -235,13 +235,13 @@ export function buildState({ field, tanks = [], bullets = [], prize = null, eagl
   if (eagle) mem[RAM.FIELD + eagle.row * 32 + eagle.col] = TILE_ID.EAGLE_MIN;
   if (prize) { mem[RAM.PRIZE_ID] = prize.id; mem[RAM.PRIZE_X] = prize.x; mem[RAM.PRIZE_Y] = prize.y; }
   else mem[RAM.PRIZE_ID] = 0xff;
-  // танки
+  // tanks
   for (const tk of tanks) {
     const i = tk.i, x = tk.x ?? 255, y = tk.y ?? 255;
     mem[RAM.TANK_X + i] = x; mem[RAM.TANK_Y + i] = y; mem[RAM.TANK_FLAG + i] = x === 255 ? 0 : TANK_MOVING;
     if (tk.type !== undefined) mem[RAM.TANK_TYPE + i] = tk.type;
   }
-  // пули
+  // bullets
   for (const bl of bullets) {
     mem[RAM.BULLET_STATUS + bl.i] = flyingBullet(bl.dir); mem[RAM.BULLET_X + bl.i] = bl.x; mem[RAM.BULLET_Y + bl.i] = bl.y;
   }
@@ -249,12 +249,12 @@ export function buildState({ field, tanks = [], bullets = [], prize = null, eagl
 }
 
 // ---------------------------------------------------------------------------
-// C. wrap — живой адаптер поверх эмулятора PvPNes.
+// C. wrap — a live adapter over the PvPNes emulator.
 // ---------------------------------------------------------------------------
 export function wrap(emu: any) {
   return {
     emu,
-    get state() { return new GameState(emu.cpu.mem); }, // свежий срез каждый доступ
+    get state() { return new GameState(emu.cpu.mem); }, // a fresh slice on each access
     get tanks() { return this.state.tanks; },
     get bullets() { return this.state.bullets; },
     get prizes() { return this.state.prizes; },

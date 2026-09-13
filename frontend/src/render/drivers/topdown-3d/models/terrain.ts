@@ -1,10 +1,10 @@
-// terrain.ts — статичная геометрия поля: кирпич (по квадрантам!), сталь, вода, лёд,
-// деревья, дорога. Кирпич собирается из четверть-кубов по битовой маске тайла (BRICK_QUADRANT),
-// поэтому визуальное разрушение совпадает с логикой brickHit (см. @core/domain).
+// terrain.ts — static field geometry: brick (by quadrants!), steel, water, ice,
+// trees, road. Brick is assembled from quarter-cubes by the tile bitmask (BRICK_QUADRANT),
+// so visual destruction matches the brickHit logic (see @core/domain).
 //
-// Материалы и текстуры создаются один раз на драйвер (общие) — пересборка поля не течёт.
+// Materials and textures are created once per driver (shared) — rebuilding the field does not leak.
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/models/terrain.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/models/terrain.ts
 import * as THREE from "three";
 import { BRICK_QUADRANT, brickHealth, isBrick, isSteel, isWater, isIce, isTree, isRoad } from "@core/domain.ts";
 import { COLORS, waterTexture, groundTexture } from "../textures.ts";
@@ -30,7 +30,7 @@ export function createFieldMeshes(): FieldMeshes {
   const dummy = new THREE.Object3D();
   const color = new THREE.Color();
 
-  // Общие ресурсы: живут до dispose(), пересборка поля их не трогает.
+  // Shared resources: live until dispose(), rebuilding the field does not touch them.
   const groundTex = groundTexture();
   const waterTex = waterTexture();
   const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground, map: groundTex, roughness: 0.95 });

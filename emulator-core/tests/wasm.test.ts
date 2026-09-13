@@ -1,6 +1,6 @@
-// WASM hot-path: проверяем, что WASM-функция fnv1a32 даёт тот же результат,
-// что и JS-реализация (детерминизм сохраняется при переносе в WASM).
-// Запуск: node --test tests/wasm.test.js
+// WASM hot-path: verify that the WASM function fnv1a32 gives the same result
+// as the JS implementation (determinism is preserved when moving to WASM).
+// Run: node --test tests/wasm.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -28,9 +28,9 @@ test("WASM fnv1a32 совпадает с JS fnv1a32 (перенос hot-path н�
   assert.ok(wasmFn, "wasm fnv1a32 экспортирована");
   assert.ok(memory, "wasm memory экспортирована");
 
-  // Для standalone-wasm передаём явный (ptr, len) в собственную память модуля.
+  // For standalone-wasm we pass an explicit (ptr, len) into the module's own memory.
   function wasmHash(buf) {
-    const off = 0x1000; // область внутри wasm-памяти (ALLOW_MEMORY_GROWTH)
+    const off = 0x1000; // an area inside wasm memory (ALLOW_MEMORY_GROWTH)
     const view = new Uint8Array(memory.buffer);
     for (let i = 0; i < buf.length; i++) view[off + i] = buf[i];
     return wasmFn(off, buf.length) >>> 0;
@@ -47,7 +47,7 @@ test("WASM fnv1a32 совпадает с JS fnv1a32 (перенос hot-path н�
     assert.strictEqual(wasmH, jsH, "несовпадение хэша на буфере len=" + buf.length);
   }
 
-  // На реальном состоянии ядра (после игры).
+  // On the real core state (after a game).
   const rom = readFileSync(join(root, "rom", "disasm", "_battle_city.nes"));
   const emu = new PvPNes();
   emu.loadROM(rom);

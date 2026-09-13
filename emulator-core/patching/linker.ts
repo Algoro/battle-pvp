@@ -1,10 +1,10 @@
-// linker.js — таблица символов, размещение рутин в свободной зоне и релокация.
+// linker.js — symbol table, routine placement in the free area, and relocation.
 //
-// Рутины размещаются по явному `at` (детерминированная раскладка) либо first-fit в
-// объявленных свободных диапазонах. Перед размещением проверяется, что байты в образе
-// — «пусто» (по умолчанию 0xFF), т.е. мы не затираем настоящий код.
+// Routines are placed at an explicit `at` (deterministic layout) or first-fit in
+// the declared free ranges. Before placement it is checked that the bytes in the image
+// are "empty" (0xFF by default), i.e. we are not overwriting real code.
 //
-// Относительный путь: ./emulator-core/patching/linker.js
+// Relative path: ./emulator-core/patching/linker.js
 import { PatchError, PatchErrorCode } from "./errors.ts";
 import { byteLength, toBytes } from "./descriptor.ts";
 
@@ -36,7 +36,7 @@ export class Linker {
     return this.symbols.has(name);
   }
 
-  /** Разместить рутины. Возвращает список размещений. */
+  /** Place routines. Returns the list of placements. */
   allocate(routines: any[]): any[] {
     for (const r of routines) {
       const len = byteLength(r.bytes);
@@ -52,7 +52,7 @@ export class Linker {
   _firstFit(len: number): number {
     for (const span of this.free) {
       let candidate = span.start;
-      // поднимаем кандидата выше всех пересекающихся занятых диапазонов
+      // raise the candidate above all intersecting occupied ranges
       let moved = true;
       while (moved) {
         moved = false;
@@ -85,7 +85,7 @@ export class Linker {
     }
   }
 
-  /** Проверить, что байтовые записи-хуки не задевают размещённые рутины. */
+  /** Check that the byte write-hooks do not touch placed routines. */
   assertWritesDoNotClobber(writes: any[]): void {
     for (const w of writes || []) {
       const len = toBytes(w.expect).length;

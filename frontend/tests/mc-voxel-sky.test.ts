@@ -1,4 +1,4 @@
-// mc-voxel-sky.test.ts — палитра дня/ночи: «день» должен быть голубым, а не бежевым.
+// mc-voxel-sky.test.ts — day/night palette: "day" should be blue, not beige.
 import { test } from "node:test";
 import assert from "node:assert";
 import { dayStateForFraction } from "../src/render/drivers/mc-voxel/sky/sky.ts";

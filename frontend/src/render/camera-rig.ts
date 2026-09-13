@@ -1,10 +1,10 @@
-// camera-rig.ts — модель камеры и преобразование поля. Чистая математика, без DOM/three.
+// camera-rig.ts — camera model and field transformation. Pure math, no DOM/three.
 //
-// Позволяет масштабировать (zoom), вращать по разным плоскостям (yaw/pitch/roll) и
-// панорамировать; отдельно задаёт Euler-поворот самого поля (fieldEuler), чтобы можно
-// было наклонять «стол», а не только камеру.
+// Allows scaling (zoom), rotating in different planes (yaw/pitch/roll) and
+// panning; separately sets the Euler rotation of the field itself (fieldEuler) so that one
+// can tilt the "table", not just the camera.
 //
-// Относительный путь: ./frontend/src/render/camera-rig.ts
+// Relative path: ./frontend/src/render/camera-rig.ts
 
 export interface Vec3 {
   x: number;
@@ -35,56 +35,56 @@ export class CameraRig {
   roll = 0;
   distance = 34;
   target: Vec3 = { x: 13, y: 0, z: 13 };
-  /** Euler-поворот корня сцены (радианы) — «вращение поля по разным плоскостям». */
+  /** Euler rotation of the scene root (radians) — "field rotation in different planes". */
   fieldEuler: Vec3 = { x: 0, y: 0, z: 0 };
 
   minPitch = 0.12;
   maxPitch = Math.PI / 2 - 0.01;
   minDistance = 8;
   maxDistance = 100;
-  /** До какого времени (мс) не сбивать авто-доворот камеры после ручного ввода. */
+  /** Until what time (ms) not to override the camera auto-turn after manual input. */
   userHoldUntil = 0;
 
-  /** Отметить ручной ввод — временно приостанавливает авто-доворот. */
+  /** Mark manual input — temporarily suspends auto-turn. */
   markUserInput(holdMs = 1200): void {
     this.userHoldUntil = (typeof performance !== "undefined" ? performance.now() : 0) + holdMs;
   }
 
-  /** Орбита: dx — горизонталь (yaw), dy — вертикаль (pitch). Значения в радианах. */
+  /** Orbit: dx — horizontal (yaw), dy — vertical (pitch). Values in radians. */
   orbit(dx: number, dy: number): void {
     this.yaw += dx;
     this.pitch = clamp(this.pitch + dy, this.minPitch, this.maxPitch);
   }
 
-  /** Крен вокруг оси взгляда. */
+  /** Roll around the view axis. */
   rotateRoll(d: number): void {
     this.roll = clamp(this.roll + d, -Math.PI, Math.PI);
   }
 
-  /** Масштаб: factor > 1 приближает. */
+  /** Zoom: factor > 1 zooms in. */
   zoom(factor: number): void {
     this.distance = clamp(this.distance * factor, this.minDistance, this.maxDistance);
   }
 
-  /** Панорама по плоскости земли (пиксели мыши). */
+  /** Pan along the ground plane (mouse pixels). */
   pan(dxPx: number, dyPx: number, viewportPx = 600): void {
     const k = this.distance / viewportPx;
     const cy = Math.cos(this.yaw);
     const sy = Math.sin(this.yaw);
-    // «Хват» мира: и по X, и по Z контент следует за курсором.
+    // World "grab": both along X and Z the content follows the cursor.
     // right = (cos,0,-sin), up-screen = (-sin,0,-cos).
     this.target.x += -cy * dxPx * k - sy * dyPx * k;
     this.target.z += sy * dxPx * k - cy * dyPx * k;
   }
 
-  /** Поворот поля (корня сцены) по осям. */
+  /** Field rotation (scene root) by axes. */
   rotateField(dx: number, dy: number, dz = 0): void {
     this.fieldEuler.x = clamp(this.fieldEuler.x + dx, -Math.PI, Math.PI);
     this.fieldEuler.y = clamp(this.fieldEuler.y + dy, -Math.PI, Math.PI);
     this.fieldEuler.z = clamp(this.fieldEuler.z + dz, -Math.PI, Math.PI);
   }
 
-  /** Позиция камеры в мире. */
+  /** Camera position in the world. */
   position(): Vec3 {
     const cp = Math.cos(this.pitch);
     const sp = Math.sin(this.pitch);

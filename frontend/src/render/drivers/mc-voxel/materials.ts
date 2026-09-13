@@ -1,8 +1,8 @@
-// materials.ts — материалы воксельного драйвера: единый атлас на несколько проходов
-// (opaque / cutout / water), запечённое AO через vertexColors, волна воды в вершинном
-// шейдере (onBeforeCompile).
+// materials.ts — voxel driver materials: a single atlas across several passes
+// (opaque / cutout / water), baked AO via vertexColors, water wave in the vertex
+// shader (onBeforeCompile).
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/materials.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/materials.ts
 import * as THREE from "three";
 import type { TextureAtlas } from "./atlas.ts";
 

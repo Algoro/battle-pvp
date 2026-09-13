@@ -1,11 +1,11 @@
-// relay.ts — WebSocket-сервер: signaling relay + data relay (матч) + лобби (Lobby) и чат.
+// relay.ts — WebSocket server: signaling relay + data relay (match) + lobby (Lobby) and chat.
 //
-// Матч (как раньше): join/signal/relay.data/start/finish работают с Room.
-// Лобби (new): lobby.subscribe/create/join/leave/team/ready/start/kick/settings + chat.send.
-// WS-push: сервер рассылает `lobbies` (список), `lobby` (состояние комнаты), `chat`,
-// `match.start` (хендофф в бой).
+// Match (as before): join/signal/relay.data/start/finish work with Room.
+// Lobby (new): lobby.subscribe/create/join/leave/team/ready/start/kick/settings + chat.send.
+// WS-push: the server broadcasts `lobbies` (list), `lobby` (room state), `chat`,
+// `match.start` (handoff into battle).
 //
-// Относительный путь: ./backend/signaling/relay.ts
+// Relative path: ./backend/signaling/relay.ts
 import type { WebSocketServer } from "ws";
 import { TEAM_DEF, TEAM_ATT } from "../domain/teams.ts";
 import { startMatch, finishMatch } from "../application/match-lifecycle.ts";
@@ -16,7 +16,7 @@ import type { LobbyManager, Lobby } from "../domain/lobby.ts";
 import type { ChatManager } from "../domain/chat.ts";
 import type { Store } from "../persistence/store.ts";
 
-// Диспетчер WS-сообщений: тип -> имя обработчика (заменяет большой switch).
+// WS message dispatcher: type -> handler name (replaces a large switch).
 const ROUTES: Record<string, string> = {
   join: "_onJoin",
   signal: "_onSignal",
@@ -40,13 +40,13 @@ const ROUTES: Record<string, string> = {
   "chat.send": "_onChatSend",
 };
 
-// Все типы из схемы обязаны иметь маршрут (проверяется тестом).
+// All types from the schema must have a route (checked by a test).
 export function routeIsComplete(): boolean {
   return knownTypes().every((t) => typeof ROUTES[t] === "string");
 }
 
 const MAX_PAYLOAD = 256 * 1024;
-const MAX_SIGNAL = 64 * 1024; // SDP/ICE не должны быть больше
+const MAX_SIGNAL = 64 * 1024; // SDP/ICE must not be larger
 
 export class RelayServer {
   wss: WebSocketServer;
@@ -56,7 +56,7 @@ export class RelayServer {
   chat: ChatManager | null;
   sockets: Map<string, any>; // playerId -> ws
   names: Map<string, string>; // playerId -> name
-  lobbySubscribers: Set<any>; // ws, подписанные на список лобби
+  lobbySubscribers: Set<any>; // ws clients subscribed to the lobby list
 
   constructor(
     wss: WebSocketServer,
@@ -92,7 +92,7 @@ export class RelayServer {
       } catch {
         return;
       }
-      // Ошибка обработчика не должна ронять сервер на одном некорректном сообщении.
+      // A handler error must not crash the server on a single malformed message.
       try {
         this._route(ws, msg);
       } catch {
@@ -117,7 +117,7 @@ export class RelayServer {
     return (this as any)[handler](ws, msg);
   }
 
-  // ===================== МАТЧ (существующее) =====================
+  // ===================== MATCH (existing) =====================
 
   _onJoin(
     ws: any,
@@ -152,9 +152,9 @@ export class RelayServer {
       room: this._roomState(room),
     });
     if (res.reconnected && room.state === "playing") {
-      // возврат игрока в идущий матч — партнёры снимают паузу и пере-сопрягаются
+      // player returning to an ongoing match — peers unpause and re-pair
       this._broadcastToRoom(room, { type: "peer.reconnected", playerId });
-      // история чата матча (SQLite + память)
+      // match chat history (SQLite + memory)
       if (this.chat) {
         this._send(ws, {
           type: "chat.history",
@@ -185,7 +185,7 @@ export class RelayServer {
     }
   }
 
-  // Рассылка произвольного события всем участникам комнаты (игроки + наблюдатели).
+  // Broadcast an arbitrary event to all room participants (players + spectators).
   _broadcastToRoom(room: Room, payload: object): void {
     for (const entry of [...room.teams[TEAM_DEF], ...room.teams[TEAM_ATT]]) {
       const ws = this.sockets.get(entry.playerId) || entry.socket;
@@ -196,7 +196,7 @@ export class RelayServer {
     }
   }
 
-  // --- наблюдатели ---
+  // --- spectators ---
   _onSpectate(ws: any, { matchId, playerId }: any): void {
     const id = playerId || ws.playerId;
     if (!id) return this._send(ws, { type: "error", error: "playerId required" });
@@ -210,7 +210,7 @@ export class RelayServer {
     this._send(ws, { type: "spectate.start", matchId, room: this._roomState(room) });
   }
 
-  // Данные для наблюдателей шлёт только игрок комнаты (авторитет) — снапшоты состояния.
+  // Only a room player (authority) sends data for spectators — state snapshots.
   _onSpectateData(ws: any, { matchId, frame, data }: any): void {
     const room = this.rooms.getRoom(matchId);
     if (!room || !room.players.has(ws.playerId)) return;
@@ -257,13 +257,13 @@ export class RelayServer {
     const room = this.rooms.getRoom(matchId);
     if (!room) return;
     finishMatch(room, winner, { store: this.store });
-    // согласованный конец матча: оба клиента получают победителя и возвращаются в лобби
+    // agreed match end: both clients receive the winner and return to the lobby
     this._broadcastToRoom(room, { type: "match.finished", winner });
     this._broadcastRoom(room);
   }
 
-  // Пауза матча (напр., вкладка игрока ушла в фон — rAF встал). Рассылаем всем
-  // участникам комнаты, чтобы оба остановили симуляцию и не разъехались.
+  // Match pause (e.g. a player's tab went to the background — rAF stopped). We broadcast
+  // to all room participants so both stop the simulation and do not diverge.
   _onPause(ws: any, { matchId }: any): void {
     const room = this.rooms.getRoom(matchId || ws.matchId);
     if (!room) return;
@@ -282,7 +282,7 @@ export class RelayServer {
     }
   }
 
-  // ===================== ЛОББИ =====================
+  // ===================== LOBBY =====================
 
   _lobbyState(lobby: Lobby): object {
     return lobby.toState();
@@ -429,7 +429,7 @@ export class RelayServer {
     this._broadcastLobbyList();
   }
 
-  // Старт: создать Match (Room), перенести игроков, разослать match.start, закрыть лобби.
+  // Start: create a Match (Room), transfer players, broadcast match.start, close the lobby.
   _onLobbyStart(ws: any, { lobbyId }: any): void {
     const lobby = this.lobbies!.get(lobbyId || ws.lobbyId);
     if (!lobby) return this._send(ws, { type: "error", error: "lobby-not-found" });
@@ -437,7 +437,7 @@ export class RelayServer {
     this._startLobby(lobby);
   }
 
-  // Общий запуск: используется ручным стартом хоста и авто-стартом.
+  // Shared start: used by the host's manual start and by auto-start.
   _startLobby(lobby: Lobby): void {
     const res = startMatch(lobby, { rooms: this.rooms, store: this.store, chat: this.chat });
     if (!res.ok) {
@@ -456,19 +456,19 @@ export class RelayServer {
     this._broadcastLobbyList();
   }
 
-  // Авто-старт, если настройки и готовность это позволяют.
+  // Auto-start if the settings and readiness allow it.
   _maybeAutoStart(lobby: Lobby | null): void {
     if (lobby && lobby.shouldAutoStart()) this._startLobby(lobby);
   }
 
-  // ===================== ЧАТ =====================
+  // ===================== CHAT =====================
 
   _onChatSend(ws: any, { scope = "lobby", id, text }: any): void {
     if (!this.chat) return;
     const playerId = ws.playerId;
     if (!playerId) return this._send(ws, { type: "error", error: "not-joined" });
 
-    // Чат матча: рассылаем всем участникам комнаты (в бою лобби уже не существует).
+    // Match chat: broadcast to all room participants (during a battle the lobby no longer exists).
     if (scope === "match") {
       const matchId = id || ws.matchId;
       const room = this.rooms.getRoom(matchId);
@@ -509,13 +509,13 @@ export class RelayServer {
     }
   }
 
-  // ===================== ЗАКРЫТИЕ =====================
+  // ===================== CLOSING =====================
 
   _onClose(ws: any): void {
     this.lobbySubscribers.delete(ws);
     const playerId = ws.playerId;
     if (!playerId) return;
-    // лобби
+    // lobby
     if (ws.lobbyId) {
       const lobby = this.lobbies?.get(ws.lobbyId);
       if (lobby) {
@@ -524,7 +524,7 @@ export class RelayServer {
         this._broadcastLobbyList();
       }
     }
-    // матч
+    // match
     this.sockets.delete(playerId);
     for (const room of this.rooms.rooms.values()) {
       if (room.isSpectator(playerId)) room.unspectate(playerId);

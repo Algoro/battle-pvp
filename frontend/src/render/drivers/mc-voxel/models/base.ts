@@ -1,7 +1,7 @@
-// base.ts — орёл (штаб) в воксельном стиле: постамент, золотая фигура, состояния
-// разрушен/укреплён.
+// base.ts — eagle (HQ) in voxel style: pedestal, golden figure, states
+// destroyed/reinforced.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/models/base.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/models/base.ts
 import * as THREE from "three";
 import type { TextureAtlas } from "../atlas.ts";
 import type { RenderBounds, SceneEagle } from "../../../types.ts";

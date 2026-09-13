@@ -1,5 +1,5 @@
-// StarsSelect.tsx — стартовый апгрейд DEF: звёзды (0..3) и опционально супер-оружие.
-// «4★» = максимальный апгрейд + пистолет (аналог сбора 4-й звезды в бою).
+// StarsSelect.tsx — starting DEF upgrade: stars (0..3) and optionally a super-weapon.
+// "4★" = maximum upgrade + gun (equivalent to collecting the 4th star in battle).
 import { useT } from "../i18n/index.tsx";
 
 interface Props {

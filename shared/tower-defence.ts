@@ -1,11 +1,11 @@
-// tower-defence.ts — единые данные и геометрия режима Tower Defence.
+// tower-defence.ts — unified data and geometry for the Tower Defence mode.
 //
-// Модуль намеренно без импортов: подключают frontend (редактор/HUD) и emulator-core
-// (патч/рантайм). Числа и карты — единый источник, чтобы UI показывал ровно то, что
-// применяет рантайм.
+// The module intentionally has no imports: it is included by frontend (editor/HUD) and emulator-core
+// (patch/runtime). The numbers and maps are a single source so that the UI shows exactly what
+// the runtime applies.
 
 // ---------------------------------------------------------------------------
-// Башни
+// Towers
 // ---------------------------------------------------------------------------
 export type TdDifficulty = "easy" | "normal" | "hard";
 
@@ -16,15 +16,15 @@ export interface TowerTypeInfo {
   cost: number;
   upgradeCost: number;
   damage: number;
-  /** Дальность в блоках (16 px). */
+  /** Range in blocks (16 px). */
   range: number;
-  /** Кадров между выстрелами. */
+  /** Frames between shots. */
   fireInterval: number;
-  /** Скорость снаряда, px/кадр. */
+  /** Projectile speed, px/frame. */
   projectileSpeed: number;
-  /** Прочность башни. */
+  /** Tower durability. */
   hp: number;
-  /** Иконка приза ROM (0..5), которой рисуем башню. */
+  /** ROM prize icon (0..5) used to draw the tower. */
   icon: number;
 }
 
@@ -90,7 +90,7 @@ export function towerById(id: string): TowerTypeInfo | null {
   return TOWER_TYPES.find((t) => t.id === id) ?? null;
 }
 
-/** Характеристики башни с учётом уровня (0..2). */
+/** Tower characteristics taking level into account (0..2). */
 export function towerStats(type: TowerTypeInfo, level: number): {
   damage: number;
   range: number;
@@ -107,17 +107,17 @@ export function towerStats(type: TowerTypeInfo, level: number): {
 }
 
 // ---------------------------------------------------------------------------
-// Волны / экономика
+// Waves / economy
 // ---------------------------------------------------------------------------
 export interface TdWaveDef {
   count: number;
   interval: number;
-  /** Типы врагов по порядку спавна (значения ram_tank_type; список зацикливается). */
+  /** Enemy types in spawn order (ram_tank_type values; the list loops). */
   types: number[];
 }
 
-// Типы танков ROM: 0x80 базовый, 0xa0 быстрая пуля, 0xc0 быстрый, 0xe? бронированный
-// (младшие биты — остаток брони). Волны постепенно подмешивают более сильных врагов.
+// ROM tank types: 0x80 basic, 0xa0 fast bullet, 0xc0 fast, 0xe? armored
+// (low bits — remaining armor). Waves gradually mix in stronger enemies.
 export const TD_TANK_BASE = 0x80;
 export const TD_TANK_FAST_BULLET = 0xa0;
 export const TD_TANK_FAST = 0xc0;
@@ -136,7 +136,7 @@ export const TD_WAVES: TdWaveDef[] = [
   { count: 20, interval: 30, types: [0xa0, 0xc0, 0xe2, 0xa0, 0xe2, 0xc0, 0xe2, 0xa0, 0xc0, 0xe2, 0xe2, 0xc0, 0xa0, 0xe2, 0xc0, 0xa0, 0xe2, 0xc0, 0xe2, 0xc0] },
 ];
 
-/** Пул моделей башен в рендере. */
+/** Pool of tower models in the renderer. */
 export const TD_MAX_TOWERS = 16;
 
 export const TD_DIFFICULTIES: { id: TdDifficulty; title: string; startPoints: number; countScale: number }[] = [
@@ -149,7 +149,7 @@ export function difficultyById(id: string) {
   return TD_DIFFICULTIES.find((d) => d.id === id) ?? TD_DIFFICULTIES[1];
 }
 
-/** Очки за убийство врага по типу ROM-танка (старший ниббл ram_tank_type). */
+/** Points for killing an enemy by ROM tank type (high nibble of ram_tank_type). */
 export const TD_POINTS_PER_KILL: Record<number, number> = {
   0x80: 100,
   0xa0: 200,
@@ -190,11 +190,11 @@ export const TD_PHASE = {
 } as const;
 
 // ---------------------------------------------------------------------------
-// Карты (геометрия)
+// Maps (geometry)
 // ---------------------------------------------------------------------------
 export const TD_SIZE = 13;
 export const TD_STRIDE = 91;
-export const BLOCK_WALL = 0x09; // бетон (в поле — 0x10, не разрушается пулей)
+export const BLOCK_WALL = 0x09; // concrete (in the field — 0x10, not destroyed by a bullet)
 export const BLOCK_EMPTY = 0x0d;
 export const TD_BASE_R0 = 11;
 export const TD_BASE_R1 = 12;
@@ -204,7 +204,7 @@ export const TD_BASE_C1 = 7;
 export interface TdMapDef {
   id: string;
   title: string;
-  /** 13 строк по 13 символов: '#' стена, '.' пол, 'S' спавн ATT, 'E' пол у базы. */
+  /** 13 rows of 13 characters: '#' wall, '.' floor, 'S' ATT spawn, 'E' floor at the base. */
   rows: string[];
 }
 
@@ -275,7 +275,7 @@ export function tdMapById(id: string): TdMapDef {
   return TD_MAPS.find((m) => m.id === id) ?? TD_MAPS[0];
 }
 
-/** Номер ROM-стадии для карты (TD-карты записаны в стадии 1..N). */
+/** ROM stage number for the map (TD maps are stored in stages 1..N). */
 export function tdMapStage(id: string): number {
   const i = TD_MAPS.findIndex((m) => m.id === id);
   return i < 0 ? 1 : i + 1;
@@ -301,7 +301,7 @@ export function tdSpawnCells(map: TdMapDef): number[] {
   return out;
 }
 
-/** Клетки, допустимые для башни: пол вне зоны базы и вне спавнов. */
+/** Cells allowed for a tower: floor outside the base zone and outside spawns. */
 export function tdBuildableCells(map: TdMapDef): number[] {
   const out: number[] = [];
   for (let r = 0; r < TD_SIZE; r++) {
@@ -319,7 +319,7 @@ export function blockCode(ch: string): number {
   return ch === "#" ? BLOCK_WALL : BLOCK_EMPTY;
 }
 
-/** 169 кодов блоков карты (13×13, построчно) — для предпросмотра/редактора. */
+/** 169 map block codes (13×13, row by row) — for preview/editor. */
 export function tdBlocks(map: TdMapDef): Uint8Array {
   const out = new Uint8Array(TD_SIZE * TD_SIZE);
   for (let r = 0; r < TD_SIZE; r++)
@@ -327,7 +327,7 @@ export function tdBlocks(map: TdMapDef): Uint8Array {
   return out;
 }
 
-/** 91 байт стадии: 14 нибблов/строку (13 блоков + паддинг), stride 7 байт. */
+/** 91 stage bytes: 14 nibbles/row (13 blocks + padding), stride 7 bytes. */
 export function buildTdStageBytes(map: TdMapDef): Uint8Array {
   const out = new Uint8Array(TD_STRIDE);
   let k = 0;
@@ -342,7 +342,7 @@ export function buildTdStageBytes(map: TdMapDef): Uint8Array {
   return out;
 }
 
-/** Связный путь от верхней кромки до базы (BFS по полу). */
+/** Connected path from the top edge to the base (BFS over floor). */
 export function isConnected(map: TdMapDef): boolean {
   const visited = new Set<number>();
   const queue: [number, number][] = [];

@@ -1,7 +1,7 @@
-// particles.ts — расширение к three-драйверу: атмосферные частицы и искры взрывов.
-// Требует capability "three"; сцену берёт из host.shared.three (предоставляет драйвер).
+// particles.ts — three-driver extension: atmospheric particles and explosion sparks.
+// Requires the "three" capability; it takes the scene from host.shared.three (provided by the driver).
 //
-// Относительный путь: ./frontend/src/render/extensions/particles.ts
+// Relative path: ./frontend/src/render/extensions/particles.ts
 import * as THREE from "three";
 import { loadLang, translate } from "../../i18n/translate.ts";
 import type { RenderExtension, RenderHost, SceneState } from "../types.ts";
@@ -63,7 +63,7 @@ export function createParticlesExtension(): RenderExtension {
         vel[i * 3 + 1] -= 0.00025 * dt;
         if (pos[i * 3 + 1] < 0.1) resetParticle(i, b);
       }
-      // Искры от взрывающихся танков.
+      // Sparks from exploding tanks.
       for (const t of s.tanks) {
         if (t.state !== "exploding") continue;
         const cx = (t.x >> 3) - b.col0 + 1;

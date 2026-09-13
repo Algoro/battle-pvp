@@ -1,13 +1,13 @@
-// sim/observer.js — ПАССИВНЫЙ наблюдатель эмулятора.
-// Читает mem до/после каждого кадра и эмитит ТЕ ЖЕ семантические события, что
+// sim/observer.js — PASSIVE emulator observer.
+// Reads mem before/after each frame and emits THE SAME semantic events as
 // GameSim (tankMoved, bulletFired, bulletMoved, bulletHitBrick, brickDestroyed,
-// bulletHitTank, tankDestroyed, bulletDestroyed). НЕ изменяет mem и НЕ влияет на
-// поведение ИИ/игры — это чисто диагностический слой для сверки кадр-в-кадр.
+// bulletHitTank, tankDestroyed, bulletDestroyed). It does NOT modify mem and does NOT affect
+// AI/game behavior — it is a purely diagnostic layer for frame-by-frame verification.
 //
-// Использование:
-//   const obs = new EmuObserver(emu);          // оборачивает emu.stepFrame
-//   emu.stepFrame(inputs);                      // игра идёт как обычно
-//   obs.events                                  // события за прошедшие кадры
+// Usage:
+//   const obs = new EmuObserver(emu);          // wraps emu.stepFrame
+//   emu.stepFrame(inputs);                      // the game runs as usual
+//   obs.events                                  // events from the past frames
 import { FIELD, isBrick } from "../model/game-view.ts";
 
 function alive(flag: number): boolean { const hi = flag & 0xf0; return hi >= 0x90 && hi <= 0xd0; }
@@ -23,7 +23,7 @@ export class EmuObserver {
     this.prev = null;
     this._wrap();
   }
-  // Обёртка stepFrame: только читаем состояние, не пишем.
+  // stepFrame wrapper: read state only, don't write.
   _wrap(): void {
     const orig = this.emu.stepFrame.bind(this.emu);
     this.emu.stepFrame = (inputs: any) => {
@@ -50,7 +50,7 @@ export class EmuObserver {
   _diff(): void {
     const p = this.prev, b = this.cur;
     if (!p) return;
-    // поле: разрушения кирпичей (фильтруем «шум» частиц — только кирпичные тайлы)
+    // field: brick destruction (we filter out "particle" noise — brick tiles only)
     for (let i = 0; i < p.field.length; i++) {
       if (p.field[i] !== b.field[i] && (isBrick(p.field[i]) || b.field[i] === 0x00)) {
         const col = i % FIELD, row = Math.floor(i / FIELD);
@@ -58,13 +58,13 @@ export class EmuObserver {
         if (b.field[i] === 0x00) this.events.push({ type: "brickDestroyed", col, row });
       }
     }
-    // танки: движение / смерть
+    // tanks: movement / death
     for (let t = 0; t < 8; t++) {
       const A = p.tanks[t], B = b.tanks[t];
       if (A.x !== B.x || A.y !== B.y) this.events.push({ type: "tankMoved", tank: t, x: B.x, y: B.y });
       if (alive(A.flag) && !alive(B.flag)) this.events.push({ type: "tankDestroyed", tank: t });
     }
-    // пули: появление / движение / исчезновение
+    // bullets: appearance / movement / disappearance
     const mapB = new Map<any, any>(b.bullets.map((x: any) => [x.owner, x]));
     const mapP = new Map<any, any>(p.bullets.map((x: any) => [x.owner, x]));
     for (const [owner, A] of mapP) {
@@ -77,6 +77,6 @@ export class EmuObserver {
     }
   }
   reset(): void { this.events = []; this.prev = null; this.cur = null; }
-  // События за последний кадр (для покадровой сверки) и очистка.
+  // Events from the last frame (for frame-by-frame verification) and clearing.
   flush(): any[] { const e = this.events; this.events = []; return e; }
 }

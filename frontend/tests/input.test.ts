@@ -1,6 +1,6 @@
-// input.test.js — тесты чистой логики ввода (клавиатура -> con_btn).
-// Клавиши задаются кодами KeyboardEvent.code (KeyZ, KeyW, ArrowUp и т.д.).
-// Запуск: node --test tests/input.test.js
+// input.test.js — tests of pure input logic (keyboard -> con_btn).
+// Keys are specified by KeyboardEvent.code (KeyZ, KeyW, ArrowUp, etc.).
+// Run: node --test tests/input.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { BTN, keyToMask, maskFromCodes } from "../src/engine/input.ts";
@@ -10,11 +10,11 @@ test("keyToMask сопоставляет коды клавиш битам con_bt
   assert.strictEqual(keyToMask("KeyW"), BTN.Up);
   assert.strictEqual(keyToMask("ArrowLeft"), BTN.Left);
   assert.strictEqual(keyToMask("KeyA"), BTN.Left);
-  assert.strictEqual(keyToMask("KeyZ"), BTN.A); // огонь
+  assert.strictEqual(keyToMask("KeyZ"), BTN.A); // fire
   assert.strictEqual(keyToMask("KeyJ"), BTN.A);
   assert.strictEqual(keyToMask("Enter"), BTN.Start);
   assert.strictEqual(keyToMask("ShiftLeft"), BTN.Select);
-  assert.strictEqual(keyToMask("KeyQ"), 0); // не назначено
+  assert.strictEqual(keyToMask("KeyQ"), 0); // not assigned
 });
 
 test("maskFromCodes агрегирует одновременные нажатия", () => {

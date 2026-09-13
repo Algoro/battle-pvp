@@ -1,4 +1,4 @@
-// camera-rig.test.ts — чистая математика камеры: орбита, крен, масштаб, панорама, пресеты.
+// camera-rig.test.ts — pure camera math: orbit, roll, zoom, pan, presets.
 import { test } from "node:test";
 import assert from "node:assert";
 import { CameraRig, PRESETS } from "../src/render/camera-rig.ts";

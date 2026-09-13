@@ -1,15 +1,15 @@
-// server.ts — HTTP API + WebSocket (signaling relay) для Battle City PvP.
-// Без Docker: прямой Node-процесс + SQLite. Пути относительные от ./backend.
+// server.ts — HTTP API + WebSocket (signaling relay) for Battle City PvP.
+// No Docker: a direct Node process + SQLite. Paths are relative to ./backend.
 //
 // HTTP:
 //   GET  /health        -> { ok: true }
-//   GET  /rooms         -> список открытых лобби
-//   GET  /matches       -> история матчей (SQLite)
+//   GET  /rooms         -> list of open lobbies
+//   GET  /matches       -> match history (SQLite)
 //   POST /matchmake     -> { playerId, team, name? } -> { room } | { queued: true }
-//   GET  /matches/:id   -> один матч (опционально)
+//   GET  /matches/:id   -> a single match (optional)
 // WS (path /ws)          -> RelayServer (signaling + data relay)
 //
-// Относительный путь: ./backend/server.ts
+// Relative path: ./backend/server.ts
 import { createServer, type IncomingMessage, type ServerResponse, type Server } from "node:http";
 import { WebSocketServer } from "ws";
 import { RoomManager, TEAM_DEF } from "./domain/room.ts";
@@ -37,18 +37,18 @@ const MIME: Record<string, string> = {
   ".nes": "application/octet-stream",
 };
 
-// Отдаёт собранный SPA-фронт (frontend/dist) с fallback на index.html.
+// Serves the built SPA frontend (frontend/dist) with a fallback to index.html.
 function serveStatic(req: IncomingMessage, res: ServerResponse): void {
   if (!existsSync(DIST)) return json(res, 404, { error: "frontend not built (npm run build)" });
   const urlPath = decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname);
   const file = urlPath === "/" ? "index.html" : urlPath;
   let abs = join(DIST, file);
-  // SPA fallback: неизвестные пути -> index.html
+  // SPA fallback: unknown paths -> index.html
   if (!existsSync(abs) || !statSync(abs).isFile()) abs = join(DIST, "index.html");
   const ext = extname(abs);
   const headers: Record<string, string> = { "content-type": MIME[ext] || "application/octet-stream" };
-  // index.html не кэшируем, чтобы после пересборки браузер всегда получал ссылки на
-  // свежие хешированные бандлы (иначе старая вкладка может грузить устаревший JS).
+  // We do not cache index.html so that after a rebuild the browser always gets links to
+  // fresh hashed bundles (otherwise an old tab may load stale JS).
   if (abs.endsWith("index.html")) headers["cache-control"] = "no-cache, no-store, must-revalidate";
   res.writeHead(200, headers);
   res.end(readFileSync(abs));
@@ -157,7 +157,7 @@ async function handleHttp(
     return json(res, 200, { room: res2.room.id, port: res2.port, opponent: res2.opponent });
   }
 
-  // --- лобби (Lobby): create/list/detail/join/leave/team/ready/settings/kick/start ---
+  // --- lobby (Lobby): create/list/detail/join/leave/team/ready/settings/kick/start ---
   if (req.method === "GET" && path === "/lobbies") {
     return json(res, 200, ctx.lobbies.listOpen().map((l) => l.toState()));
   }
@@ -244,11 +244,11 @@ async function handleHttp(
     }
     return json(res, 404, { error: "unknown-action" });
   }
-  // Всё остальное — статический SPA-фронт (один контейнер, один порт).
+  // Everything else is the static SPA frontend (one container, one port).
   return serveStatic(req, res);
 }
 
-// Запуск при прямом исполнении (npm start)
+// Run when executed directly (npm start)
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const port = Number(process.env.PORT || 8080);
   const app = createApp();

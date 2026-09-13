@@ -1,12 +1,12 @@
-// pvp.js — PvP-патч ROM: детерминированный PRNG + сетевое управление ATT-танками
-// + per-player респавн. Все хуки — строго равного размера (JMP/JSR + NOP-пады),
-// чтобы адреса оригинального кода не сдвигались.
+// pvp.js — PvP ROM patch: deterministic PRNG + network control of ATT tanks
+// + per-player respawn. All hooks are strictly the same size (JMP/JSR + NOP pads),
+// so the original code addresses do not shift.
 //
-// Раскладка рутин фиксирована явными `at` (совпадает с исторически собранным ROM).
-// Внутренние переходы рутин оставлены литеральными байтами (адреса оригинального
-// кода фиксированы); хуки используют символические JMP/JSR (релокация линкером).
+// The routine layout is fixed by explicit `at` (matches the historically assembled ROM).
+// Internal routine jumps are left as literal bytes (the original code addresses
+// are fixed); the hooks use symbolic JMP/JSR (relocated by the linker).
 //
-// Относительный путь: ./emulator-core/patching/patches/pvp.js
+// Relative path: ./emulator-core/patching/patches/pvp.js
 import { hex, jmp, jsr, jmpT, jsrT, absT, selfJmpT } from "../descriptor.ts";
 
 export const pvp = {
@@ -15,7 +15,7 @@ export const pvp = {
   description: "Детерминированный PRNG, сетевой ввод ATT, per-player respawn",
   routines: [
     {
-      // X = индекс танка (2..7). Сетевой dir если задан, иначе оригинальный AI.
+      // X = tank index (2..7). Network dir if set, otherwise the original AI.
       symbol: "sub_net_enemy_dir",
       at: 0xef75,
       bytes: [
@@ -35,8 +35,8 @@ export const pvp = {
       ],
     },
     {
-      // Скан слотов 2..7: пустой слот + запрос респавна -> sub_E363, сброс флага.
-      // Вход EF95 (LDX #$07), цель цикла EF97 (CPX #$02) = self+2.
+      // Scan slots 2..7: empty slot + respawn request -> sub_E363, reset the flag.
+      // Entry EF95 (LDX #$07), loop target EF97 (CPX #$02) = self+2.
       symbol: "sub_net_respawn_check",
       at: 0xef95,
       bytes: [
@@ -46,12 +46,12 @@ export const pvp = {
         0xf0, 0x09,
         jsrT("sub_E363_tank_spawn_handler"),
         0xa9, 0x00, 0x99, absT("ram_net_enemy_respawn"), 0x60, 0xca,
-        selfJmpT(2), // 4C 97 EF -> цикл на CPX #$02
+        selfJmpT(2), // 4C 97 EF -> loop to CPX #$02
         0x60,
       ],
     },
     {
-      // Обёртка спавна: сначала per-player респавн, затем оригинальный таймер.
+      // Spawn wrapper: first per-player respawn, then the original timer.
       symbol: "sub_DB48_patched",
       at: 0xefb7,
       bytes: [
@@ -61,7 +61,7 @@ export const pvp = {
       ],
     },
     {
-      // Сетевой огонь: при ram_net_enemy_fire!=0 A=0 (выстрел); иначе оригинальный RNG.
+      // Network fire: when ram_net_enemy_fire!=0 A=0 (shot); otherwise the original RNG.
       symbol: "sub_net_enemy_fire_check",
       at: 0xefc4,
       bytes: [
@@ -73,7 +73,7 @@ export const pvp = {
       ],
     },
     {
-      // Вход sub_DE72: сетевое направление, иначе оригинальное продолжение на DE75.
+      // sub_DE72 entry: network direction, otherwise the original continuation at DE75.
       symbol: "sub_DE72_patched",
       at: 0xefe0,
       bytes: [
@@ -90,9 +90,9 @@ export const pvp = {
       id: "prng-deterministic",
       at: 0xd45a,
       len: 6,
-      // было: INC $10; LDX $10; ADC $00,X
+      // was: INC $10; LDX $10; ADC $00,X
       expect: hex("E6 10 A6 10 75 00"),
-      // стало: CLC; ADC $0B; NOP NOP NOP  => random = (random*7 + frm_hi + frm_lo) & FF
+      // now: CLC; ADC $0B; NOP NOP NOP  => random = (random*7 + frm_hi + frm_lo) & FF
       bytes: hex("18 65 0B EA EA EA"),
     },
     {

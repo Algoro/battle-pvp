@@ -1,8 +1,8 @@
-// mesher.ts — построение геометрии поля: кубы, отсечение невидимых граней,
-// ambient occlusion (vertex colors) и контур. Без greedy-слияния (поле маленькое,
-// 26×26), но с отсечением и запечённым светом.
+// mesher.ts — building field geometry: cubes, culling of invisible faces,
+// ambient occlusion (vertex colors) and outline. Without greedy merging (the field is small,
+// 26×26), but with culling and baked light.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/world/mesher.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/world/mesher.ts
 import type { RenderBounds } from "../../../types.ts";
 import type { BlockDef } from "./blocks.ts";
 import { solidAt } from "./blocks.ts";
@@ -47,7 +47,7 @@ export function newArrays(): MeshArrays {
   return { position: [], normal: [], uv: [], color: [], index: [] };
 }
 
-// Грани (порядок вершин — против часовой извне).
+// Faces (vertex order — counter-clockwise from outside).
 const FACES: {
   key: "top" | "bottom" | "px" | "nx" | "pz" | "nz";
   normal: [number, number, number];
@@ -69,7 +69,7 @@ function occ(ctx: MeshContext, c: number, r: number, y: number): number {
   return solidAt(ctx.defAt(c, r), y) ? 1 : 0;
 }
 
-/** Классическая AO-формула (0 — оба соседа, 3 — нет). */
+/** Classic AO formula (0 — both neighbors, 3 — none). */
 function aoValue(side1: number, side2: number, corner: number): number {
   if (side1 && side2) return 0;
   return 3 - (side1 + side2 + corner);
@@ -97,7 +97,7 @@ function cornerVerts(def: BlockDef, x: number, z: number, key: string, y1: numbe
   }
 }
 
-// Корнеры top-грани (i,j): 0=(0,0) 1=(0,1) 2=(1,1) 3=(1,0).
+// Top-face corners (i,j): 0=(0,0) 1=(0,1) 2=(1,1) 3=(1,0).
 const TOP_CORNERS: [number, number][] = [[0, 0], [0, 1], [1, 1], [1, 0]];
 
 function pushQuad(
@@ -117,7 +117,7 @@ function pushQuad(
   out.index.push(base, base + 1, base + 2, base, base + 2, base + 3);
 }
 
-/** Собрать геометрию набора клеток одного чанка. */
+/** Build the geometry of a set of cells of one chunk. */
 export function meshCells(cells: MeshCell[], ctx: MeshContext): ChunkMeshData {
   const data: ChunkMeshData = { opaque: newArrays(), cutout: newArrays(), water: newArrays(), outline: [] };
   const { bounds } = ctx;
@@ -129,7 +129,7 @@ export function meshCells(cells: MeshCell[], ctx: MeshContext): ChunkMeshData {
     const out = def.pass === "cutout" ? data.cutout : def.pass === "water" ? data.water : data.opaque;
 
     for (const face of FACES) {
-      // отсечение по соседу
+      // culling by neighbor
       const n = neighbor(col, row, face.key);
       const nb = ctx.defAt(n.col, n.row);
       const occluded =
@@ -140,14 +140,14 @@ export function meshCells(cells: MeshCell[], ctx: MeshContext): ChunkMeshData {
         nb.y0 + nb.h >= y1 - 0.05 &&
         !(face.key === "top" && nb.h <= def.h);
       if (face.key === "top" && occluded) continue;
-      if (face.key === "bottom" && def.y0 <= 0.001) continue; // низ у земли не нужен
+      if (face.key === "bottom" && def.y0 <= 0.001) continue; // bottom at ground level is not needed
       if (face.key !== "top" && face.key !== "bottom" && occluded) continue;
 
       const verts = cornerVerts(def, x, z, face.key, y1);
       const uvr = ctx.uvOf(face.tile === "top" ? def.top : face.tile === "bottom" ? def.bottom : def.side);
       const bright = face.brightness;
 
-      // AO для верхней грани (по горизонтальным соседям на уровне y1).
+      // AO for the top face (by horizontal neighbors at level y1).
       let colors = [bright, bright, bright, bright];
       if (face.ao && ctx.ao === "smooth") {
         colors = TOP_CORNERS.map(([i, j]) => {
@@ -161,7 +161,7 @@ export function meshCells(cells: MeshCell[], ctx: MeshContext): ChunkMeshData {
       }
       pushQuad(out, verts, face.normal, uvr, colors);
 
-      // Контур: только по «открытым» верхним рёбрам.
+      // Outline: only along "open" top edges.
       if (ctx.outline && def.solid && (face.key === "px" || face.key === "nx" || face.key === "pz" || face.key === "nz")) {
         if (!occluded) addEdge(data.outline, face.key, x, z, y1);
       }
@@ -180,7 +180,7 @@ function neighbor(col: number, row: number, key: string): { col: number; row: nu
   }
 }
 
-// Ребро верхней грани блока (две верхние точки открытой боковой стороны).
+// Edge of the top face of a block (two top points of an open side face).
 function addEdge(out: number[], key: string, x: number, z: number, y1: number): void {
   const x0 = x, x1 = x + 1, z0 = z, z1 = z + 1;
   switch (key) {

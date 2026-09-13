@@ -1,6 +1,6 @@
-// trace.js — трейс решений/смертей ИИ (лог с ограничением по размеру).
-// Вынесено из PvPNes (декомпозиция god-объекта): ядро только вызывает event/detectDeaths.
-// Относительный путь: ./emulator-core/io/trace.js
+// trace.js — trace of AI decisions/deaths (log with a size limit).
+// Extracted from PvPNes (decomposing the god object): the core only calls event/detectDeaths.
+// Relative path: ./emulator-core/io/trace.js
 import { RAM } from "../rom-contract.ts";
 import { isTankAlive } from "../domain.ts";
 
@@ -29,7 +29,7 @@ export class Tracer {
     if (this.items.length > this.cap) this.items.splice(0, this.items.length - this.cap);
   }
 
-  // Детект смертей танков (флаг 0x90..0xd0 => живой) и запись событий.
+  // Detect tank deaths (flag 0x90..0xd0 => alive) and record events.
   detectDeaths(frame: number, mem: any): void {
     if (!this.enabled) return;
     let now = 0;

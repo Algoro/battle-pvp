@@ -1,5 +1,5 @@
-// Детерминизм + PvP-инъекция. Запуск: node --test tests/determinism.test.js
-// Пути относительные от корня проекта; ROM читается по ROM_PATH.
+// Determinism + PvP injection. Run: node --test tests/determinism.test.js
+// Paths are relative to the project root; the ROM is read from ROM_PATH.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -15,7 +15,7 @@ function loadRom() {
   return romFile;
 }
 
-// Простой seedable-псевдослучайный вход (детерминированный, без Math.random).
+// A simple seedable pseudo-random input (deterministic, without Math.random).
 function makeInputSequence(frames, seed = 0x1234) {
   let s = seed >>> 0;
   const next = () => {
@@ -24,7 +24,7 @@ function makeInputSequence(frames, seed = 0x1234) {
   };
   const seq = [];
   for (let f = 0; f < frames; f++) {
-    // DEF: 2 порта, ATT: 2 порта
+    // DEF: 2 ports, ATT: 2 ports
     const inputs = [];
     for (let port = 0; port < 4; port++) {
       inputs.push({ port, buttons: next() & 0xff });
@@ -57,20 +57,20 @@ test("save/load state детерминирован (роллбек): откат 
   const hashes = [];
   for (const inputs of seq.slice(0, 60)) hashes.push(emu.stepFrame(inputs));
 
-  // Сохраняем состояние на кадре 60
+  // Save the state at frame 60
   const snapshot = emu.saveState();
   const midHash = emu.getFrameHash();
 
-  // Играем ещё 30 кадров (60..90)
+  // Play 30 more frames (60..90)
   for (const inputs of seq.slice(60, 90)) hashes.push(emu.stepFrame(inputs));
   const afterHash = emu.getFrameHash();
   assert.notStrictEqual(afterHash, midHash, "состояние должно было измениться");
 
-  // Откат к снапшоту (кадр 60)
+  // Roll back to the snapshot (frame 60)
   emu.loadState(snapshot);
   assert.strictEqual(emu.getFrameHash(), midHash, "откат должен вернуть прежний hash");
 
-  // Переигровка тех же кадров (60..90) — те же хэши (rollback корректность)
+  // Replay the same frames (60..90) — the same hashes (rollback correctness)
   const replayed = [];
   for (const inputs of seq.slice(60, 90)) replayed.push(emu.stepFrame(inputs));
   assert.deepStrictEqual(replayed, hashes.slice(60, 90), "переигровка дала иные хэши");
@@ -80,18 +80,18 @@ test("PvP: ввод ATT-порта пишется в ram_net_enemy_dir (инъе
   const rom = loadRom();
   const emu = new PvPNes();
   emu.loadROM(rom);
-  // Прогоним до входа в раунд (титул -> игровой экран), чтобы рандом-спавн прошёл.
+  // Run until entering a round (title -> game screen) so the random spawn has passed.
   for (let i = 0; i < 60; i++) emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
-  // ATT-порт 2: нажатие Up+A (направление 0, огонь edge)
+  // ATT port 2: press Up+A (direction 0, fire edge)
   emu.stepFrame([
     { port: 0, buttons: BTN.A | BTN.Start },
     { port: 2, buttons: BTN.Up | BTN.A },
   ]);
-  // ram_net_enemy_dir для танка 2 = $01DB -> 0 (Up)
+  // ram_net_enemy_dir for tank 2 = $01DB -> 0 (Up)
   assert.strictEqual(emu.readMem(0x01db), 0, "dir танка 2 должна быть Up=0");
-  // ram_net_enemy_fire для танка 2 = $01E1 -> 1 (edge A)
+  // ram_net_enemy_fire for tank 2 = $01E1 -> 1 (edge A)
   assert.strictEqual(emu.readMem(0x01e1), 1, "fire танка 2 должен быть 1");
-  // Порт 0 (DEF) — не должен трогать net-зону
+  // Port 0 (DEF) — must not touch the net area
   assert.ok(emu.readMem(0x01db) === 0);
 });
 
@@ -100,7 +100,7 @@ test("PvP: удержание кнопки не даёт повторный edge
   const emu = new PvPNes();
   emu.loadROM(rom);
   for (let i = 0; i < 40; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
-  // зажимаем Start у ATT-порта 3 (idx = 3-2 = 1 -> respawn = $01E7 + 1 = $01E8)
+  // hold Start on ATT port 3 (idx = 3-2 = 1 -> respawn = $01E7 + 1 = $01E8)
   emu.stepFrame([{ port: 3, buttons: BTN.Start }]);
   assert.strictEqual(emu.readMem(0x01e8), 1, "respawn edge на первом кадре удержания");
   emu.stepFrame([{ port: 3, buttons: BTN.Start }]);

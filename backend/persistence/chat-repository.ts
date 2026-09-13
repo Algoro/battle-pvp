@@ -1,7 +1,7 @@
-// chat-repository.ts — SQLite-адаптер порта ChatRepository (домен о SQLite не знает).
-// Оборачивает Store, приводя имена методов к контракту порта (insert/list).
+// chat-repository.ts — SQLite adapter for the ChatRepository port (the domain knows nothing of SQLite).
+// Wraps Store, mapping method names to the port contract (insert/list).
 //
-// Относительный путь: ./backend/persistence/chat-repository.ts
+// Relative path: ./backend/persistence/chat-repository.ts
 import type { ChatMessage, ChatRepository } from "../ports.ts";
 import type { Store } from "./store.ts";
 

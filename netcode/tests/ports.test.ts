@@ -1,4 +1,4 @@
-// ports.test.ts — порт Clock в RollbackSession: время инъектируется (нет прямого Date.now).
+// ports.test.ts — the Clock port in RollbackSession: time is injected (no direct Date.now).
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -48,9 +48,9 @@ test("ports: latency считается по инъектированному Cl
   });
   sa.advanceFrame([{ port: 0, buttons: 0 }]);
   sb.advanceFrame([{ port: 2, buttons: 0 }]);
-  tb.flush(); // ping доставлен B -> B отправил pong (t = 0)
-  clock.t = 100; // «прошло» 100 мс
-  ta.flush(); // pong доставлен A -> RTT = now - t
+  tb.flush(); // ping delivered to B -> B sent pong (t = 0)
+  clock.t = 100; // "100 ms elapsed"
+  ta.flush(); // pong delivered to A -> RTT = now - t
   assert.strictEqual(sa.getLatency(), 100);
 });
 

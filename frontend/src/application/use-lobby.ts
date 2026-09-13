@@ -1,7 +1,7 @@
-// use-lobby.ts — лобби-логика App, вынесенная в хук (декомпозиция god-компонента).
-// Управляет LobbyClient, состоянием лобби/чатов/ошибок и действиями над лобби.
-// Внешние события (матч, реконнект, spectator) отдаются через getHandlers() — так хук
-// не зависит от порядка определения функций в App и не держит устаревшие замыкания.
+// use-lobby.ts — App lobby logic moved into a hook (decomposition of the god component).
+// Manages LobbyClient, the state of lobbies/chats/errors and actions on lobbies.
+// External events (match, reconnect, spectator) are exposed via getHandlers() — this way the hook
+// does not depend on the order in which functions are defined in App and does not hold stale closures.
 import { useEffect, useRef, useState } from "react";
 import LobbyClient, { LobbyState, ChatMessage, LobbySettings } from "../engine/lobby-client";
 import { useT } from "../i18n/index.tsx";
@@ -33,7 +33,7 @@ export function useLobbyClient(meId: string, initialName: string, getHandlers: (
   const handlersRef = useRef(getHandlers);
   handlersRef.current = getHandlers;
 
-  // Один WS на всё лобби + хендофф в матч.
+  // One WS for the whole lobby + handoff into the match.
   useEffect(() => {
     const lc = new LobbyClient(meId, initialName || t("Игрок"));
     lcRef.current = lc;
@@ -70,7 +70,7 @@ export function useLobbyClient(meId: string, initialName: string, getHandlers: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Реконнект-события (перевешиваем на актуальные обработчики через ref).
+  // Reconnect events (we re-attach to the current handlers via ref).
   useEffect(() => {
     const lc = lcRef.current;
     if (!lc) return;

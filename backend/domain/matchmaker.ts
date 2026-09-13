@@ -1,7 +1,7 @@
-// matchmaker.ts — очередь матчмейкинга: пара «защитник» + «атакующий» -> комната.
-// Симметричные правила: команды отличаются только спавн-позициями (см. reports).
+// matchmaker.ts — matchmaking queue: a "defender" + "attacker" pair -> a room.
+// Symmetric rules: teams differ only in spawn positions (see reports).
 //
-// Относительный путь: ./backend/domain/matchmaker.ts
+// Relative path: ./backend/domain/matchmaker.ts
 import { otherTeam, type Team } from "./teams.ts";
 import { RoomManager, type Room } from "./room.ts";
 
@@ -25,15 +25,15 @@ export class Matchmaker {
     this.queue = [];
   }
 
-  // Возвращает: {room, playerId, port} либо {queued: true}.
-  // Пары образуются ТОЛЬКО между клиентами с одинаковым отпечатком картриджа.
+  // Returns: {room, playerId, port} or {queued: true}.
+  // Pairs are formed ONLY between clients with the same cartridge fingerprint.
   add(
     playerId: string,
     team: Team,
     sessionId: string | null,
     fingerprint: string | null = null,
   ): MatchmakerResult {
-    // ищем ожидающего игрока противоположной команды с тем же картриджем
+    // look for a waiting player on the opposite team with the same cartridge
     const need = otherTeam(team);
     const idx = this.queue.findIndex(
       (q) => q.team === need && (q.fingerprint ?? null) === (fingerprint ?? null),
@@ -62,7 +62,7 @@ export class Matchmaker {
   }
 
   flushIdle(): void {
-    // (опционально) ограничивать размер очереди по TTL
+    // (optionally) limit the queue size by TTL
   }
 }
 

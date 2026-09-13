@@ -1,6 +1,6 @@
-// ai-switch.test.js — переключение ИИ на лету + трейс решений (pvp.js).
-// Проверяет: setAttAI/setDefAI меняют режим, сбрасывают состояние, не ломают игру;
-// трейс собирает события решений/убийств, getTrace/clearTrace и лимит работают.
+// ai-switch.test.js — switching AI on the fly + decision trace (pvp.js).
+// Verifies: setAttAI/setDefAI change the mode, reset state, don't break the game;
+// the trace collects decision/kill events, and getTrace/clearTrace and the limit work.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -34,13 +34,13 @@ test("getAttModes/getDefModes отдают известные режимы; getA
 
 test("setAttAI/setDefAI меняют режим на лету и продолжают игру детерминированно", () => {
   const nes = startStage1({ attAI: "plan", defAI: "plan" });
-  // прогрев несколько кадров
+  // warm up a few frames
   for (let f = 0; f < 30; f++) nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   nes.setAttAI("scan");
   nes.setDefAI("lookahead");
   assert.strictEqual(nes.getAttAI(), "scan");
   assert.strictEqual(nes.getDefAI(), "lookahead");
-  // игра продолжается без исключений и даёт валидный hash
+  // the game continues without exceptions and gives a valid hash
   let h = null;
   for (let f = 0; f < 60; f++) h = nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   assert.match(h, /^[0-9a-f]{8}$/, "кадр продолжает считаться после смены ИИ");
@@ -63,22 +63,22 @@ test("трейс собирает решения ИИ, события смены
 
   const tr = nes.getTrace();
   assert.ok(tr.length > 0, "трейс непустой");
-  // события решений атакующих и защитников
+  // attacker and defender decision events
   assert.ok(tr.some((e) => e.side === "att" && e.event === "decision"), "есть решения атакующих");
   assert.ok(tr.some((e) => e.side === "def" && e.event === "decision"), "есть решения защитников");
-  // события смены режима
+  // mode-change events
   assert.ok(tr.some((e) => e.event === "attAI" && e.detail === "lookahead"), "залогирована смена attAI");
   assert.ok(tr.some((e) => e.event === "defAI" && e.detail === "scan"), "залогирована смена defAI");
-  // каждый трейс-элемент имеет id/frame/side
+  // every trace element has id/frame/side
   for (const e of tr.slice(0, 10)) {
     assert.ok(typeof e.id === "number", "id числовой");
     assert.ok(typeof e.frame === "number", "frame числовой");
   }
-  // лимит соблюдается
+  // the limit is respected
   nes.setTraceCap(50);
   for (let f = 0; f < 20; f++) nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   assert.ok(nes.getTrace().length <= 50, "трейс обрезан по лимиту");
-  // очистка
+  // clearing
   nes.clearTrace();
   assert.strictEqual(nes.getTrace().length, 0, "clearTrace очищает трейс");
 });
@@ -94,7 +94,7 @@ test("трейс выключен по умолчанию и не копит с�
 
 test("attAI 'off' замораживает врагов; defAI 'off' ставит союзника", () => {
   const nes = startStage1({ attAI: "plan", defAI: "plan" });
-  // прогрев: даём врагам появиться на поле
+  // warm-up: let the enemies appear on the field
   for (let f = 0; f < 200; f++) nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   nes.setAttAI("off");
   const pos = () => Array.from({ length: 6 }, (_, i) => `${nes.cpu.mem[0x92 + i]},${nes.cpu.mem[0x9a + i]}`).join("|");
@@ -102,27 +102,27 @@ test("attAI 'off' замораживает врагов; defAI 'off' стави�
   for (let f = 0; f < 40; f++) nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   const p1 = pos();
   assert.strictEqual(p0, p1, "враги не двигаются при 'off'");
-  // смена на реальный режим размораживает и игра продолжается
+  // switching to a real mode unfreezes and the game continues
   nes.setAttAI("scan");
   assert.strictEqual(nes.getAttAI(), "scan");
   const h = nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   assert.match(h, /^[0-9a-f]{8}$/);
-  // defAI 'off' не роняет кадр
+  // defAI 'off' does not drop the frame
   nes.setDefAI("off");
   const h2 = nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   assert.match(h2, /^[0-9a-f]{8}$/);
 });
 
 test("setAttAI не разчеловечивает танк живого игрока (регресс: самопроизвольная стрельба)", () => {
-  // Игрок за атакующего (танк 2). Смена ИИ атакующих в меню НЕ должна убирать танк 2
-  // из humanTanks, иначе его начинает рулить атакующий ИИ (самопроизвольные выстрелы).
+  // Player as attacker (tank 2). Switching attacker AI in the menu must NOT remove tank 2
+  // from humanTanks, otherwise the attacker AI starts driving it (spontaneous shots).
   const nes = startStage1({ attAI: "lookahead", defAI: "lookahead" });
   nes.setHumanTank(2);
   assert.ok(nes.humanTanks.has(2), "танк 2 человеческий до смены");
   nes.setAttAI("scan");
   nes.setAttAI("lookahead");
   assert.ok(nes.humanTanks.has(2), "танк 2 остаётся человеческим после смены ИИ");
-  // "off" замораживает ИИ-врагов, но не трогает человеческий танк игрока
+  // "off" freezes the AI enemies, but does not touch the player's human tank
   nes.setAttAI("off");
   assert.ok(nes.humanTanks.has(2), "при 'off' танк 2 остаётся человеческим");
   assert.ok(nes.humanTanks.has(3), "ИИ-враг 3 заморожен при 'off'");
@@ -131,9 +131,9 @@ test("setAttAI не разчеловечивает танк живого игр�
 });
 
 test("человеческий ATT-танк не стреляет самопроизвольно (RNG-огонь ASM заблокирован)", () => {
-  // Игрок за атакующего (танк 2), defAI="off" — враги не стреляют, танк игрока жив.
-  // Без нажатия A слот пули не должен становиться 0x40 (самопроизвольный выстрел),
-  // а при нажатии A — должен стрелять легитимно.
+  // Player as attacker (tank 2), defAI="off" — enemies don't shoot, the player's tank is alive.
+  // Without pressing A the bullet slot must not become 0x40 (spontaneous shot),
+  // and when A is pressed — it must fire legitimately.
   const nes = startStage1({ attAI: "lookahead", defAI: "off" });
   nes.setHumanTank(2);
   const alive = () => { const f = nes.cpu.mem[0xa2]; const h = f & 0xf0; return h >= 0x90 && h <= 0xd0; };
@@ -147,7 +147,7 @@ test("человеческий ATT-танк не стреляет самопро
   }
   assert.ok(alive(), "танк 2 жив");
   assert.strictEqual(sp, 0, "без A танк 2 не стреляет самопроизвольно");
-  // легитимная стрельба по кнопке работает
+  // legitimate firing by the button works
   let leg = 0; firing = false;
   for (let f = 0; f < 100; f++) {
     const A = (f >= 30 && f < 35) ? BTN.A : 0;
@@ -171,7 +171,7 @@ test("стоящий человеческий ATT-танк не анимируе
     nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: autoRespawn ? BTN.Start : 0 }]);
     if (alive()) break;
   }
-  // даём танку пройти (чтобы был lastPlayerDir) и стоим без ввода
+  // let the tank move (so there is a lastPlayerDir) and stand without input
   for (let f = 0; f < 20; f++) nes.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: BTN.Down }]);
   let wheelChanges = 0, prev = null;
   for (let f = 0; f < 40; f++) {
@@ -184,17 +184,17 @@ test("стоящий человеческий ATT-танк не анимируе
 });
 
 test("planDefense управляет DEF-танком в состоянии 0x80 (не выпадает из-под контроля)", () => {
-  // Регресс: раньше planDefense использовал строгий aliveFlag (0x90..0xd0) для проверки
-  // inField. Флаг DEF-танка в норме гуляет по 0x80..0x8f (крутятся гусеницы/поворот), и в
-  // этот момент защитник «выпадал» из-под контроля ИИ — не двигался и не стрелял, пока
-  // флаг не вернётся в 0x90+. Это делало защитника «тупым»/замирающим.
+  // Regression: previously planDefense used the strict aliveFlag (0x90..0xd0) to check
+  // inField. The DEF tank flag normally ranges over 0x80..0x8f (tracks spinning/turning), and at
+  // that moment the defender "dropped out" of AI control — it didn't move or shoot until
+  // the flag returned to 0x90+. This made the defender "dumb"/freezing.
   const nes = startStage1({ attAI: "plan", defAI: "plan" });
   const m = nes.cpu.mem;
-  // выровняем DEF0 (88,200) и врага t2 (88,120) в одной колонке, очистим линию
+  // align DEF0 (88,200) and enemy t2 (88,120) in the same column, clear the line
   m[0x90] = 88; m[0x98] = 200; m[0xa0] = 0xa0;
   m[0x92] = 88; m[0x9a] = 120; m[0xa2] = 0xa0; m[0xaa] = 0x80;
   for (let r = 15; r < 26; r++) m[0x400 + r * 32 + 11] = 0;
-  // DEF0 в состоянии 0x80 (0x84), DEF1 в 0xa0 — оба должны управляться planDefense.
+  // DEF0 in state 0x80 (0x84), DEF1 in 0xa0 — both must be controlled by planDefense.
   m[0xa0] = 0x84; m[0xa1] = 0xa0;
   let controlled0 = false, controlled1 = false;
   for (let f = 0; f < 5; f++) {

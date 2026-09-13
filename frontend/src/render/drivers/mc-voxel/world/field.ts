@@ -1,7 +1,7 @@
-// field.ts — построение воксельного поля по срезам SceneState.field: чанки 8×8,
-// пересборка только изменившихся чанков, земля + контур.
+// field.ts — building the voxel field from SceneState.field slices: 8×8 chunks,
+// rebuilding only changed chunks, ground + outline.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/world/field.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/world/field.ts
 import * as THREE from "three";
 import type { RenderBounds } from "../../../types.ts";
 import { blockForTile, type BlockDef } from "./blocks.ts";
@@ -67,7 +67,7 @@ export function createFieldWorld(
     const dirt = materials.atlas.standalone("dirt");
     dirt.repeat.set(cols, rows);
     const base = new THREE.Mesh(new THREE.BoxGeometry(cols, 1, rows), new THREE.MeshLambertMaterial({ map: dirt }));
-    // Верх основания на -0.01, чтобы не z-fight с травяной плоскостью на y=0.
+    // Top of the base at -0.01 to avoid z-fighting with the grass plane at y=0.
     base.position.set(cols / 2, -0.51, rows / 2);
     group.add(base);
     groundMeshes.push(base);
@@ -179,7 +179,7 @@ export function createFieldWorld(
       if (next.ao === ao && next.outline === outline) return;
       ao = next.ao;
       outline = next.outline;
-      resetChunks(); // земля не зависит от ao/outline — оставляем
+      resetChunks(); // ground does not depend on ao/outline — keep it
     },
     update(field, b) {
       bounds = b;

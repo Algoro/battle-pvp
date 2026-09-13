@@ -1,18 +1,18 @@
-// player-names.ts — JS-рантайм фичи `player-names`: имя игрока над его танком.
+// player-names.ts — JS runtime of the `player-names` feature: the player's name above his tank.
 //
-// Рендер — BG-тайлами nametable (шрифт ROM: tile index == ASCII-код, CHR bank1).
-// Overlay производный/визуальный: не пишет cpu.mem (хэш кадров не меняется) и
-// снимается перед saveState (см. before/afterSaveState), чтобы не попадать в снапшот.
+// Rendering — with BG nametable tiles (ROM font: tile index == ASCII code, CHR bank1).
+// The overlay is derivative/visual: it does not write cpu.mem (the frame hash doesn't change) and
+// is removed before saveState (see before/afterSaveState) so it doesn't get into the snapshot.
 //
-// Поведение (согласовано): имя из лобби/матча; ≤10 символов; центрируется над танком;
-// цвет — палитра HUD-текста; показывается живым танкам людей (DEF+ATT); нет имени — ничего.
+// Behavior (agreed): name from the lobby/match; ≤10 characters; centered above the tank;
+// color — HUD text palette; shown for living human tanks (DEF+ATT); no name — nothing.
 //
-// Относительный путь: ./emulator-core/features/player-names.ts
+// Relative path: ./emulator-core/features/player-names.ts
 import { RAM } from "../rom-contract.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
 
 const MAX_LEN = 10;
-const HUD_OFF = 5 * 32 + 12; // "STAGE" в nametable-адресе $28AC
+const HUD_OFF = 5 * 32 + 12; // "STAGE" at nametable address $28AC
 
 type SavedCell = { off: number; glyph: number; nt: { tile: number; attrib: number }[] };
 
@@ -48,7 +48,7 @@ function normalizeNames(src: any, maxLen: number = MAX_LEN): Record<number, stri
   return out;
 }
 
-// Палитра HUD-текста: значение attrib клетки "STAGE" (первый nametable, где лежит буква).
+// HUD text palette: the attrib value of the "STAGE" cell (the first nametable that holds a letter).
 function hudPalette(ctx: FeatureContext): number {
   for (const nt of ctx.kernel.ppuNameTable) {
     const t = nt.tile[HUD_OFF];
@@ -64,7 +64,7 @@ function restoreOverlay(ctx: FeatureContext): void {
   for (const c of cells) {
     for (let i = 0; i < nts.length; i++) {
       const nt = nts[i];
-      if (nt.tile[c.off] !== c.glyph) continue; // клетку изменила игра — не трогаем
+      if (nt.tile[c.off] !== c.glyph) continue; // the game changed the cell — don't touch it
       const saved = c.nt[i];
       if (!saved) continue;
       nt.tile[c.off] = saved.tile;
@@ -91,7 +91,7 @@ function applyOverlay(ctx: FeatureContext): void {
   for (const key of Object.keys(names)) {
     const port = Number(key);
     const flag = mem[RAM.TANK_FLAG + port];
-    if (!(flag & 0x80) || flag >= 0xe0) continue; // только живой «на поле»
+    if (!(flag & 0x80) || flag >= 0xe0) continue; // only a living "on field"
     const text = names[port];
     const row = (mem[RAM.TANK_Y + port] >> 3) - 1;
     if (row < 0 || row > 31) continue;
@@ -123,7 +123,7 @@ export const playerNamesRuntime: FeatureRuntime = {
     applyOverlay(ctx);
   },
 
-  // Overlay — производный визуал; в снапшот не должен попадать.
+  // Overlay — derivative visuals; must not get into the snapshot.
   beforeSaveState(ctx) {
     restoreOverlay(ctx);
   },

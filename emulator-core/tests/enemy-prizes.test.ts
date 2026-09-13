@@ -1,6 +1,6 @@
-// enemy-prizes.test.ts — фича `enemy-prizes`: враги (танки 2..7) поглощают призы.
-// Патч хукает sub_E972 ($E972); рутина проверяет танки 2..7 на близость к призу и
-// «съедает» его (без player-индексированных эффектов). Запуск: node --test tests/enemy-prizes.test.ts
+// enemy-prizes.test.ts — the `enemy-prizes` feature: enemies (tanks 2..7) absorb prizes.
+// The patch hooks sub_E972 ($E972); the routine checks tanks 2..7 for proximity to the prize and
+// "eats" it (without player-indexed effects). Run: node --test tests/enemy-prizes.test.ts
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -17,7 +17,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..", "..");
 const ROM = readFileSync(join(ROOT, "rom", "original", "_battle_city.nes"));
 
-// Быстрый старт и ожидание живого DEF-танка 0.
+// Fast start and wait for a living DEF tank 0.
 function boot(features = ["enemy-prizes"], featureOptions?: any) {
   const emu = new PvPNes({ patchSet: "pvp", features, featureOptions, attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
@@ -37,11 +37,11 @@ const idle = (emu, n = 1) => {
   for (let i = 0; i < n; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
 };
 
-// Поставить "живого" врага (слот 2) точно на приз.
+// Place a "living" enemy (slot 2) exactly on the prize.
 function enemyOnBonus(emu, id = 3, x = 100, y = 100) {
   emu.cpu.mem[RAM.TANK_X + 2] = x;
   emu.cpu.mem[RAM.TANK_Y + 2] = y;
-  emu.cpu.mem[RAM.TANK_FLAG + 2] = 0x90; // жив, не взрыв/респавн
+  emu.cpu.mem[RAM.TANK_FLAG + 2] = 0x90; // alive, not explosion/respawn
   emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
   emu.spawnBonus(id, x, y);
 }
@@ -57,7 +57,7 @@ test("enemy-prizes: фича зарегистрирована и меняет fi
   const rep = applyPatchSet(rom, { base: "pvp", features: ["enemy-prizes"] });
   assert.deepStrictEqual(rep.features, ["enemy-prizes"]);
   assert.notStrictEqual(rep.fingerprint, base.fingerprint, "фича должна менять fingerprint");
-  // хук переписан на JMP, рутина размещена в свободной зоне
+  // the hook is rewritten to JMP, the routine is placed in the free area
   const img = new RomImage(rom);
   assert.strictEqual(img.read(0xe972), 0x4c, "хук sub_E972 не переписан");
   assert.ok(rep.routines.some((r) => r.symbol === "sub_enemy_pick_up_bonus"));
@@ -76,14 +76,14 @@ test("enemy-prizes: комбинация с pistol собирается без �
 test("enemy-prizes: враг наезжает на приз и поглощает его", () => {
   const emu = boot();
   enemyOnBonus(emu, 3, 100, 100);
-  // ждём несколько кадров: ROM вызовет sub_E972 и поглотит приз
+  // wait a few frames: the ROM calls sub_E972 and absorbs the prize
   let consumed = false;
   for (let f = 0; f < 4 && !consumed; f++) {
     idle(emu, 1);
     if (emu.cpu.mem[RAM.BONUS_TIMER] > 0 || emu.cpu.mem[RAM.PRIZE_X] === 0) consumed = true;
   }
   assert.ok(consumed, "враг не поглотил приз");
-  // игрок очков/эффектов не получил: пистолет не выдан, апгрейд не изменился
+  // the player got no points/effects: the pistol was not granted, the upgrade didn't change
   assert.notStrictEqual(emu.readMem(RAM.PISTOL), 1, "враг не должен выдавать игроку оружие");
 });
 
@@ -102,7 +102,7 @@ test("enemy-prizes: подбор приза игроком (танк 0) прод
   const emu = boot();
   const x = emu.readMem(RAM.TANK_X);
   const y = emu.readMem(RAM.TANK_Y);
-  emu.spawnBonus(6, x, y); // пистолет как заметный player-эффект (фича pistol выключена -> только SFX)
+  emu.spawnBonus(6, x, y); // pistol as a noticeable player effect (pistol feature off -> SFX only)
   idle(emu, 10);
   assert.ok(
     emu.cpu.mem[RAM.BONUS_TIMER] > 0 || emu.cpu.mem[RAM.PRIZE_X] === 0,
@@ -121,7 +121,7 @@ test("enemy-prizes: врага в зоне нет -> приз остаётся",
   assert.strictEqual(emu.cpu.mem[RAM.BONUS_TIMER], 0, "таймер не должен запуститься");
 });
 
-// Подобрать приз врагом и дать рантайму обработать событие (postFrame).
+// Have an enemy pick up a prize and let the runtime process the event (postFrame).
 function pickByEnemy(emu: any, id: number): void {
   enemyOnBonus(emu, id, 100, 100);
   for (let f = 0; f < 4; f++) {
@@ -140,8 +140,8 @@ test("enemy-prizes: clock замораживает защитников", () => 
 test("enemy-prizes: shovel снимает защиту базы (кирпич и сталь)", () => {
   const emu = boot();
   const c = 25 * 32 + 13;
-  emu.cpu.mem[RAM.FIELD + c] = 0x0f; // кирпич
-  emu.cpu.mem[RAM.FIELD + c + 1] = 0x10; // сталь
+  emu.cpu.mem[RAM.FIELD + c] = 0x0f; // brick
+  emu.cpu.mem[RAM.FIELD + c + 1] = 0x10; // steel
   pickByEnemy(emu, 2);
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + c], 0, "кирпич не снят");
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + c + 1], 0, "сталь не снята");
@@ -150,7 +150,7 @@ test("enemy-prizes: shovel снимает защиту базы (кирпич и
 
 test("enemy-prizes: grenade взрывает защитников", () => {
   const emu = boot();
-  // гарантировать живого DEF-танка 0
+  // ensure a living DEF tank 0
   emu.cpu.mem[RAM.TANK_FLAG] = 0x90;
   pickByEnemy(emu, 4);
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG], 0x73, "защитник не взорван");
@@ -230,8 +230,8 @@ test("enemy-prizes: grenadeLethal=false — защитники получают 
 test("enemy-prizes: shovelMode=bricks не снимает сталь", () => {
   const emu = boot(["enemy-prizes"], { "enemy-prizes": { shovelMode: "bricks" } });
   const c = 25 * 32 + 13;
-  emu.cpu.mem[RAM.FIELD + c] = 0x0f; // кирпич
-  emu.cpu.mem[RAM.FIELD + c + 1] = 0x10; // сталь
+  emu.cpu.mem[RAM.FIELD + c] = 0x0f; // brick
+  emu.cpu.mem[RAM.FIELD + c + 1] = 0x10; // steel
   pickByEnemy(emu, 2);
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + c], 0, "кирпич должен быть снят");
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + c + 1], 0x10, "сталь должна остаться");

@@ -1,4 +1,4 @@
-// StageSelect.tsx — выбор стадии (1..35) с предпросмотром из ROM в памяти.
+// StageSelect.tsx — stage selection (1..35) with a preview from the ROM in memory.
 import StagePreview from "./StagePreview";
 import type { EmulatorDriver } from "../engine/emulator";
 import { useT } from "../i18n/index.tsx";

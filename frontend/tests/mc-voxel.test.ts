@@ -1,4 +1,4 @@
-// mc-voxel.test.ts — блоки, настройки/пресеты и мешер (отсечение граней, AO).
+// mc-voxel.test.ts — blocks, settings/presets and the mesher (face culling, AO).
 import { test } from "node:test";
 import assert from "node:assert";
 import { blockForTile, solidAt } from "../src/render/drivers/mc-voxel/world/blocks.ts";
@@ -64,11 +64,11 @@ function cell(c: number, r: number): MeshCell {
 
 test("mc-voxel: мешер отсекает общие грани", () => {
   const single = meshCells([cell(2, 2)], ctx({ "2,2": "brick" }, "smooth"));
-  // top + 4 боковых (низ у земли пропущен) = 5 граней
+  // top + 4 side (bottom at ground level skipped) = 5 faces
   assert.strictEqual(single.opaque.index.length / 6, 5);
 
   const pair = meshCells([cell(2, 2), cell(3, 2)], ctx({ "2,2": "brick", "3,2": "brick" }, "smooth"));
-  // 2 top + 3+3 боковых (общая грань скрыта) = 8
+  // 2 top + 3+3 side (shared face hidden) = 8
   assert.strictEqual(pair.opaque.index.length / 6, 8);
 });
 
@@ -81,7 +81,7 @@ test("mc-voxel: AO затеняет углы у соседнего блока", 
   assert.strictEqual(maxAlone, 1);
   assert.ok(minNear < maxNear, "при соседе часть вершин затеняется");
 
-  // AO выключен -> верхние грани без затенения (ровно 1.0), несмотря на соседа.
+  // AO disabled -> top faces without shading (exactly 1.0), despite the neighbor.
   const flat = meshCells([cell(2, 2), cell(3, 2)], ctx({ "2,2": "brick", "3,2": "brick" }, "off"));
   const flatTop: number[] = [];
   for (let v = 0; v < flat.opaque.color.length / 3; v++) {
@@ -95,6 +95,6 @@ test("mc-voxel: контур добавляет только открытые в
   const c = ctx({ "2,2": "brick", "3,2": "brick" }, "off");
   c.outline = true;
   const m = meshCells([cell(2, 2), cell(3, 2)], c);
-  // открытых сторон: у пары суммарно 6 рёбер
+  // open sides: the pair has 6 edges in total
   assert.strictEqual(m.outline.length / 6, 6);
 });

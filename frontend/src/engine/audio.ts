@@ -1,7 +1,7 @@
-// audio.ts — аудио-вывод из APU ядра в браузере с раздельными группами music/sfx.
-// Сэмплы приходят из onAudioSampleGroup (см. EmulatorDriver) и складываются в
-// кольцевые буферы AudioWorklet. Для каждой группы — своя громкость и mute.
-// Autoplay policy: контекст поднимается после первого жеста. Аудио не влияет на детерминизм.
+// audio.ts — audio output from the core APU in the browser with separate music/sfx groups.
+// Samples come from onAudioSampleGroup (see EmulatorDriver) and are accumulated into
+// AudioWorklet ring buffers. Each group has its own volume and mute.
+// Autoplay policy: the context is resumed after the first gesture. Audio does not affect determinism.
 
 const WORKLET = `
 class NesAudioProcessor extends AudioWorkletProcessor {

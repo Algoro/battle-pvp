@@ -1,5 +1,5 @@
-// RenderSettings.tsx — выбор драйвера рендера и расширений + управление камерой.
-// Настройки локальные (не влияют на матч и не рассылаются по сети).
+// RenderSettings.tsx — choosing the render driver and extensions + camera control.
+// Settings are local (they do not affect the match and are not sent over the network).
 import { useEffect, useState } from "react";
 import { listRenderers } from "../render/registry";
 import type { RenderSystem } from "../render/render-system";
@@ -35,7 +35,7 @@ export default function RenderSettings({ system }: Props) {
   const driverInfo = drivers.find((d) => d.id === driver);
   const caps = new Set(driverInfo?.provides ?? []);
 
-  // Первичная инициализация рендера из настроек.
+  // Initial renderer initialization from settings.
   useEffect(() => {
     if (!system) return;
     let alive = true;

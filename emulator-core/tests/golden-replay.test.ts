@@ -1,11 +1,11 @@
-// golden-replay.test.js — СЕРТИФИКАЦИЯ детерминизма ядра.
+// golden-replay.test.js — CERTIFICATION of the core's determinism.
 //
-// Фиксирует поведение ROM+патч+ядро независимо от ИИ (attAI/defAI выключены):
-//  1) golden-хэш сценария (любое изменение ядра/патча — осознанное);
-//  2) save/load не меняет эволюцию (сериализация состояния корректна);
-//  3) периодический save/load эквивалентен непрерывному прогону;
-//  4) стартовые опции (стадия/звёзды) детерминированы.
-// Запуск: node --test tests/golden-replay.test.js
+// Fixes the behavior of ROM+patch+core independent of AI (attAI/defAI off):
+//  1) the golden hash of the scenario (any core/patch change — deliberate);
+//  2) save/load does not change the evolution (state serialization is correct);
+//  3) periodic save/load is equivalent to a continuous run;
+//  4) startup options (stage/stars) are deterministic.
+// Run: node --test tests/golden-replay.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -16,8 +16,8 @@ import PvPNes from "../pvp.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = readFileSync(join(__dirname, "..", "..", "rom", "original", "_battle_city.nes"));
 
-// Golden-хэш ядра: ROM (original) + патч "pvp" + детерминированный сценарий, ИИ ВЫКЛ.
-// Меняйте только осознанно (изменение ядра/патча/степпинга).
+// The core golden hash: ROM (original) + the "pvp" patch + a deterministic scenario, AI OFF.
+// Change only deliberately (a change to the core/patch/stepping).
 const GOLDEN_HASH = "34e8ff73";
 
 function makeEmu() {
@@ -95,7 +95,7 @@ test("golden: периодический save/load эквивалентен не
     base.stepFrame(inputs(n1));
     chk.stepFrame(inputs(n2));
     if (f % 25 === 0) {
-      // round-trip состояния посреди прогона не должен менять эволюцию
+      // a state round-trip in the middle of the run must not change the evolution
       const snap = chk.saveState();
       chk.loadState(snap);
     }

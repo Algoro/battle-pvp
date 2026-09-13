@@ -1,13 +1,13 @@
-// brain-runner.js — D: единая точка запуска любого ИИ-движка (развязана от
-// game-view, чтобы не было циклических импортов).
+// brain-runner.js — D: single entry point for launching any AI engine (decoupled from
+// game-view so there are no circular imports).
 //
 // runBrain(stateOrMem, prev, mode, role, frame):
 //   mode: "js" | "scan" | "lookahead" (att) | "plan" (def); role: "att" | "def".
-//   Возвращает { decisions: Map<idx, {dir, fire, goal} | buttons>, state }.
-//   `state` — ПРОДОЛЖАЕМОЕ состояние ИИ (для planDefense/scan/lookahead с памятью между
-//   кадрами). Вызывающий обязан передавать его на каждый кадр и сохранять возвращённое.
-//   Каждый экземпляр ИИ (эмулятор vs симулятор) должен иметь СВОЁ состояние, чтобы
-//   решения были изолированы и сопоставимы (контрактный тест verify-toMem).
+//   Returns { decisions: Map<idx, {dir, fire, goal} | buttons>, state }.
+//   `state` — PERSISTENT AI state (for planDefense/scan/lookahead with memory between
+//   frames). The caller must pass it on every frame and keep the returned one.
+//   Each AI instance (emulator vs simulator) must have ITS OWN state so that
+//   decisions are isolated and comparable (contract test verify-toMem).
 import { DIR_BTN } from "../model/game-view.ts";
 import { plan, planDefense } from "./tactical-ai.ts";
 import { scanPlan } from "./scan-ai.ts";
@@ -34,8 +34,8 @@ export function runBrain(stateOrMem: any, prev: any, mode: any, role: any, frame
       const res: any = strategyDefense(mem, frame, prev);
       return { decisions: res.buttons, state: prev ?? res.state ?? new Map() };
     }
-    // planDefense: stateful (модульный defState по умолчанию). Передаём `prev` как состояние
-    // (если задано), чтобы изолировать экземпляры ИИ; иначе — дефолтный defState.
+    // planDefense: stateful (modular defState by default). We pass `prev` as the state
+    // (if provided) to isolate AI instances; otherwise — the default defState.
     const res: any = planDefense(mem, frame, prev);
     return { decisions: res.buttons, state: prev ?? res.state ?? new Map() };
   }

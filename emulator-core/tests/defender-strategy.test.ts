@@ -1,4 +1,4 @@
-// defender-strategy.test.js — проверка стратегического ИИ защитников (utility+FSM).
+// defender-strategy.test.js — verification of the strategic defender AI (utility+FSM).
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -14,7 +14,7 @@ const START = 0x08;
 
 function dirsOf(b) { return DIR_BITS.filter((x) => b & x); }
 
-// Поле 32x32: пустое, орёл по умолчанию (15,26).
+// Field 32x32: empty, eagle by default (15,26).
 function openMem({ def = [[88, 80], [152, 80]], attackers = [], prize = null } = {}) {
   const field = Array.from({ length: 32 }, () => ".".repeat(32));
   const tanks = [];
@@ -23,7 +23,7 @@ function openMem({ def = [[88, 80], [152, 80]], attackers = [], prize = null } =
   return buildState({ field, tanks, prize }).mem;
 }
 
-// Решение защитника t в текущем состоянии (направление/огонь в кнопках).
+// Defender decision t in the current state (direction/fire in the buttons).
 function buttons(mem, t, state = new Map(), frame = 100) {
   return strategyDefense(mem, frame, state).buttons.get(t);
 }
@@ -36,18 +36,18 @@ test("strategy: защитник активен и двигается к яко�
 });
 
 test("strategy: отстреливает выровненного атакующего с линией огня", () => {
-  // атакующий в той же строке справа от защитника
+  // attacker on the same row to the right of the defender
   const mem = openMem({ def: [[88, 100], [152, 80]], attackers: [[152, 100]] });
   const b = buttons(mem, 0);
   assert.ok(b & FIRE, `защитник должен стрелять по выровненной цели (кнопки=0x${b.toString(16)})`);
 });
 
 test("strategy: НЕ стреляет сквозь напарника (friendly fire guard через lineClear)", () => {
-  // T0 слева, T1 по центру на той же строке, атакующий за T1
+  // T0 on the left, T1 in the center on the same row, attacker behind T1
   const mem = openMem({ def: [[40, 120], [120, 120]], attackers: [[240, 120]] });
   const b0 = buttons(mem, 0);
-  // линия T0->атакующий пересекает T1 (непрозрачный корпус) — огонь по ней невозможен,
-  // но защитник всё равно активен (движется к цели)
+  // the line T0->attacker crosses T1 (opaque body) — firing along it is impossible,
+  // but the defender is still active (moving toward the target)
   assert.notStrictEqual(b0, 0, "защитник должен быть активен");
 });
 
@@ -65,15 +65,15 @@ test("strategy: НЕ замирает и не дрожит на якоре (ак
 });
 
 test("strategy: идёт собирать близкий ценный приз", () => {
-  const mem = openMem({ def: [[40, 120], [152, 80]], prize: { id: 4, x: 96, y: 120 } }); // граната рядом
+  const mem = openMem({ def: [[40, 120], [152, 80]], prize: { id: 4, x: 96, y: 120 } }); // grenade nearby
   const b = buttons(mem, 0);
   assert.notStrictEqual(b, 0, "защитник должен идти к призу");
 });
 
 test("strategy: респавнит мёртвого защитника каждые 30 кадров", () => {
-  const mem = openMem({ def: [[255, 255], [152, 80]] }); // T0 мёртв (x=255)
-  mem[0x80] = 20; // игра началась
-  mem[0xa0] = 0;  // флаг T0 = мёртв
+  const mem = openMem({ def: [[255, 255], [152, 80]] }); // T0 dead (x=255)
+  mem[0x80] = 20; // game has started
+  mem[0xa0] = 0;  // T0 flag = dead
   const r29 = strategyDefense(mem, 29, new Map());
   const r30 = strategyDefense(mem, 30, new Map());
   assert.ok(!r29.respawn.has(0), "до 30-го кадра не респавнит");
@@ -93,7 +93,7 @@ test("strategy: режим доступен в ядре PvPNes", () => {
   assert.ok(emu.getDefModes().includes("strategy"));
   emu.loadROM(readFileSync(ROM));
   for (let i = 0; i < 60; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
-  // переключение на лету
+  // switching on the fly
   emu.setDefAI("strategy");
   assert.strictEqual(emu.getDefAI(), "strategy");
   emu.stepFrame([{ port: 0, buttons: 0 }]);

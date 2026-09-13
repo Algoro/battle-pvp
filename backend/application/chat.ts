@@ -1,5 +1,5 @@
-// chat.ts — use cases чата (application-слой). Без I/O и транспорта:
-// правила живут в доменном ChatManager, а доставку/рассылку делает адаптер (signaling).
+// chat.ts — chat use cases (application layer). No I/O and no transport:
+// the rules live in the domain ChatManager, while delivery/broadcast is done by the adapter (signaling).
 import type { ChatManager, ChatSendInput } from "../domain/chat.ts";
 import type { ChatMessage } from "../ports.ts";
 
@@ -13,7 +13,7 @@ export type SendChatResult =
   | { ok: false; error: string };
 
 /**
- * Отправить сообщение в канал. Возвращает DTO либо доменную ошибку.
+ * Send a message to a channel. Returns a DTO or a domain error.
  */
 export function sendChat(chat: ChatManager, input: SendChatInput): SendChatResult {
   const { scope, id = null, ...rest } = input;
@@ -22,7 +22,7 @@ export function sendChat(chat: ChatManager, input: SendChatInput): SendChatResul
   return { ok: true, message: res.message };
 }
 
-/** История канала (в памяти + порт ChatRepository), хронологически. */
+/** Channel history (in memory + the ChatRepository port), chronologically. */
 export function chatHistory(
   chat: ChatManager,
   scope: string,

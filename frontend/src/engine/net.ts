@@ -1,23 +1,23 @@
 import { loadLang, translate } from "../i18n/translate.ts";
-// net.ts — браузерный сетевой клиент: matchmaking + WS-signaling + rollback.
-// Использует детерминированное ядро (emulator-core) и netcode (rollback).
+// net.ts — browser network client: matchmaking + WS signaling + rollback.
+// Uses the deterministic core (emulator-core) and netcode (rollback).
 import { RollbackSession } from "@netcode/rollback/session.ts";
 import { RelayTransport } from "@netcode/transport/relay.ts";
 import { WebRTCTransport } from "@netcode/transport/webrtc.ts";
 import { getIceServers } from "./ice";
 import type { Team } from "../ports";
 
-// Тим — доменный тип: единое определение в ports.ts, здесь ре-экспорт для компонентов.
+// Team — domain type: single definition in ports.ts, re-exported here for components.
 export type { Team };
 
 export interface MatchInfo {
   matchId: string;
-  port: number; // логический порт игрока (0..1 DEF, 2..3 ATT)
+  port: number; // logical player port (0..1 DEF, 2..3 ATT)
   team: Team;
   opponent: string;
 }
 
-// Входит в комнату через backend: матчмейкинг + WS join + обмен signaling.
+// Enters the room through the backend: matchmaking + WS join + signaling exchange.
 export class NetClient {
   private ws!: WebSocket;
   public match: MatchInfo | null = null;
@@ -45,10 +45,10 @@ export class NetClient {
     return this.match;
   }
 
-  // Открывает WS и входит в комнату. onMessage получает сообщения signaling/room.
+  // Opens the WS and enters the room. onMessage receives signaling/room messages.
   async connect(onMessage?: (msg: any) => void) {
     this.onMsg = onMessage;
-    // same-origin (backendUrl="") -> ws из текущего location; иначе ws из base
+    // same-origin (backendUrl="") -> ws from the current location; otherwise ws from base
     const wsUrl = this.backendUrl
       ? this.backendUrl.replace(/^http/, "ws") + "/ws"
       : `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`;
@@ -74,8 +74,8 @@ export class NetClient {
     this.ws.send(JSON.stringify(msg));
   }
 
-  // Сопряжение WebRTC: обмен SDP/ICE через signaling. Возвращает WebRTCTransport
-  // либо, при недоступности P2P, RelayTransport (fallback через backend).
+  // WebRTC pairing: SDP/ICE exchange via signaling. Returns WebRTCTransport
+  // or, when P2P is unavailable, RelayTransport (fallback through the backend).
   async negotiate(): Promise<{ transport: any; mode: "webrtc" | "relay" }> {
     const dc = new Promise<any>((resolve, reject) => {
       try {
@@ -84,7 +84,7 @@ export class NetClient {
         const t = new WebRTCTransport(ch);
         pc.onicecandidate = (e) =>
           e.candidate && this.send({ type: "signal", to: this.peerId, matchId: this.match!.matchId, data: { ice: e.candidate } });
-        pc.ondatachannel = () => { /* получатель */ };
+        pc.ondatachannel = () => { /* receiver */ };
         this.onMsg = (m) => {
           if (m.type === "signal") {
             if (m.data?.sdp) pc.setRemoteDescription(m.data.sdp).then(() => pc.createAnswer()).then((a) => pc.setLocalDescription(a)).then(() => this.send({ type: "signal", to: this.peerId, matchId: this.match!.matchId, data: { sdp: pc.localDescription } }));
@@ -102,13 +102,13 @@ export class NetClient {
       const t = await dc;
       return { transport: t, mode: "webrtc" };
     } catch {
-      // fallback: relay через backend
+      // fallback: relay through the backend
       const rt = new RelayTransport(this.ws, this.match!.matchId, this.peerId!);
       return { transport: rt, mode: "relay" };
     }
   }
 
-  // Сигнатура согласована с LobbyClient/MatchGateway: onEvent идёт до extra.
+  // The signature is aligned with LobbyClient/MatchGateway: onEvent comes before extra.
   createSession(emu: any, transport: any, myPorts: number[], remotePorts: number[], onEvent?: (e: any) => void, extra: any = {}): any {
     return new RollbackSession({
       game: emu,

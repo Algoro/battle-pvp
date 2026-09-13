@@ -1,6 +1,6 @@
-// base.ts — модель штаба (орла): целый, разрушенный, укреплённый (лопата).
+// base.ts — HQ (eagle) model: intact, destroyed, reinforced (shovel).
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/models/base.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/models/base.ts
 import * as THREE from "three";
 import { COLORS } from "../textures.ts";
 import type { RenderBounds, SceneEagle } from "../../../types.ts";

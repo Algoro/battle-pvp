@@ -1,7 +1,7 @@
-// options.ts — типизированные настройки драйвера mc-voxel. Схема/дефолты/пресеты — из
-// shared/renderers.ts (единый источник); нормализация — универсальная (render/settings.ts).
+// options.ts — typed settings for the mc-voxel driver. Schema/defaults/presets — from
+// shared/renderers.ts (single source); normalization is universal (render/settings.ts).
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/options.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/options.ts
 import { rendererById, type RenderSettingsSpec } from "../../../../../shared/renderers.ts";
 import { applyPreset, normalizeValues, specDefaults } from "../../settings.ts";
 
@@ -40,7 +40,7 @@ export const MC_DEFAULTS: McVoxelOptions = { preset: "classic", ...specDefaults(
 
 export const MC_PRESET_IDS: string[] = (MC_SETTINGS.presets ?? []).map((p) => p.id);
 
-/** Полный валидный набор настроек из произвольного частичного объекта. */
+/** Full valid set of settings from an arbitrary partial object. */
 export function normalizeMcOptions(partial: unknown): McVoxelOptions {
   const preset =
     partial && typeof partial === "object" && typeof (partial as { preset?: unknown }).preset === "string"
@@ -49,7 +49,7 @@ export function normalizeMcOptions(partial: unknown): McVoxelOptions {
   return { preset, ...normalizeValues(MC_SETTINGS, partial) } as unknown as McVoxelOptions;
 }
 
-/** Настройки из пресета (сохранением текущих значений для полей вне пресета). */
+/** Settings from a preset (keeping current values for fields outside the preset). */
 export function optionsFromPreset(name: string, base?: Partial<McVoxelOptions>): McVoxelOptions {
   const current = normalizeValues(MC_SETTINGS, base ?? {});
   return { preset: name, ...applyPreset(MC_SETTINGS, name, current) } as unknown as McVoxelOptions;

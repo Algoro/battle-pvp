@@ -1,6 +1,6 @@
-// match-lifecycle.ts — use cases жизненного цикла матча (application-слой).
-// Не знают о WebSocket/HTTP: получают зависимости (rooms/store/chat) и возвращают данные,
-// а доставку сообщений выполняет адаптер (signaling/relay или HTTP-роут).
+// match-lifecycle.ts — match lifecycle use cases (application layer).
+// They know nothing of WebSocket/HTTP: they receive dependencies (rooms/store/chat) and return data,
+// while message delivery is done by the adapter (signaling/relay or an HTTP route).
 import { startLobbyMatch, type Lobby, type StartLobbyPeer } from "../domain/lobby.ts";
 import { TEAM_DEF, TEAM_ATT } from "../domain/teams.ts";
 import type { Room, RoomManager } from "../domain/room.ts";
@@ -40,7 +40,7 @@ export type StartMatchResult =
     };
 
 /**
- * Создать матч из лобби, записать его в хранилище и очистить чат лобби.
+ * Create a match from a lobby, persist it, and clear the lobby chat.
  */
 export function startMatch(lobby: Lobby, { rooms, store, chat }: StartMatchDeps): StartMatchResult {
   const res = startLobbyMatch(lobby, rooms);
@@ -60,7 +60,7 @@ export function startMatch(lobby: Lobby, { rooms, store, chat }: StartMatchDeps)
   };
 }
 
-/** Завершить матч: зафиксировать победителя и записать в хранилище. */
+/** Finish the match: record the winner and persist it. */
 export function finishMatch(
   room: Room,
   winner: string | null,

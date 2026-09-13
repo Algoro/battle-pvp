@@ -1,5 +1,5 @@
-// RenderPicker.tsx — выбор драйвера рендера и расширений ДО старта матча, с живым
-// предпросмотром. Настройка локальная (localStorage), на матч/детерминизм не влияет.
+// RenderPicker.tsx — choosing the render driver and extensions BEFORE the match starts, with a live
+// preview. The setting is local (localStorage) and does not affect the match/determinism.
 import { useState } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { driverCapabilities, listRenderers } from "../render/registry";

@@ -1,16 +1,16 @@
-// webrtc.ts — транспорт на WebRTC DataChannel (основной, P2P).
-// Конформно интерфейсу { send, onMessage }.
+// webrtc.ts — WebRTC DataChannel transport (primary, P2P).
+// Conforms to the { send, onMessage } interface.
 //
-// Использование (в браузере/Node с WebRTC):
+// Usage (in the browser/Node with WebRTC):
 //   const dc = pc.createDataChannel("rollback");
 //   const t = new WebRTCTransport(dc);
 //   t.onMessage(cb); t.send(buf);
 //
-// Сопряжение каналов (signaling) выполняет Agent-Backend (см. ./backend/signaling).
+// Channel pairing (signaling) is done by Agent-Backend (see ./backend/signaling).
 //
-// Относительный путь: ./netcode/transport/webrtc.ts
+// Relative path: ./netcode/transport/webrtc.ts
 
-// Минимальный структурный тип RTCDataChannel (без зависимости от DOM lib).
+// Minimal structural RTCDataChannel type (without a dependency on DOM lib).
 export interface RTCDataChannelLike {
   binaryType: string;
   readonly readyState: string;
@@ -35,7 +35,7 @@ export class WebRTCTransport {
   private _onClose = (): void => this._notifyClosed();
 
   /**
-   * @param channel  открытый DataChannel
+   * @param channel  an open DataChannel
    */
   constructor(channel: RTCDataChannelLike) {
     this.channel = channel;
@@ -65,7 +65,7 @@ export class WebRTCTransport {
 
   send(buf: Uint8Array): void {
     if (this.channel.readyState === "open") {
-      // отправляем копию, т.к. Uint8Array может быть переиспользован
+      // send a copy, since the Uint8Array may be reused
       this.channel.send(buf.slice().buffer);
     }
   }

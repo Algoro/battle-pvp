@@ -1,4 +1,4 @@
-// game-view.test.js — проверка единого слоя АПИ (A/B/C/D).
+// game-view.test.js — verification of the unified API layer (A/B/C/D).
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -15,8 +15,8 @@ const ROM = new URL("../../rom/disasm/_battle_city.nes", import.meta.url).pathna
 
 test("A: readState — чистая модель боя и хелперы", () => {
   const field = Array.from({ length: 32 }, () => ".".repeat(32));
-  field[2] = field[2].slice(0, 2) + "B" + field[2].slice(3); // кирпич на (2,2)
-  field[26] = field[26].slice(0, 2) + "E" + field[26].slice(3); // орёл на (2,26)
+  field[2] = field[2].slice(0, 2) + "B" + field[2].slice(3); // brick at (2,2)
+  field[26] = field[26].slice(0, 2) + "E" + field[26].slice(3); // eagle at (2,26)
   const s = buildState({
     field,
     tanks: [{ i: 2, x: 16, y: 8, team: "ATT" }],
@@ -24,7 +24,7 @@ test("A: readState — чистая модель боя и хелперы", () =
   });
   assert.ok(s.tanks[2].inField);
   assert.strictEqual(s.tanks[2].cell.col, 2);
-  assert.strictEqual(s.prizes[0].value, 100); // граната — максимальная ценность
+  assert.strictEqual(s.prizes[0].value, 100); // grenade — maximum value
   assert.strictEqual(s.passable(1, 1), true);
   assert.strictEqual(s.brick(2, 2), true);
   assert.strictEqual(s.eagle.col, 2);
@@ -69,7 +69,7 @@ test("C: wrap — живой адаптер поверх эмулятора", ()
   assert.strictEqual(v.state.prizes.length, 1, "spawnPrize активирует приз");
 });
 
-// --- стратегический слой: классификация тайлов и стоимости ---
+// --- strategic layer: tile classification and costs ---
 test("tileType/tileCost — классификация тайлов из буфера коллизий", () => {
   assert.strictEqual(tileType(0x00), "empty");
   assert.strictEqual(tileType(0x0f), "brick");
@@ -102,7 +102,7 @@ test("isWater/isTree/isIce/isSteel/isRoad — селекторы тайлов", 
 });
 
 test("bulletSpeed/bulletProperty — скорость пули по типу стрелка", () => {
-  // обычные: 2px; power-пули (property bit1): 4px
+  // normal: 2px; power bullets (property bit1): 4px
   assert.strictEqual(bulletSpeed(0x80), 2);
   assert.strictEqual(bulletSpeed(0xa0), 2);
   assert.strictEqual(bulletSpeed(0xe0), 2);
@@ -118,16 +118,16 @@ test("bulletSpeed/bulletProperty — скорость пули по типу с�
 test("hitsLeft — броня и мигающие враги", () => {
   assert.strictEqual(hitsLeft(0x80), 1);
   assert.strictEqual(hitsLeft(0xa0), 1);
-  assert.strictEqual(hitsLeft(0xe0), 1);   // броня без остатка
-  assert.strictEqual(hitsLeft(0xe3), 4);   // 3 брони + финальный выстрел
-  assert.strictEqual(hitsLeft(0xe4), 1);   // мигающий броневой — один выстрел
-  assert.strictEqual(hitsLeft(0x84), 1);   // мигающий обычный
+  assert.strictEqual(hitsLeft(0xe0), 1);   // armor without remainder
+  assert.strictEqual(hitsLeft(0xe3), 4);   // 3 armor + final shot
+  assert.strictEqual(hitsLeft(0xe4), 1);   // flashing armored — one shot
+  assert.strictEqual(hitsLeft(0x84), 1);   // flashing normal
 });
 
 test("playerLevel/playerLives — состояние защитников", () => {
   const mem = new Uint8Array(0x10000);
-  mem[0x51] = 3; mem[0x52] = 5;          // жизни
-  mem[0x0101] = 2; mem[0x0102] = 0;      // апгрейд (звёзды)
+  mem[0x51] = 3; mem[0x52] = 5;          // lives
+  mem[0x0101] = 2; mem[0x0102] = 0;      // upgrade (stars)
   assert.strictEqual(playerLives(mem, 0), 3);
   assert.strictEqual(playerLives(mem, 1), 5);
   assert.strictEqual(playerLevel(mem, 0), 2);
@@ -136,26 +136,26 @@ test("playerLevel/playerLives — состояние защитников", () =
 
 test("GameState — стратегические поля (defenders, onIce, tileCost)", () => {
   const field = Array.from({ length: 32 }, () => ".".repeat(32));
-  field[1] = "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"; // лёд на (0..31, 1)
+  field[1] = "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII"; // ice at (0..31, 1)
   field[26] = field[26].slice(0, 2) + "E" + field[26].slice(3);
   const s = buildState({
     field,
     tanks: [
-      { i: 0, x: 8, y: 8, team: "DEF", type: 0x60 },  // на льду
+      { i: 0, x: 8, y: 8, team: "DEF", type: 0x60 },  // on the ice
       { i: 1, x: 88, y: 216, team: "DEF", type: 0x00 },
       { i: 2, x: 16, y: 0, team: "ATT", type: 0xe3 },
     ],
   });
-  // DEF-танк 0 стоит на льду (0,1)
+  // DEF tank 0 stands on ice (0,1)
   assert.strictEqual(s.tanks[0].onIce, true);
   assert.strictEqual(s.tanks[1].onIce, false);
   assert.strictEqual(s.ice(0, 1), true);
   assert.strictEqual(s.tileCost(0, 1), 1.5);
   assert.strictEqual(s.tileCost(15, 15), 1);
-  // броня врага
+  // enemy armor
   assert.strictEqual(s.tanks[2].hitsLeft, 4);
   assert.strictEqual(s.tanks[2].bulletSpeed, 2);
-  // стратегическое состояние защитников
+  // strategic defender state
   assert.strictEqual(s.defenders.length, 2);
   assert.strictEqual(s.defenders[0].level, 0);
   assert.strictEqual(s.defenders[0].lives, 0);

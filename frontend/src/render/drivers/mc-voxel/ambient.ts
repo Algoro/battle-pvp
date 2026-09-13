@@ -1,7 +1,7 @@
-// ambient.ts — «живой мир» воксельного драйвера: птицы, блочные облака и мышки.
-// Только отображение (Math.random допустим), не влияет на игру.
+// ambient.ts — the voxel driver's "living world": birds, blocky clouds and mice.
+// Display only (Math.random is acceptable), does not affect the game.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/ambient.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/ambient.ts
 import * as THREE from "three";
 import type { TextureAtlas } from "./atlas.ts";
 import type { RenderBounds } from "../../types.ts";
@@ -56,7 +56,7 @@ export function createAmbient(atlas: TextureAtlas): VoxelAmbient {
   const tailMat = new THREE.MeshLambertMaterial({ map: atlas.tile("wool"), color: 0x6b5a4a });
   const cloudMat = new THREE.MeshLambertMaterial({ map: atlas.tile("wool"), color: 0xf4f7ff });
 
-  // --- Птицы ---
+  // --- Birds ---
   const birds: Bird[] = [];
   for (let i = 0; i < 8; i++) {
     const g = new THREE.Group();
@@ -72,7 +72,7 @@ export function createAmbient(atlas: TextureAtlas): VoxelAmbient {
     birds.push({ group: g, wingL, wingR, cx: 13, cz: 13, r: rand(7, 15), a: rand(0, Math.PI * 2), w: rand(0.00035, 0.00065) * (Math.random() > 0.5 ? 1 : -1), y: rand(7, 12), flap: rand(0, Math.PI * 2) });
   }
 
-  // --- Мышки ---
+  // --- Mice ---
   const mice: Mouse[] = [];
   for (let i = 0; i < 6; i++) {
     const g = new THREE.Group();
@@ -91,7 +91,7 @@ export function createAmbient(atlas: TextureAtlas): VoxelAmbient {
     mice.push({ group: g, x: rand(3, 23), z: rand(3, 23), heading: rand(-Math.PI, Math.PI), speed: rand(0.0015, 0.0032), turnIn: rand(800, 3000), bob: rand(0, Math.PI * 2) });
   }
 
-  // --- Блочные облака ---
+  // --- Blocky clouds ---
   const clouds: Cloud[] = [];
   for (let i = 0; i < 5; i++) {
     const g = new THREE.Group();
@@ -123,7 +123,7 @@ export function createAmbient(atlas: TextureAtlas): VoxelAmbient {
       const z = bird.cz + Math.sin(bird.a) * bird.r;
       const y = bird.y + Math.sin(timeMs * 0.001 + bird.flap) * 0.6;
       bird.group.position.set(x, y, z);
-      // Курс — по касательной к окружности.
+      // Heading — tangent to the circle.
       bird.group.rotation.y = -bird.a + (bird.w > 0 ? 0 : Math.PI);
       const flap = Math.sin(timeMs * 0.02 + bird.flap) * 0.7;
       bird.wingL.rotation.x = flap;
@@ -138,7 +138,7 @@ export function createAmbient(atlas: TextureAtlas): VoxelAmbient {
       }
       mouse.x += Math.cos(mouse.heading) * mouse.speed * dtMs;
       mouse.z += Math.sin(mouse.heading) * mouse.speed * dtMs;
-      // Держимся в пределах поля.
+      // Stay within the field bounds.
       if (mouse.x < 1 || mouse.x > b.cols - 1 || mouse.z < 1 || mouse.z > b.rows - 1) {
         mouse.x = Math.max(1, Math.min(b.cols - 1, mouse.x));
         mouse.z = Math.max(1, Math.min(b.rows - 1, mouse.z));

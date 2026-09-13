@@ -1,21 +1,21 @@
-// lobby.ts — лобби (pre-game): создание, ожидание живых игроков, настраиваемые слоты.
+// lobby.ts — lobby (pre-game): creation, waiting for live players, configurable slots.
 //
-// Модель B: Lobby — отдельная сущность до старта; при старте создаётся Match (Room из
-// domain/room.ts), куда копируются игроки. Пустые слоты добивает ИИ (движок умеет).
+// Model B: Lobby is a separate entity before the start; on start a Match (Room from
+// domain/room.ts) is created and players are copied into it. AI fills empty slots (the engine can).
 //
-// Физические границы движка: DEF — танки 0,1 (порты $4016/$4017), ATT — танки 2..7
-// (NET_DIR/NET_FIRE, 6 байт). Поэтому: DEF 1..2, ATT 1..6.
+// Engine physical limits: DEF — tanks 0,1 (ports $4016/$4017), ATT — tanks 2..7
+// (NET_DIR/NET_FIRE, 6 bytes). Therefore: DEF 1..2, ATT 1..6.
 //
-// Домен: не знает о транспорте/БД/фреймворках. Стартовая стадия/звёзды — чистые данные.
+// Domain: knows nothing of transport/DB/frameworks. Starting stage/stars — pure data.
 //
-// Относительный путь: ./backend/domain/lobby.ts
+// Relative path: ./backend/domain/lobby.ts
 import { TEAM_DEF, TEAM_ATT, normalizeTeam, type Team } from "./teams.ts";
 import { systemClock, type Clock } from "./clock.ts";
 import { normalizeFeatures } from "./features.ts";
 import { normalizeFeatureOptions } from "../../shared/features.ts";
 import type { Room, RoomManager } from "./room.ts";
 
-export const DEFAULT_LOBBY_TTL_MS = 10 * 60 * 1000; // 10 минут простоя
+export const DEFAULT_LOBBY_TTL_MS = 10 * 60 * 1000; // 10 minutes idle
 export const MIN_DEF_SLOTS = 1;
 export const MAX_DEF_SLOTS = 2;
 export const MIN_ATT_SLOTS = 1;
@@ -64,19 +64,19 @@ function clampInt(v: unknown, lo: number, hi: number, dflt: number): number {
   return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : dflt;
 }
 
-// Нормализует настройки лобби (фиксируя допустимые диапазоны слотов).
+// Normalizes lobby settings (clamping the allowed slot ranges).
 export function normalizeSettings(s: any = {}): LobbySettings {
   return {
     defSlots: clampInt(s.defSlots, MIN_DEF_SLOTS, MAX_DEF_SLOTS, 2),
     attSlots: clampInt(s.attSlots, MIN_ATT_SLOTS, MAX_ATT_SLOTS, 2),
-    autoStart: !!s.autoStart, // авто-старт при полном лобби и готовности всех
-    requireReady: !!s.requireReady, // хост стартует только когда не-хост игроки ready
-    fillBots: s.fillBots !== false, // пустые слоты добивает ИИ (иначе старт невозможен без людей)
-    stage: clampInt(s.stage, 1, 35, 1), // стартовая стадия (1..35)
-    defStars: clampInt(s.defStars, 0, 3, 0), // стартовые звёзды команды DEF (0..3)
-    defPistol: !!s.defPistol, // стартовое супер-оружие DEF (аналог 4-й звезды)
-    features: normalizeFeatures(s.features), // включённые опциональные фичи-патчи
-    featureOptions: normalizeFeatureOptions(s.featureOptions), // настройки фич (валидируются по манифесту)
+    autoStart: !!s.autoStart, // auto-start when the lobby is full and everyone is ready
+    requireReady: !!s.requireReady, // host starts only when non-host players are ready
+    fillBots: s.fillBots !== false, // AI fills empty slots (otherwise a start without people is impossible)
+    stage: clampInt(s.stage, 1, 35, 1), // starting stage (1..35)
+    defStars: clampInt(s.defStars, 0, 3, 0), // starting stars for the DEF team (0..3)
+    defPistol: !!s.defPistol, // starting super-weapon for DEF (equivalent to a 4th star)
+    features: normalizeFeatures(s.features), // enabled optional feature patches
+    featureOptions: normalizeFeatureOptions(s.featureOptions), // feature options (validated against the manifest)
   };
 }
 
@@ -91,8 +91,8 @@ export type StartLobbyResult =
   | { ok: false; error: string }
   | { ok: true; room: Room; peers: StartLobbyPeer[] };
 
-// Создаёт Match (Room) из лобби и копирует игроков. Общая логика relay и HTTP.
-// Возвращает { ok:true, room, peers } либо { ok:false, error } (лобби не стартует частично).
+// Creates a Match (Room) from the lobby and copies the players. Shared logic for relay and HTTP.
+// Returns { ok:true, room, peers } or { ok:false, error } (the lobby does not start partially).
 export function startLobbyMatch(lobby: Lobby, rooms: RoomManager): StartLobbyResult {
   if (lobby.state !== "open") return { ok: false, error: "lobby-not-open" };
   if (!lobby.fingerprintsAgree()) return { ok: false, error: "cartridge-mismatch" };
@@ -112,7 +112,7 @@ export function startLobbyMatch(lobby: Lobby, rooms: RoomManager): StartLobbyRes
   return { ok: true, room, peers };
 }
 
-const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // без похожих 0/O/1/I
+const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // without similar-looking 0/O/1/I
 let lobbyCounter = 0;
 
 function makeCode(len = 4): string {
@@ -196,7 +196,7 @@ export class Lobby {
     );
   }
 
-  // Логический порт игрока: DEF -> 0..defSlots-1; ATT -> 2+idx (танки 2..7).
+  // Player's logical port: DEF -> 0..defSlots-1; ATT -> 2+idx (tanks 2..7).
   portFor(playerId: string): number | null {
     const p = this.players.get(playerId);
     if (!p) return null;
@@ -208,7 +208,7 @@ export class Lobby {
     if (this.state !== "open") return { ok: false, error: "lobby-not-open" };
     const existing = this.players.get(playerId);
     if (existing) {
-      // реконнект
+      // reconnection
       existing.socket = socket;
       existing.disconnectedAt = null;
       if (name) existing.name = cleanName(name, MAX_NAME_LEN);
@@ -235,7 +235,7 @@ export class Lobby {
     return { ok: true, reconnected: false, port: this.portFor(playerId), team: t };
   }
 
-  // Отпечатки картриджей всех игроков совпадают (непустые).
+  // The cartridge fingerprints of all players match (non-empty).
   fingerprintsAgree(): boolean {
     const fps = new Set([...this.players.values()].map((p) => p.fingerprint).filter(Boolean));
     return fps.size <= 1;
@@ -250,7 +250,7 @@ export class Lobby {
     const p = this.players.get(playerId);
     if (!p) return false;
     this.players.delete(playerId);
-    // передача хоста первому оставшемуся
+    // transfer host to the first remaining player
     if (playerId === this.hostPlayerId) {
       const next = [...this.players.values()][0];
       if (next) {
@@ -306,7 +306,7 @@ export class Lobby {
   setSettings(byPlayerId: string, settings: any): SettingsResult {
     if (byPlayerId !== this.hostPlayerId) return { ok: false, error: "not-host" };
     const next = normalizeSettings({ ...this.settings, ...settings });
-    // нельзя ужать слоты ниже числа уже занятых
+    // slots cannot be shrunk below the number already occupied
     if (this.teamCount(TEAM_DEF) > next.defSlots || this.teamCount(TEAM_ATT) > next.attSlots) {
       return { ok: false, error: "slots-below-occupied" };
     }
@@ -321,13 +321,13 @@ export class Lobby {
     return this.leave(playerId) ? { ok: true } : { ok: false, error: "not-in-lobby" };
   }
 
-  // Готовы ли все, кроме хоста (хост считается готовым).
+  // Whether everyone except the host is ready (the host is considered ready).
   allReady(): boolean {
     for (const p of this.players.values()) if (!p.host && !p.ready) return false;
     return true;
   }
 
-  // Авто-старт: включён, все слоты заполнены живыми игроками и все готовы.
+  // Auto-start: enabled, all slots are filled with live players, and everyone is ready.
   shouldAutoStart(): boolean {
     return (
       this.settings.autoStart &&
@@ -348,7 +348,7 @@ export class Lobby {
     return this.state !== "closed" && now - this.lastActive < this.ttlMs;
   }
 
-  // Сериализуемое состояние (для WS/HTTP).
+  // Serializable state (for WS/HTTP).
   toState(): object {
     const players = [...this.players.values()].map((p) => ({
       id: p.playerId,
@@ -420,7 +420,7 @@ export class LobbyManager {
     for (const [id, l] of this.lobbies) if (!l.isActive(now)) this.lobbies.delete(id);
   }
 
-  // Открытые лобби для списка (сводка).
+  // Open lobbies for the list (summary).
   listOpen(): Lobby[] {
     return [...this.lobbies.values()].filter((l) => l.state === "open");
   }

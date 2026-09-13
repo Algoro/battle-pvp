@@ -1,6 +1,6 @@
-// jsnes-pristine.test.js — инвариант неизменности: emulator-core/src побайтово
-// совпадает с vendor/jsnes/src (upstream). Любая правка эмулятора падает здесь.
-// Запуск: node --test tests/jsnes-pristine.test.js
+// jsnes-pristine.test.js — immutability invariant: emulator-core/src byte-for-byte
+// matches vendor/jsnes/src (upstream). Any emulator edit fails here.
+// Run: node --test tests/jsnes-pristine.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";

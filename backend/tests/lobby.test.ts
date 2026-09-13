@@ -1,5 +1,5 @@
-// lobby.test.js — тесты лобби (Lobby/LobbyManager), чата и интеграции (HTTP + WS).
-// Запуск: node --test tests/lobby.test.js
+// lobby.test.js — tests for the lobby (Lobby/LobbyManager), chat, and integration (HTTP + WS).
+// Run: node --test tests/lobby.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { Lobby, LobbyManager, normalizeSettings } from "../domain/lobby.ts";
@@ -19,20 +19,20 @@ test("Lobby: create, join, configurable slots, ports, reconnect, leave, host tra
   assert.strictEqual(lobby.toState().settings.defSlots, 1);
   assert.strictEqual(lobby.toState().settings.attSlots, 3);
 
-  // host -> DEF, порт 0
+  // host -> DEF, port 0
   const h = lobby.join({ playerId: "host", name: "Host", team: TEAM_DEF, sessionId: null, socket: null });
   assert.strictEqual(h.ok, true);
   assert.strictEqual(h.port, 0);
-  // DEF уже занят (defSlots=1)
+  // DEF is already occupied (defSlots=1)
   assert.strictEqual(lobby.join({ playerId: "d2", name: "D2", team: TEAM_DEF, sessionId: null, socket: null }).ok, false);
-  // ATT: порты 2,3,4
+  // ATT: ports 2,3,4
   assert.strictEqual(lobby.join({ playerId: "a1", name: "A1", team: TEAM_ATT, sessionId: null, socket: null }).port, 2);
   assert.strictEqual(lobby.join({ playerId: "a2", name: "A2", team: TEAM_ATT, sessionId: null, socket: null }).port, 3);
   assert.strictEqual(lobby.join({ playerId: "a3", name: "A3", team: TEAM_ATT, sessionId: null, socket: null }).port, 4);
-  // 4-й ATT не влезает (attSlots=3)
+  // the 4th ATT does not fit (attSlots=3)
   assert.strictEqual(lobby.join({ playerId: "a4", name: "A4", team: TEAM_ATT, sessionId: null, socket: null }).ok, false);
 
-  // реконнект
+  // reconnection
   const rc = lobby.join({ playerId: "a1", name: "A1", team: TEAM_ATT, sessionId: null, socket: null });
   assert.strictEqual(rc.reconnected, true);
   assert.strictEqual(lobby.playerCount, 4);
@@ -41,7 +41,7 @@ test("Lobby: create, join, configurable slots, ports, reconnect, leave, host tra
   assert.strictEqual(lobby.setReady("a1", true).ready, true);
   assert.strictEqual(lobby.setTeam("a1", TEAM_DEF).ok, false, "DEF переполнен");
 
-  // leave + передача хоста
+  // leave + host transfer
   lobby.leave("a1");
   lobby.leave("host");
   assert.strictEqual(lobby.hostPlayerId, "a2", "хост передан первому оставшемуся");
@@ -56,7 +56,7 @@ test("Lobby: настройки клэмпятся в допустимые гр�
   assert.strictEqual(normalizeSettings({ stage: 0 }).stage, 1);
   assert.strictEqual(normalizeSettings({ defStars: 9 }).defStars, 3);
   assert.strictEqual(normalizeSettings({ defStars: -1 }).defStars, 0);
-  // setSettings нельзя ужать ниже занятых
+  // setSettings cannot shrink below the occupied count
   const lobby = new Lobby({ hostPlayerId: "h" });
   lobby.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null });
   lobby.join({ playerId: "d2", name: "D2", team: TEAM_DEF, sessionId: null, socket: null });
@@ -74,12 +74,12 @@ test("ChatManager: санитизация, история, rate-limit", () => {
   const third = cm.send("global", null, { playerId: "p1", name: "P1", text: "третье", ts: 2 });
   assert.strictEqual(third.error, "rate-limit", "третье сообщение в окне — лимит");
   assert.strictEqual(cm.send("global", null, { playerId: "p1", name: "P1", text: "   ", ts: 3 }).error, "empty");
-  // история ограничена maxHistory
+  // history is bounded by maxHistory
   cm.send("global", null, { playerId: "p2", name: "P2", text: "x", ts: 10 });
   cm.send("global", null, { playerId: "p2", name: "P2", text: "y", ts: 11 });
   cm.send("global", null, { playerId: "p2", name: "P2", text: "z", ts: 12 });
   assert.strictEqual(cm.getHistory("global", null).length, 3);
-  // лобби-скоуп отдельный (ts вне окна rate-limit, чтобы p1 снова мог писать)
+  // the lobby scope is separate (ts outside the rate-limit window so p1 can write again)
   cm.send("lobby", "l1", { playerId: "p1", name: "P1", text: "лобби", ts: 5000 });
   assert.strictEqual(cm.getHistory("lobby", "l1").length, 1);
 });
@@ -100,11 +100,11 @@ test("интеграция HTTP: create -> list -> join -> start", async () => {
   const joined = await post(`/lobbies/${created.lobbyId}/join`, { playerId: "att1", name: "Att", team: TEAM_ATT });
   assert.strictEqual(joined.port, 2);
 
-  // смена команды в лобби доступна, если есть слот
+  // switching teams in the lobby is available if there is a slot
   const started = await post(`/lobbies/${created.lobbyId}/start`, { playerId: "host" });
   assert.ok(started.matchId, "старт лобби создаёт матч");
   assert.strictEqual(started.peers.length, 2);
-  // лобби закрыто и удалено
+  // the lobby is closed and removed
   const list2 = await fetch(base + "/lobbies").then((r) => r.json());
   assert.ok(!list2.some((l) => l.id === created.lobbyId));
 
@@ -128,12 +128,12 @@ test("интеграция WS: subscribe -> create -> join -> ready -> chat -> s
       });
     });
 
-  // подписка на список
+  // subscription to the list
   const lobbiesSnap = waitMsg(c1, "lobbies");
   c1.send(JSON.stringify({ type: "lobby.subscribe" }));
   assert.ok(Array.isArray((await lobbiesSnap).lobbies));
 
-  // создание (host)
+  // creation (host)
   const joinedHost = waitMsg(c1, "lobby.joined");
   c1.send(JSON.stringify({ type: "lobby.create", playerId: "host", name: "Host", settings: { defSlots: 2, attSlots: 2 } }));
   const jh = await joinedHost;
@@ -154,14 +154,14 @@ test("интеграция WS: subscribe -> create -> join -> ready -> chat -> s
   c2.send(JSON.stringify({ type: "lobby.ready", lobbyId, ready: true }));
   await readyState;
 
-  // чат лобби
+  // lobby chat
   const chat1 = waitMsg(c1, "chat");
   const chat2 = waitMsg(c2, "chat");
   c2.send(JSON.stringify({ type: "chat.send", scope: "lobby", text: "привет" }));
   assert.strictEqual((await chat1).text, "привет");
   assert.strictEqual((await chat2).text, "привет");
 
-  // старт хостом -> match.start у обоих
+  // start by the host -> match.start for both
   const ms1 = waitMsg(c1, "match.start");
   const ms2 = waitMsg(c2, "match.start");
   c1.send(JSON.stringify({ type: "lobby.start", lobbyId }));
@@ -193,7 +193,7 @@ test("Lobby: requireReady — хост не стартует, пока не-хо
   assert.strictEqual(lobby.canStart("a"), false, "не хост");
   lobby.setReady("a", true);
   assert.strictEqual(lobby.canStart("h"), true, "после ready старт разрешён");
-  // без requireReady запрета нет
+  // without requireReady there is no restriction
   const l2 = new Lobby({ hostPlayerId: "h", settings: { defSlots: 1, attSlots: 1 } });
   l2.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null });
   assert.strictEqual(l2.canStart("h"), true);
@@ -216,7 +216,7 @@ test("ChatManager: история чата персистится через п�
   cm.send("global", null, { playerId: "p1", name: "P1", text: "привет", ts: 1 });
   cm.send("match", "m1", { playerId: "p2", name: "P2", text: "в бой", ts: 2 });
 
-  // новый менеджер (пустая память) читает историю из БД
+  // a new manager (empty memory) reads history from the DB
   const cm2 = new ChatManager({ repository });
   const g = cm2.getHistory("global", null);
   assert.strictEqual(g.length, 1);
@@ -249,7 +249,7 @@ test("интеграция WS: авто-старт при полном лобб�
   c2.send(JSON.stringify({ type: "lobby.join", lobbyId, playerId: "att1", name: "Att", team: TEAM_ATT }));
   await ja;
 
-  // без lobby.start: ready от att1 запускает матч автоматически
+  // without lobby.start: ready from att1 starts the match automatically
   const ms1 = waitMsg(c1, "match.start");
   const ms2 = waitMsg(c2, "match.start");
   c2.send(JSON.stringify({ type: "lobby.ready", lobbyId, ready: true }));
@@ -285,7 +285,7 @@ test("cartridgeFingerprint: лобби не стартует при разных
   assert.strictEqual(r.error, "cartridge-mismatch");
   assert.strictEqual(rooms.rooms.size, 0, "комната не должна создаваться при рассинхроне картриджей");
 
-  // совпадающие отпечатки — старт ок
+  // matching fingerprints — start is ok
   lobby.players.get("a").fingerprint = "aaaa";
   assert.strictEqual(lobby.fingerprintsAgree(), true);
   const r2 = startLobbyMatch(lobby, rooms);
@@ -335,7 +335,7 @@ test("интеграция WS: выбранная стадия передаёт�
 }, { timeout: 15000 });
 
 test("Lobby.join: без явного team игрок идёт в ATT (регрессия DEF-full)", () => {
-  // DEF-слот занят хостом; игрок без team должен попасть в ATT, а не быть отклонён.
+  // The DEF slot is taken by the host; a player without a team must land in ATT, not be rejected.
   const lobby = new Lobby({ hostPlayerId: "h", settings: { defSlots: 1, attSlots: 1 } });
   lobby.join({ playerId: "h", name: "H", team: TEAM_DEF, sessionId: null, socket: null });
   const r = lobby.join({ playerId: "a", name: "A", sessionId: null, socket: null });
@@ -343,7 +343,7 @@ test("Lobby.join: без явного team игрок идёт в ATT (регр�
   assert.strictEqual(r.team, TEAM_ATT);
   assert.strictEqual(r.port, 2);
 
-  // setTeam с некорректным значением также уводит в ATT (историческое правило).
+  // setTeam with an invalid value also lands in ATT (historical rule).
   const s = lobby.setTeam("a", undefined);
   assert.strictEqual(s.ok, true);
   assert.strictEqual(s.team, TEAM_ATT);

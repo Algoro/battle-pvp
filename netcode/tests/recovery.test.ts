@@ -1,6 +1,6 @@
-// recovery.test.js — связь: избыточность ввода, задержка (ping/pong), реконнект
-// (rebindTransport) и desync-recovery (снапшот). Проверяем, что rollback-сессия
-// восстанавливается после потери пакета, обрыва транспорта и расхождения состояний.
+// recovery.test.js — communication: input redundancy, latency (ping/pong), reconnection
+// (rebindTransport), and desync-recovery (snapshot). We verify that the rollback session
+// recovers after packet loss, transport disconnection, and state divergence.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -26,7 +26,7 @@ function makeGames() {
   return { a, b };
 }
 
-// Обёртка: дропает N-й по счёту send (детерминированно) — имитация потери пакета.
+// Wrapper: drops the Nth send (deterministically) — simulating packet loss.
 class SelectiveDrop implements Transport {
   inner: Transport;
   dropAt: number;
@@ -75,7 +75,7 @@ function drive(
 test("избыточность ввода: потерянный пакет восстанавливается без desync", () => {
   const { a, b } = makeGames();
   const { a: ta, b: tb } = LocalEndpoint.pair({ delay: 3, jitter: 1 }, { delay: 3, jitter: 1 }, makeRng(0xbeef));
-  // дропаем 6-й send со стороны A (примерно frame 5) — избыточность дошлёт его позже
+  // drop the 6th send on A's side (around frame 5) — redundancy will resend it later
   const taDrop = new SelectiveDrop(ta, 6);
   const evA: SessionEvent[] = [], evB: SessionEvent[] = [];
   const sa = new RollbackSession({ game: a, transport: taDrop, myPorts: [0], remotePorts: [2], onEvent: (e) => evA.push(e) });
@@ -99,8 +99,8 @@ test("задержка: ping/pong измеряется и публикуется
 
   for (let f = 0; f < 20; f++) {
     sa.advanceFrame([{ port: 0, buttons: 0 }]);
-    tb.flush(); // доставить ping к B (создаёт pong)
-    ta.flush(); // доставить pong к A
+    tb.flush(); // deliver ping to B (creates pong)
+    ta.flush(); // deliver pong to A
   }
   const lat = evA.filter((e) => e.type === "latency");
   assert.ok(lat.length > 0, "событие latency не пришло");
@@ -121,12 +121,12 @@ test("desync-recovery: не-авторитет запрашивает снапш
   });
 
   const mi = (side: string, f: number): Input[] => [{ port: side === "A" ? 0 : 2, buttons: (f * 3) & 0x0f }];
-  // прогреваем: hash на кадре 20 подтверждён (confirmDelay 20)
+  // warm up: the hash at frame 20 is confirmed (confirmDelay 20)
   drive(sa, sb, ta, tb, 60, mi);
   assert.strictEqual(evA.filter((e) => e.type === "desync").length, 0, "A: ложный desync на прогреве");
   assert.strictEqual(evB.filter((e) => e.type === "desync").length, 0, "B: ложный desync на прогреве");
 
-  // вручную подаём чужой хэш: не-авторитет обязан зафиксировать desync и запросить снапшот.
+  // manually feed a foreign hash: the non-authority must record a desync and request a snapshot.
   sb._onHashCheck({ frame: 20, hash: "00000000" });
   assert.ok(evB.some((e) => e.type === "desync"), "B: desync не зафиксирован");
   assert.ok(evB.some((e) => e.type === "resync-request"), "B: не запросил resync");
@@ -136,8 +136,8 @@ test("desync-recovery: не-авторитет запрашивает снапш
   assert.ok(evA.some((e) => e.type === "snapshot-sent"), "A: снапшот не отправлен");
   assert.ok(evB.some((e) => e.type === "resync"), "B: resync не применён");
 
-  // B после resync отстаёт на транспортную задержку — даём ему догнать A,
-  // дославляя оставшиеся вводы (в реальной игре это делают последующие тики).
+  // After resync B lags by the transport delay — let it catch up to A,
+  // sending the remaining inputs (in a real game subsequent ticks do this).
   drive(sa, sb, ta, tb, 4, mi);
   let guard = 0;
   while (sb.currentFrame < sa.currentFrame && guard++ < 300) {
@@ -159,12 +159,12 @@ test("реконнект: rebindTransport продолжает матч на н�
   const mi = (side: string, f: number): Input[] => [{ port: side === "A" ? 0 : 2, buttons: (f * 5) & 0x0f }];
   drive(sa, sb, pair1.a, pair1.b, 30, mi);
 
-  // обрыв: закрываем старый транспорт у обоих
+  // disconnection: close the old transport on both sides
   pair1.a.close();
   pair1.b.close();
   assert.ok(evA.some((e) => e.type === "transport-closed"), "A: нет события transport-closed");
 
-  // новый транспорт (после реконнекта)
+  // new transport (after reconnection)
   const pair2 = LocalEndpoint.pair({ delay: 2 }, { delay: 2 }, makeRng(0x22));
   sa.rebindTransport(pair2.a);
   sb.rebindTransport(pair2.b);
@@ -184,11 +184,11 @@ test("батч ввода: дубликаты кадров дедуплицир�
 
   sa.advanceFrame([{ port: 0, buttons: 1 }]);
   sb.advanceFrame([{ port: 2, buttons: 0 }]);
-  tb.flush(); // B получил кадр 0, откатился один раз
+  tb.flush(); // B received frame 0, rolled back once
   const before = sb.rollbackCount;
   assert.ok(before >= 1);
 
-  // повторно кормим батч, содержащий только уже применённый кадр 0 — дедуп не даёт rollback
+  // re-feed a batch containing only the already applied frame 0 — dedup prevents a rollback
   sb._onMessage(encodeFrameBatch([{ frame: 0, inputs: [{ port: 0, buttons: 1 }] }]));
   assert.strictEqual(sb.rollbackCount, before, "дубликат вызвал лишний rollback");
 });
@@ -254,12 +254,12 @@ test("2v2: четыре клиента, человеческие танки, с�
   for (let i = 0; i < n; i++) {
     const g = new PvPNes({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     g.loadROM(ROM);
-    // как App.beginOnlineMatch: все живые танки помечены человеческими (одинаково у всех)
+    // like App.beginOnlineMatch: all live tanks are marked human (identically for everyone)
     g.setHumanDefTank(0);
     g.setHumanDefTank(1);
     g.setHumanTank(2);
     g.setHumanTank(3);
-    // синхронный автостарт (порт 0 Start каждые 30 кадров)
+    // synchronous auto-start (port 0 Start every 30 frames)
     let started = false;
     for (let f = 1; f <= 1200 && !started; f++) {
       g.stepFrame([{ port: 0, buttons: f % 30 === 0 ? START : 0 }]);
@@ -318,7 +318,7 @@ test("оптимизация: постоянный ввод не вызывае�
   const { a: ta, b: tb } = LocalEndpoint.pair({ delay: 3 }, { delay: 3 }, makeRng(0x99));
   const sb = new RollbackSession({ game: b, transport: tb, myPorts: [2], remotePorts: [0], onEvent: () => {} });
   const sa = new RollbackSession({ game: a, transport: ta, myPorts: [0], remotePorts: [2], onEvent: () => {} });
-  // оба держат одну и ту же кнопку: предсказание совпадает с приходящим вводом
+  // both hold the same button: the prediction matches the arriving input
   for (let f = 0; f < 40; f++) {
     sa.advanceFrame([{ port: 0, buttons: 0x10 }]);
     sb.advanceFrame([{ port: 2, buttons: 0x20 }]);

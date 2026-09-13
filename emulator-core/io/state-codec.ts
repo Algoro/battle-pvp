@@ -1,19 +1,19 @@
-// state-codec.js — быстрая бинарная сериализация детерминированного состояния
-// ядра. Заменяет медленный JSON (toJSON -> Array.from(mem) -> JSON.stringify)
-// на компактный бинарный формат: cpu.mem и прочие typed-массивы пишутся сырыми
-// байтами, скаляры — с тегом типа.
+// state-codec.js — fast binary serialization of the deterministic core
+// state. Replaces slow JSON (toJSON -> Array.from(mem) -> JSON.stringify)
+// with a compact binary format: cpu.mem and other typed arrays are written as raw
+// bytes, scalars — with a type tag.
 //
-// Формат (little-endian), для каждого модуля:
-//   u16 count | для каждого поля: u8 tag + значение
-//   tag: 0 = Uint8Array (u32 len + байты)
+// Format (little-endian), per module:
+//   u16 count | for each field: u8 tag + value
+//   tag: 0 = Uint8Array (u32 len + bytes)
 //        1 = Array       (u32 len + f64*len)
 //        2 = number      (f64)
 //        3 = boolean     (u8)
 //        4 = string      (u32 len + utf8)
 //
-// Относительный путь: ./emulator-core/io/state-codec.js
+// Relative path: ./emulator-core/io/state-codec.js
 
-// Поля маппера не объявлены в JSON_PROPERTIES (у него свой toJSON).
+// Mapper fields are not declared in JSON_PROPERTIES (it has its own toJSON).
 const MAPPER_FIELDS = [
   "joy1StrobeState",
   "joy2StrobeState",
@@ -22,9 +22,9 @@ const MAPPER_FIELDS = [
   "joypadLastWriteCycle",
 ];
 
-// PPU-поля, которые НЕ сохраняем: это выходные кадровые буферы текущего кадра,
-// они полностью пересоздаются рендером при следующем stepFrame. Их сериализация
-// лишь раздувает снапшот (по ~245КБ каждый) и не влияет на детерминизм.
+// PPU fields we do NOT save: these are the output frame buffers of the current frame,
+// they are completely recreated by rendering on the next stepFrame. Serializing them
+// only bloats the snapshot (~245KB each) and does not affect determinism.
 const PPU_SKIP = new Set(["buffer", "bgbuffer", "pixrendered"]);
 function ppuProps(ppu: any): string[] {
   return ppu.constructor.JSON_PROPERTIES.filter((p: string) => !PPU_SKIP.has(p));
@@ -85,9 +85,9 @@ function writeValue(w: Writer, v: any): void {
     w.u8(5); // null
   } else if (ArrayBuffer.isView(v)) {
     w.u8(0);
-    // ВАЖНО: пишем БАЙТОВОЕ представление. Для Uint16Array и пр. `w.bytes(v)`
-    // использовал поэлементный `set` (старший байт терялся) — из-за этого после
-    // loadState ломались таблицы вроде PPU vramMirrorTable (Uint16Array).
+    // IMPORTANT: we write the BYTE representation. For Uint16Array etc. `w.bytes(v)`
+    // used element-wise `set` (the high byte was lost) — because of this, after
+    // loadState tables like PPU vramMirrorTable (Uint16Array) broke.
     w.bytes(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
   } else if (v instanceof Map) {
     w.u8(7); // Map
@@ -97,7 +97,7 @@ function writeValue(w: Writer, v: any): void {
       writeValue(w, val);
     }
   } else if (Array.isArray(v)) {
-    // числовые массивы — как раньше (компактно); прочие — объект с индексами
+    // numeric arrays — as before (compact); others — an object with indices
     if (v.every((x: any) => typeof x === "number")) {
       w.u8(1);
       w.u32(v.length);
@@ -151,7 +151,7 @@ function readValue(r: Reader): any {
   if (t === 6) {
     const n = r.u16();
     const obj = new Array(n);
-    for (let i = 0; i < n; i++) obj[i] = readValue(r); // нечисловой массив -> массив значений
+    for (let i = 0; i < n; i++) obj[i] = readValue(r); // non-numeric array -> array of values
     return obj;
   }
   if (t === 7) {
@@ -178,8 +178,8 @@ function decodeProps(r: Reader, obj: any, props: string[]): void {
     const p = props[i];
     const v = readValue(r);
     const cur = obj[p];
-    // сохраняем ссылку на typed-массив (in-place) и копируем ПО БАЙТАМ (для Uint16Array
-    // и пр. поэлементный `set` испортил бы данные — см. writeValue).
+    // keep a reference to the typed array (in place) and copy BY BYTES (for Uint16Array
+    // etc. element-wise `set` would corrupt the data — see writeValue).
     if (ArrayBuffer.isView(cur) && ArrayBuffer.isView(v)) {
       const dst = new Uint8Array(cur.buffer, cur.byteOffset, cur.byteLength);
       const src = v instanceof Uint8Array ? v : new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
@@ -199,9 +199,9 @@ export function encodeState(emu: any): Uint8Array {
   encodeProps(w, emu.controllers[1], emu.controllers[1].constructor.JSON_PROPERTIES);
   encodeProps(w, emu.controllers[2], emu.controllers[2].constructor.JSON_PROPERTIES);
   encodeProps(w, emu, ["prevButtons", "_frame", "_tacticalState", "_defState", "_jsPrev", "_jsDir", "_lastPlayerDir"]);
-  // PPU рендерит BG из nameTable[] (tile/attrib), а НЕ из vramMem напрямую. Эти объекты
-  // не входят в JSON_PROPERTIES — их сериализуем явно, иначе после loadState (rollback)
-  // рендер остаётся старым: разрушенные кирпичи «висят» на экране, хотя коллизия пуста.
+  // The PPU renders BG from nameTable[] (tile/attrib), NOT from vramMem directly. These objects
+  // are not part of JSON_PROPERTIES — we serialize them explicitly, otherwise after loadState (rollback)
+  // the render stays stale: destroyed bricks "hang" on screen even though the collision data is empty.
   const nts = emu.ppu.nameTable;
   w.u16(nts.length);
   for (const nt of nts) {
@@ -220,7 +220,7 @@ export function decodeState(emu: any, bytes: Uint8Array): void {
   decodeProps(r, emu.controllers[1], emu.controllers[1].constructor.JSON_PROPERTIES);
   decodeProps(r, emu.controllers[2], emu.controllers[2].constructor.JSON_PROPERTIES);
   decodeProps(r, emu, ["prevButtons", "_frame", "_tacticalState", "_defState", "_jsPrev", "_jsDir", "_lastPlayerDir"]);
-  // nameTable восстанавливаем IN PLACE (рендер держит ссылки на эти объекты/массивы).
+  // Restore nameTable IN PLACE (the render holds references to these objects/arrays).
   const n = r.u16();
   for (let i = 0; i < n; i++) {
     const tile = readValue(r);

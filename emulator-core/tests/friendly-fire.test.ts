@@ -1,7 +1,7 @@
-// friendly-fire.test.ts — фичи friendly-fire-def / friendly-fire-att.
-//   def: ROM ставит стан 0xC8 при попадании своего — рантайм превращает в смерть.
-//   att: рантайм добавляет коллизию враг-пуля→враг-танк (броня, приз).
-// Запуск: node --test tests/friendly-fire.test.ts
+// friendly-fire.test.ts — the friendly-fire-def / friendly-fire-att features.
+//   def: the ROM sets stun 0xC8 on a friendly hit — the runtime turns it into death.
+//   att: the runtime adds enemy-bullet→enemy-tank collision (armor, prize).
+// Run: node --test tests/friendly-fire.test.ts
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -28,7 +28,7 @@ function boot(features: string[], featureOptions?: any) {
   return emu;
 }
 
-// Пустая клетка поля (не стена), с координатами центра.
+// Empty field cell (not a wall), with center coordinates.
 function emptyCell(emu: any): { x: number; y: number } {
   for (let i = 0; i < 32 * 32; i++) {
     if (emu.cpu.mem[RAM.FIELD + i] === 0) {
@@ -46,14 +46,14 @@ function parkTanks(emu: any, tanks: number[]) {
   }
 }
 
-// DEF-пуля (слот 0) точно в танк 1.
+// DEF bullet (slot 0) exactly into tank 1.
 function aimP0AtP1(emu: any) {
   const c = emptyCell(emu);
   for (const t of [0, 2, 3, 4, 5, 6, 7]) {
     emu.cpu.mem[RAM.TANK_FLAG + t] = 0;
     emu.cpu.mem[RAM.BULLET_STATUS + t] = 0;
   }
-  emu.cpu.mem[RAM.TANK_X] = (c.x + 32) & 0xff; // владелец подальше
+  emu.cpu.mem[RAM.TANK_X] = (c.x + 32) & 0xff; // owner farther away
   emu.cpu.mem[RAM.TANK_Y] = c.y;
   emu.cpu.mem[RAM.TANK_FLAG] = 0x90;
   emu.cpu.mem[RAM.TANK_X + 1] = c.x;
@@ -67,7 +67,7 @@ function aimP0AtP1(emu: any) {
   emu.cpu.mem[RAM.BULLET_Y] = c.y;
 }
 
-// Вражеская пуля (слот 2) точно в танк 3.
+// Enemy bullet (slot 2) exactly into tank 3.
 function aimEnemy2AtEnemy3(emu: any, type3 = 0x80) {
   const c = emptyCell(emu);
   parkTanks(emu, [0, 1, 4, 5, 6, 7]);
@@ -124,15 +124,15 @@ test("ff-att: броня поглощает попадание союзника"
 
 test("ff-att: убийство носителя приза заставляет приз выпасть", () => {
   const emu = boot(["friendly-fire-att"]);
-  emu.cpu.mem[RAM.PRIZE_X] = 0; // приз не активен
-  aimEnemy2AtEnemy3(emu, 0x84); // carrier, armor&3 = 0 -> смерть
+  emu.cpu.mem[RAM.PRIZE_X] = 0; // prize not active
+  aimEnemy2AtEnemy3(emu, 0x84); // carrier, armor&3 = 0 -> death
   emu.stepFrame([]);
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG + 3], 0x73, "носитель не убит");
   assert.notStrictEqual(emu.cpu.mem[RAM.PRIZE_X], 0, "приз не выпал");
 });
 
-// Стрелок и его собственная пуля: в момент выстрела пуля внутри хитбокса, поэтому
-// самоурон разрешён только после того, как пуля вышла из «дула».
+// The shooter and its own bullet: at the moment of firing the bullet is inside the hitbox, so
+// self-damage is allowed only after the bullet has left the "barrel".
 test("ff-att: в момент выстрела стрелок не гибнет от своей пули", () => {
   const emu = boot(["friendly-fire-att"]);
   const c = emptyCell(emu);
@@ -160,13 +160,13 @@ test("ff-att: пуля, покинувшая стрелка, убивает ег
     emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
   };
   put();
-  // 1) пуля далеко от стрелка — отмечаем «вышла из дула»
+  // 1) the bullet is far from the shooter — mark "left the barrel"
   emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
   emu.cpu.mem[RAM.BULLET_X + 2] = (c.x + 40) & 0xff;
   emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
   emu.stepFrame([]);
   assert.strictEqual(emu.cpu.mem[RAM.FF_ATT_CLEARED] & (1 << 2), 1 << 2, "бит выхода из дула не выставлен");
-  // 2) пуля вернулась к стрелку — самоурон
+  // 2) the bullet returned to the shooter — self-damage
   put();
   emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
   emu.cpu.mem[RAM.BULLET_X + 2] = c.x;
@@ -178,7 +178,7 @@ test("ff-att: пуля, покинувшая стрелка, убивает ег
 
 test("ff-att: настройка damage снимает больше брони", () => {
   const one = boot(["friendly-fire-att"]);
-  aimEnemy2AtEnemy3(one, 0xe3); // броня 3
+  aimEnemy2AtEnemy3(one, 0xe3); // armor 3
   one.stepFrame([]);
   assert.strictEqual(one.cpu.mem[RAM.TANK_TYPE + 3], 0xe2, "урон по умолчанию = 1");
 
@@ -202,7 +202,7 @@ test("ff-att: selfDamage=false отключает самоурон стрелк�
   emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
   emu.cpu.mem[RAM.BULLET_X + 2] = (c.x + 40) & 0xff;
   emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
-  emu.stepFrame([]); // выставить «пуля покинула дуло»
+  emu.stepFrame([]); // set "the bullet left the barrel"
   put();
   emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
   emu.cpu.mem[RAM.BULLET_X + 2] = c.x;

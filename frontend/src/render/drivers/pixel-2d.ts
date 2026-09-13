@@ -1,7 +1,7 @@
-// pixel-2d.ts — драйвер рендера по умолчанию: оригинальный кадр PPU (256×240) на 2D-canvas.
-// Переносит прежнюю отрисовку EmulatorDriver в слой рендера без изменения результата.
+// pixel-2d.ts — default render driver: the original PPU frame (256×240) on a 2D canvas.
+// Moves the previous EmulatorDriver drawing into the render layer without changing the result.
 //
-// Относительный путь: ./frontend/src/render/drivers/pixel-2d.ts
+// Relative path: ./frontend/src/render/drivers/pixel-2d.ts
 import type { RenderDriver, RenderHost, SceneState } from "../types.ts";
 
 const W = 256;
@@ -32,7 +32,7 @@ export function createPixelDriver(): RenderDriver {
       scene = next;
     },
     resize() {
-      /* размер задаётся CSS-контейнером */
+      /* size is set by the CSS container */
     },
     render() {
       if (!ctx || !image || !img32 || !scene?.pixels) return;

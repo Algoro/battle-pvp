@@ -1,8 +1,8 @@
-// scene-state.ts — авторитетный срез состояния для рендера. Чистая функция: только
-// чтение RAM (через семантический слой @core/model/game-view) и пиксельного буфера PPU.
-// Ничего не пишет в память и не вызывает stepFrame.
+// scene-state.ts — authoritative state slice for rendering. Pure function: only
+// reads RAM (via the semantic layer @core/model/game-view) and the PPU pixel buffer.
+// It writes nothing to memory and does not call stepFrame.
 //
-// Относительный путь: ./frontend/src/render/scene-state.ts
+// Relative path: ./frontend/src/render/scene-state.ts
 import { readState } from "@core/model/game-view.ts";
 import { RAM } from "@core/rom-contract.ts";
 import {
@@ -18,15 +18,15 @@ import {
 } from "@core/domain.ts";
 import type { RenderBounds, SceneBullet, ScenePrize, SceneState, SceneTank, SceneTower, TankVisualState } from "./types.ts";
 
-// Игровая зона в буфере коллизий $0400: 13×13 блоков ROM = 26×26 клеток по 8 px,
-// со смещением (2,2) (проверено по ROM: орёл в клетках 14..15, 26..27).
+// Game area in the collision buffer $0400: 13×13 ROM blocks = 26×26 cells of 8 px,
+// with offset (2,2) (verified against the ROM: eagle in cells 14..15, 26..27).
 export const PLAY_BOUNDS: RenderBounds = { col0: 2, row0: 2, cols: 26, rows: 26 };
 
 function tankState(flag: number): TankVisualState {
   if (flag === 0) return "dead";
   if (isTankSpawning(flag)) return "spawning";
   if (tankHi(flag) === (TANK_EXPLODE & 0xf0)) return "exploding";
-  // 0x80..0xD0 — «на поле» (включая стоянку/поворот human-танка: 0x88|dir).
+  // 0x80..0xD0 — "on the field" (including the parked/turning human tank: 0x88|dir).
   if (isTankActive(flag)) return "alive";
   return "dead";
 }
@@ -113,7 +113,7 @@ export function readSceneFromMem(
   };
 }
 
-// Обёртка над эмулятором: достаёт RAM/кадр/пиксельный буфер из PvPNes.
+// Wrapper over the emulator: pulls RAM/frame/pixel buffer from PvPNes.
 export function readScene(emu: any): SceneState {
   const nes = emu?.nes ?? emu;
   const mem: Uint8Array | undefined = nes?.cpu?.mem;
@@ -126,7 +126,7 @@ export function readScene(emu: any): SceneState {
   return readSceneFromMem(mem, frame, pixels, towers);
 }
 
-// Башни TD живут в JS-рантайме (не в RAM) — забираем снимок через API драйвера.
+// TD towers live in the JS runtime (not in RAM) — we take a snapshot via the driver API.
 function readTowers(emu: any): SceneTower[] {
   const td = emu?.getFeatureState?.("tower-defence");
   if (!td || !Array.isArray(td.towers)) return [];

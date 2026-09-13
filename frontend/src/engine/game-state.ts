@@ -1,29 +1,29 @@
-// game-state.ts — чистая логика игрового состояния на границе RAM.
-// Без DOM/React/эмулятора: принимает значения из RAM и возвращает решения.
-// Единый источник истины для фронта (GameCanvas) и тестов (qa, unit).
-// Относительный путь: ./frontend/src/engine/game-state.ts
+// game-state.ts — pure game state logic at the RAM boundary.
+// No DOM/React/emulator: takes values from RAM and returns decisions.
+// Single source of truth for the frontend (GameCanvas) and tests (qa, unit).
+// Relative path: ./frontend/src/engine/game-state.ts
 import type { FrameInput, Team } from "../ports";
 
-// Team/FrameInput — доменные типы: единое определение в ports.ts, ре-экспорт для совместимости.
+// Team/FrameInput — domain types: single definition in ports.ts, re-exported for compatibility.
 export type { FrameInput, Team };
 
-// con_btn Start (совпадает с ROM).
+// con_btn Start (matches the ROM).
 export const BTN_START = 0x08;
 
-// Жив ли танк: активные флаги 0x90-0xD0; 0xE0/F0 — респавн, 0x70/0x80 — взрыв.
+// Whether the tank is alive: active flags 0x90-0xD0; 0xE0/F0 — respawn, 0x70/0x80 — explosion.
 export function isTankAlive(flag: number): boolean {
   const hi = flag & 0xf0;
   return hi >= 0x90 && hi <= 0xd0;
 }
 
-// Игра началась, когда enemies_left инициализирован (не 0xFF).
+// The game has started when enemies_left is initialized (not 0xFF).
 export function isGameplayStarted(enemiesLeft: number): boolean {
   return enemiesLeft !== 0xff;
 }
 
-// Победитель по состоянию (только в реальной игре, stage 1..35):
-// ATT побеждает при уничтожении штаба DEF (game_over -> 0),
-// DEF — при уничтожении всех танков ATT (enemies_left -> 0) или зачистке точек (pacman).
+// Winner by state (only in a real game, stage 1..35):
+// ATT wins when the DEF HQ is destroyed (game_over -> 0),
+// DEF — when all ATT tanks are destroyed (enemies_left -> 0) or the points are cleared (pacman).
 export function determineWinner(
   stage: number,
   gameOver: number,
@@ -38,19 +38,19 @@ export function determineWinner(
 }
 
 export interface SoloInputsArgs {
-  port: number; // порт игрока (0 = DEF, 2 = ATT)
+  port: number; // player port (0 = DEF, 2 = ATT)
   team: Team;
   frame: number;
-  started: boolean; // gameplay началась (enemies_left != 0xFF)
+  started: boolean; // gameplay has started (enemies_left != 0xFF)
   userButtons: number;
-  attTankAlive: boolean; // жив ли танк игрока (для ATT)
+  attTankAlive: boolean; // whether the player's tank is alive (for ATT)
 }
 
-// Построение входов соло-цикла (детерминированно):
-//  - порт 0 (DEF) подаётся КАЖДЫЙ кадр: 0 в норме, Start на автостарте (корректные
-//    кромки Start — иначе кнопка залипает и не проходит выбор игроков);
-//  - порт игрока — ввод с клавиатуры;
-//  - для ATT — авто-респавн танка (Start edge на порту игрока), пока он не жив.
+// Building solo-loop inputs (deterministically):
+//  - port 0 (DEF) is fed EVERY frame: 0 normally, Start on auto-start (correct
+//    Start edges — otherwise the button sticks and player selection does not pass);
+//  - the player port — input from the keyboard;
+//  - for ATT — auto-respawn of the tank (Start edge on the player port) while it is not alive.
 export function buildSoloInputs(a: SoloInputsArgs): FrameInput[] {
   const autoStart = !a.started && a.frame % 30 === 0;
   const autoRespawn = a.team === "ATT" && a.started && !a.attTankAlive && a.frame % 30 === 0;

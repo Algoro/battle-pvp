@@ -1,6 +1,6 @@
-// tower-defence.test.ts — режим tower defence: каркас (фаза 0).
-// Проверяем: патч применяется, хук завершения стадии активен (JMP на рутину),
-// рутина имеет ожидаемую логику (байты), фаза TD_STATE инициализируется.
+// tower-defence.test.ts — tower defence mode: skeleton (phase 0).
+// Verifies: the patch is applied, the stage-end hook is active (JMP to the routine),
+// the routine has the expected logic (bytes), and the TD_STATE phase is initialized.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -35,12 +35,12 @@ test("tower-defence: ROM-патч меняет fingerprint, рутина и ху
   assert.ok(hook, "хук завершения стадии не применён");
   assert.strictEqual(hook.at, 0xc728);
 
-  // JMP $FF50 на входе sub_C728
+  // JMP $FF50 at the sub_C728 entry
   const bank = rom.rom[0];
   const off = 0xc728 & 0x3fff;
   assert.deepStrictEqual([bank[off], bank[off + 1], bank[off + 2]], [0x4c, 0x50, 0xff]);
 
-  // Логика рутины: LDA TD_STATE; BEQ .orig; LDA game_over; CMP #$80; BNE .orig;
+  // Routine logic: LDA TD_STATE; BEQ .orig; LDA game_over; CMP #$80; BNE .orig;
   // LDA #$00; RTS; NOP NOP; .orig: LDA game_over; BNE .continue; JMP $C737; JMP $C72C
   const r = 0xff50 & 0x3fff;
   const bytes = Array.from(bank.subarray(r, r + 27));

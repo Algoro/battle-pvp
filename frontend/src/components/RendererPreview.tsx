@@ -1,5 +1,5 @@
-// RendererPreview.tsx — живой предпросмотр выбранного драйвера рендера до старта матча.
-// 3D-драйвер показывает вращающуюся демо-сцену; пиксельный — превью стадии из ROM.
+// RendererPreview.tsx — live preview of the selected render driver before the match starts.
+// The 3D driver shows a rotating demo scene; the pixel one shows a stage preview from the ROM.
 import { useEffect, useRef } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { driverCapabilities } from "../render/registry";
@@ -34,7 +34,7 @@ export default function RendererPreview({ driver, extensions, emulator, stage, o
     const emu = emulator;
     const sys = new RenderSystem({
       container: el,
-      // Показываем реальный уровень выбранной стадии (fallback — демо-сцена).
+      // Show the real level of the selected stage (fallback — demo scene).
       scene: () => (emu ? stageScene(emu, stageRef.current) : previewScene()),
     });
     sys.setViewer({ port: 0 });

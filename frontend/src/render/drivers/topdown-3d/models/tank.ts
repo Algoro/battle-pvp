@@ -1,7 +1,7 @@
-// tank.ts — процедурная 3D-модель танка (низкополигональная, без ассетов).
-// Ориентация модели: вперёд = +X. Цвет/броня/звёзды/каска/стан/гусеницы — из SceneTank.
+// tank.ts — procedural 3D tank model (low-poly, no assets).
+// Model orientation: forward = +X. Color/armor/stars/helmet/stun/tracks — from SceneTank.
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/models/tank.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/models/tank.ts
 import * as THREE from "three";
 import { COLORS, treadTexture } from "../textures.ts";
 import { DIR_ROT } from "../../../coords.ts";
@@ -24,8 +24,8 @@ export function createTank(): TankModel {
   const spawnMat = new THREE.MeshStandardMaterial({ color: 0x7fd4ff, emissive: 0x1b6fa8, transparent: true, opacity: 0.85 });
   const helmetMat = new THREE.MeshStandardMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.32, metalness: 0.1, roughness: 0.1 });
 
-  // Габариты модели ≈ спрайт танка 13×13 px (13/8 = 1.625 юнита), чтобы модель не
-  // выходила за хитбокс и не «наезжала» на препятствия.
+  // Model dimensions ≈ tank sprite 13×13 px (13/8 = 1.625 units), so the model does not
+  // go beyond the hitbox and does not "run into" obstacles.
   const hull = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.5, 1.4), hullMat);
   hull.position.y = 0.48;
   group.add(hull);

@@ -1,11 +1,11 @@
-// translate.ts — ядро интернационализации.
+// translate.ts — the i18n core.
 //
-// Подход «msgid = исходная (русская) строка»: в коде остаётся t("Отмена"), а таблицы
-// перевода сопоставляют исходную строку английской. Для языка ru перевода нет —
-// возвращается сама строка. Это даёт локализацию без переименования ключей и без
-// изменения манифестов патчей/рендера (UI переводит их title/description на лету).
+// "msgid = source (Russian) string" approach: the code keeps t("Отмена"), while the
+// translation tables map the source string to English. For the ru language there is no translation —
+// the string itself is returned. This gives localization without renaming keys and without
+// changing patch/render manifests (the UI translates their title/description on the fly).
 //
-// Относительный путь: ./frontend/src/i18n/translate.ts
+// Relative path: ./frontend/src/i18n/translate.ts
 import common from "./en/common.ts";
 import lobby from "./en/lobby.ts";
 import game from "./en/game.ts";
@@ -17,7 +17,7 @@ export type Lang = "en" | "ru";
 export type TranslationParams = Record<string, string | number>;
 export type Messages = Record<string, string>;
 
-/** Английские переводы, сгруппированные по областям (см. en/*.ts). */
+/** English translations grouped by area (see en/*.ts). */
 export const EN: Messages = { ...common, ...lobby, ...game, ...render, ...td, ...misc };
 
 export const LANGS: { id: Lang; title: string }[] = [
@@ -33,7 +33,7 @@ export function loadLang(): Lang {
     const saved = localStorage.getItem(LANG_STORAGE_KEY);
     if (saved === "en" || saved === "ru") return saved;
   } catch {
-    /* localStorage может быть недоступен */
+    /* localStorage may be unavailable */
   }
   return DEFAULT_LANG;
 }
@@ -53,7 +53,7 @@ function interpolate(text: string, params?: TranslationParams): string {
   return out;
 }
 
-/** Перевести строку: для en — по таблице, для ru — вернуть исходник. */
+/** Translate a string: for en — via the table, for ru — return the source. */
 export function translate(lang: Lang, source: string, params?: TranslationParams): string {
   const text = lang === "en" ? EN[source] ?? source : source;
   return interpolate(text, params);

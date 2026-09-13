@@ -1,6 +1,6 @@
-// enemy-ai.test.js — точный порт вражеского ИИ (sub_DBF1 -> sub_DC3D -> tbl_E498,
-// sub_DE72 выбор цели, sub_DDA2 навигация). Фиксирует поведение ASM, выявленное
-// по bank_FF.asm: исправления относительно старой упрощённой модели.
+// enemy-ai.test.js — exact port of the enemy AI (sub_DBF1 -> sub_DC3D -> tbl_E498,
+// sub_DE72 target choice, sub_DDA2 navigation). Fixes the ASM behavior revealed
+// from bank_FF.asm: fixes relative to the old simplified model.
 import { test } from "node:test";
 import assert from "node:assert";
 import { GameSim } from "../sim/engine.ts";
@@ -50,22 +50,22 @@ test("_pickFollowFlag: p1 мёртв -> follow p2 (0xC0)", () => {
 
 test("_navigate: враг всегда использует базовую таблицу (без случайной +9)", () => {
   const { sim, tank } = makeSim();
-  // цель ниже-правее: sy=+1, sx=+1 -> idx=3*2+2=8 -> dir=2 (down)
+  // target below-right: sy=+1, sx=+1 -> idx=3*2+2=8 -> dir=2 (down)
   const nav = sim._navigate(tank, tank.x + 100, tank.y + 100);
   assert.strictEqual(nav.dir, 2, "направление вниз (idx 8 -> A2)");
-  // цель выше-левее: sy=-1,sx=-1 -> idx=0 -> dir=0 (up)
+  // target above-left: sy=-1,sx=-1 -> idx=0 -> dir=0 (up)
   const nav2 = sim._navigate(tank, tank.x - 100, tank.y - 100);
   assert.strictEqual(nav2.dir, 0, "направление вверх (idx 0 -> A0)");
-  // цель строго правее (sy=0,sx=+1): idx=3*1+2=5 -> dir=3 (right)
+  // target strictly right (sy=0,sx=+1): idx=3*1+2=5 -> dir=3 (right)
   const nav3 = sim._navigate(tank, tank.x + 100, tank.y);
   assert.strictEqual(nav3.dir, 3, "направление вправо (idx 5 -> A3)");
 });
 
 test("stepEnemy: респавн 0xF0 -> 0xE0 -> 0xA2 (движение вниз)", () => {
   const { sim, tank, state } = makeSim({ flag: 0xf0 });
-  // гейт: type=0x80, (2^frmCntLo)&1 — подбираем frmCntLo, чтобы проходил
-  state.frmCntLo = 0; // (2^0)&1 = 0 — не проходит; используем frmCntLo, где проходит
-  // Респавн идёт только на кадрах, где гейт открыт. Прогоняем с frmCntLo=1,3,5...
+  // gate: type=0x80, (2^frmCntLo)&1 — pick frmCntLo so it passes
+  state.frmCntLo = 0; // (2^0)&1 = 0 — doesn't pass; use a frmCntLo where it passes
+  // Respawn happens only on frames where the gate is open. Run with frmCntLo=1,3,5...
   let flag;
   for (let f = 1; f < 80 && flag !== 0xa2; f++) {
     state.frmCntLo = f;
@@ -77,12 +77,12 @@ test("stepEnemy: респавн 0xF0 -> 0xE0 -> 0xA2 (движение вниз)
 });
 
 test("stepEnemy: на пересечении с RNG&0x0F==0 ВСЕГДА ретаргет без движения", () => {
-  // rng()=16 -> 16&0x0F==0 на каждом вызове
+  // rng()=16 -> 16&0x0F==0 on every call
   const { sim, tank, state } = makeSim({ x: 120, y: 24, flag: 0xa2 }, () => 16);
   state.frmCntHi = 3; // half=2 < 3 -> follow HQ
   const before = { x: tank.x, y: tank.y };
-  // индекс 2, type 0x80: гейт открыт при (2^frmCntLo)&1. frmCntLo=0 не открыт.
-  state.frmCntLo = 1; // (2^1)&1 = 1 -> гейт открыт
+  // index 2, type 0x80: gate open when (2^frmCntLo)&1. frmCntLo=0 is not open.
+  state.frmCntLo = 1; // (2^1)&1 = 1 -> gate open
   const moved = sim.stepEnemy(tank, state);
   assert.strictEqual(moved, false, "ретаргет в том же кадре без движения");
   assert.deepStrictEqual({ x: tank.x, y: tank.y }, before, "позиция не изменилась");
@@ -91,7 +91,7 @@ test("stepEnemy: на пересечении с RNG&0x0F==0 ВСЕГДА рет�
 
 test("stepEnemy: движение 1px в направлении при свободной кромке", () => {
   const { sim, tank, state } = makeSim({ x: 120, y: 40, flag: 0xa2 });
-  // (2^frmCntLo)&1: frmCntLo=1 -> (2^1)=3, &1=1 -> гейт открыт
+  // (2^frmCntLo)&1: frmCntLo=1 -> (2^1)=3, &1=1 -> gate open
   state.frmCntLo = 1;
   const before = tank.y;
   const moved = sim.stepEnemy(tank, state);
@@ -101,9 +101,9 @@ test("stepEnemy: движение 1px в направлении при своб�
 });
 
 test("stepEnemy: блок без RNG&3==0 -> пауза 0x88|dir", () => {
-  // rng()=5: 5&0x0F=5 != 0 (нет ретаргета), 5&3=1 != 0 -> bra_DD1E пауза
+  // rng()=5: 5&0x0F=5 != 0 (no retarget), 5&3=1 != 0 -> bra_DD1E pause
   const { sim, tank, state } = makeSim({ x: 120, y: 40, flag: 0xa2 }, () => 5);
-  // стена прямо под танком: (120,40) центр, dir=2 -> кромка на y=48+ -> cell(15,6)
+  // wall directly below the tank: (120,40) center, dir=2 -> edge at y=48+ -> cell(15,6)
   sim.field[6 * 32 + 15] = 0x11;
   state.frmCntLo = 1;
   sim.stepEnemy(tank, state);
@@ -112,14 +112,14 @@ test("stepEnemy: блок без RNG&3==0 -> пауза 0x88|dir", () => {
 });
 
 test("stepEnemy: блок с RNG&3==0 на сетке -> разворот + флаг 0x90|dir", () => {
-  // rng()=16: 16&0x0F==0 -> ретаргет(keep, т.к. frmCntHi=0 -> null) затем RTS, без движения.
-  // Чтобы проверить блок-разворот, нужен rng где RNG&0x0F!=0 но RNG&3==0: rng()=4
+  // rng()=16: 16&0x0F==0 -> retarget(keep, since frmCntHi=0 -> null) then RTS, without movement.
+  // To test the blocked turn, we need an rng where RNG&0x0F!=0 but RNG&3==0: rng()=4
   const { sim, tank, state } = makeSim({ x: 120, y: 40, flag: 0xa2 }, () => 4);
-  sim.field[6 * 32 + 15] = 0x11; // стена внизу
+  sim.field[6 * 32 + 15] = 0x11; // wall below
   state.frmCntLo = 1;
   sim.stepEnemy(tank, state);
-  // rng()=4: 4&0x0F=4!=0 (нет ретаргета), 4&3=0 -> bra_DD30 разворот.
-  // dir=2 -> nd=0. На сетке (120&7=0,40&7=0) -> flag=0x90|0 = 0x90.
+  // rng()=4: 4&0x0F=4!=0 (no retarget), 4&3=0 -> bra_DD30 turn.
+  // dir=2 -> nd=0. On the grid (120&7=0,40&7=0) -> flag=0x90|0 = 0x90.
   assert.strictEqual(tank.dir, 0, "разворот 180° (2->0)");
   assert.strictEqual(tank.flag, 0x90, "флаг поворота 0x90 на сетке");
 });
@@ -141,7 +141,7 @@ test("stepEnemy: взрыв (0x10-0x70) -> мёртв после отсчёта"
   const { sim, tank, state } = makeSim({ flag: 0x70, type: 0x80 });
   let dead = false;
   for (let i = 0; i < 200 && !dead; i++) {
-    state.frmCntLo = i; // обычный враг: гейт открыт на нечётных
+    state.frmCntLo = i; // normal enemy: gate open on odd ones
     sim.stepEnemy(tank, state);
     if (!tank.alive) dead = true;
   }

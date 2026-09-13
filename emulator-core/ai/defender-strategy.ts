@@ -1,17 +1,17 @@
-// defender-strategy.js — новый стратегический ИИ защитников (DEF, танки 0,1).
+// defender-strategy.js — new strategic AI for defenders (DEF, tanks 0,1).
 //
-// Реализация дизайна `battle_city_defender_ai_full_design.md` на базе стратегического
-// слоя (perception.js + pathfind.js) и read-модели game-view. Отличается от
-// planDefense (tactical-ai.js) тем, что решения принимаются utility-функциями с
-// состояниями конечного автомата (FSM) и гистерезисом, а навигация идёт по
-// взвешенному A* (tileCost: brick=3, tree=1.2, ice=1.5, steel/water=∞).
+// Implementation of the `battle_city_defender_ai_full_design.md` design on top of the strategic
+// layer (perception.js + pathfind.js) and the game-view read model. It differs from
+// planDefense (tactical-ai.js) in that decisions are made by utility functions with
+// finite state machine (FSM) states and hysteresis, while navigation follows a
+// weighted A* (tileCost: brick=3, tree=1.2, ice=1.5, steel/water=∞).
 //
-// Интерфейс — как у planDefense (чтобы встроиться в pvp.js/brain-runner/ai-eval):
-//   strategyDefense(mem, frame, state) -> { buttons: Map<port,кнопки>, respawn }
-//   state — персистентный Map (гистерезис/FSM/память направления), продолжаемый между кадрами.
+// Interface — same as planDefense (so it plugs into pvp.js/brain-runner/ai-eval):
+//   strategyDefense(mem, frame, state) -> { buttons: Map<port,buttons>, respawn }
+//   state — a persistent Map (hysteresis/FSM/direction memory) continued between frames.
 //
-// Реактивный слой (прерывает FSM): COUNTER_SHOT, HULL_BLOCK (упрощённо — блокировка
-// коридора корпусом при нуле боезапаса). Затем utility-выбор между:
+// Reactive layer (interrupts the FSM): COUNTER_SHOT, HULL_BLOCK (simplified — blocking a
+// corridor with the hull when out of ammo). Then a utility choice between:
 //   DEFEND_BASE > HUNT_BLINKING_TANK > INTERCEPT > RUSH_BONUS > RETREAT > COLLECT_BONUS > PATROL.
 
 import { readState, DEF_END, DX, DY, inBounds, cellIdx, isBrick, tankPassable,
@@ -24,68 +24,68 @@ const BTN_A = 0x01;
 import { DIR_BTN, isTankActive } from "../domain.ts";
 import { RAM } from "../rom-contract.ts";
 
-// --- параметры (дизайн §2.2, §3, §8) — настраиваемый CFG для оптимизации весов/констант ---
-// Дефолт = лучший по перебору ПОСЛЕ интеграции fine-grid (scripts/strategy-sweep.csv, «после»):
-// `react_high` — 93 убийств, 9/10 HQ цел. Именованные пресеты см. в PRESETS ниже.
+// --- parameters (design §2.2, §3, §8) — tunable CFG for optimizing weights/constants ---
+// Default = best from the sweep AFTER fine-grid integration (scripts/strategy-sweep.csv, "after"):
+// `react_high` — 93 kills, 9/10 HQ intact. See named presets in PRESETS below.
 export const DEFAULT_CFG = {
-  hysteresis: 0.35,        // умеренно-быстрая смена действий (лучший баланс на fine-grid)
-  decoyRadius: 10,         // анти-декой: радиус «угрозы базе» для разрешения перехвата
-  baseThreatRadius: 8,     // враг в этом радиусе от базы = база под угрозой (DEFEND_BASE)
-  retreatFire: 2,          // >=2 входящих пули по нам и нет укрытия → RETREAT
-  dodgeRadius: 6,          // радиус реального уворота от пули (клеток)
-  maxLeash: 9,             // максимальный радиус охоты от базы (иначе база оголяется)
-  holdFrames: 24,          // гистерезис направления (не «дрожать» BFS-шагами)
-  noProgressFrames: 40,    // анти-застревание: сколько кадров без прогресса → обход
-  detourFrames: 26,        // длительность обхода при застревании
-  maxRetry: 40,            // лимит выбора якорной клетки
+  hysteresis: 0.35,        // moderately fast action switching (best balance on fine-grid)
+  decoyRadius: 10,         // anti-decoy: "base threat" radius for allowing an intercept
+  baseThreatRadius: 8,     // enemy within this radius of the base = base under threat (DEFEND_BASE)
+  retreatFire: 2,          // >=2 incoming bullets at us and no cover → RETREAT
+  dodgeRadius: 6,          // real dodge radius from a bullet (tiles)
+  maxLeash: 9,             // max hunt radius from the base (otherwise the base is left exposed)
+  holdFrames: 24,          // direction hysteresis (don't "jitter" with BFS steps)
+  noProgressFrames: 40,    // anti-stuck: how many frames without progress → detour
+  detourFrames: 26,        // detour duration when stuck
+  maxRetry: 40,            // limit on choosing an anchor cell
 
-  // веса scoring цели (bestTarget)
-  wThreat: 10,             // коэффициент угрозы базе
-  wFlash: 5,               // бонус за мигающего врага (1 хит = бонус)
-  wTankDist: 0.4,          // штраф за дальность до цели
-  wBaseDist: 0.25,         // штраф за дальность цели от базы
-  // веса utility действий
-  wEngageBase: 0.05,       // штраф за удаление от базы (ENGAGE)
-  wRisk: 0.8,              // штраф за входящие пули (ENGAGE)
+  // target scoring weights (bestTarget)
+  wThreat: 10,             // base threat coefficient
+  wFlash: 5,               // bonus for a flashing enemy (1 hit = bonus)
+  wTankDist: 0.4,          // penalty for distance to the target
+  wBaseDist: 0.25,         // penalty for the target's distance from the base
+  // action utility weights
+  wEngageBase: 0.05,       // penalty for moving away from the base (ENGAGE)
+  wRisk: 0.8,              // penalty for incoming bullets (ENGAGE)
 
-  // THREAT-GATED сбор призов (обход «чёрной дыры»): собирать призы/гранаты, когда БЕЗОПАСНО,
-  // не оголяя базу. Принят по итогам субагентов (agent2): bh 84/8 vs balanced 82/8 на 1-10.
-  threatGatedBonus: true,   // флаг: применять threat-gate к сбору призов (включён по умолчанию)
-  bonusThreatRadius: 8,     // враг в этом радиусе от базы И с LOS на базу → «опасное окно», приз не берём
-  pickupLeash: 20,          // не уходить за призом дальше этого радиуса от базы (привязка)
-  wBonusValue: 2.5,         // вес ценности приза в proximity+value: value/(d+1)
-  guardRadius: 9,           // партнёр-защитник должен быть в этом радиусе от базы, чтобы мы могли уйти за призом
-  minBonusValue: 80,        // минимальная ценность приза, ради которого стоит уходить от базы
-  maxEnemiesBonus: 3,       // макс. число живых врагов на поле, при котором ещё можно уйти за призом
-  wBonusPath: 0.2,          // штраф за стоимость пути к призу (снижен при безопасном рейде)
-  wBonusBase: 0.0,          // штраф за удаление от базы (BONUS) (снижен при безопасном рейде)
-  wRetreatIn: 2,           // штраф/вес входящих пуль (RETREAT)
-  wRetreatCover: 0.3,      // вес близости укрытия (RETREAT)
-  retreatHelmet: 0.5,      // снижение желания отступить при каске
-  // веса угрозы базе (threatToBase, дизайн §2.2)
+  // THREAT-GATED prize collection (avoids the "black hole"): collect prizes/grenades when SAFE,
+  // without exposing the base. Adopted from subagent results (agent2): bh 84/8 vs balanced 82/8 on 1-10.
+  threatGatedBonus: true,   // flag: apply threat-gate to prize collection (enabled by default)
+  bonusThreatRadius: 8,     // enemy within this radius of the base AND with LOS to the base → "danger window", don't take the prize
+  pickupLeash: 20,          // don't go for a prize farther than this radius from the base (tether)
+  wBonusValue: 2.5,         // weight of prize value in proximity+value: value/(d+1)
+  guardRadius: 9,           // the partner defender must be within this radius of the base for us to leave for a prize
+  minBonusValue: 80,        // minimum prize value worth leaving the base for
+  maxEnemiesBonus: 3,       // max number of living enemies on the field at which we may still leave for a prize
+  wBonusPath: 0.2,          // penalty for the path cost to the prize (reduced on a safe raid)
+  wBonusBase: 0.0,          // penalty for moving away from the base (BONUS) (reduced on a safe raid)
+  wRetreatIn: 2,           // penalty/weight of incoming bullets (RETREAT)
+  wRetreatCover: 0.3,      // weight of cover proximity (RETREAT)
+  retreatHelmet: 0.5,      // reduced desire to retreat while wearing a helmet
+  // base threat weights (threatToBase, design §2.2)
   threat: { speed: 0.30, los: 0.30, dist: 0.25, power: 0.10, path: 0.05 },
 };
 
 let cfg = { ...DEFAULT_CFG };
 
-// Именованные пресеты. Быстрое переключение через setStrategyConfig.
-// Дефолт (DEFAULT_CFG) = THREAT-GATED сбор призов (пресет `bh`, 84/8 на 1-10 — победитель субагентов).
+// Named presets. Quick switching via setStrategyConfig.
+// Default (DEFAULT_CFG) = THREAT-GATED prize collection (preset `bh`, 84/8 on 1-10 — subagent winner).
 export const PRESETS = {
-  // старый дефолт (до обхода «чёрной дыры»): без threat-gate, 82/8 — эталон для A/B
+  // old default (before the "black hole" workaround): no threat-gate, 82/8 — reference for A/B
   balanced: { threatGatedBonus: false, wBonusPath: 0.5, wBonusBase: 0.1 },
   stable: { hysteresis: 0.5, holdFrames: 40, detourFrames: 40 },
   aggro: { maxLeash: 16, wThreat: 16, wTankDist: 0.1, wBaseDist: 0.0, wRisk: 0.2, retreatFire: 6 },
   los: { threat: { speed: 0.2, los: 0.5, dist: 0.2, power: 0.05, path: 0.05 } },
   greedy_bonus: { wBonusPath: 0.1, wBonusBase: 0.0, wFlash: 10 },
-  // THREAT-GATED proximity+value сбор призов (победитель субагента agent2, 84/8 vs 82/8).
-  // Безопасное окно = нет врага близко к базе (bonusThreatRadius) с LOS на базу; приз берём
-  // только если он в пределах pickupLeash от базы и поле не переполнено врагами. База не оголяется.
-  // Тождественен дефолту (DEFAULT_CFG).
+  // THREAT-GATED proximity+value prize collection (subagent agent2 winner, 84/8 vs 82/8).
+  // Safe window = no enemy close to the base (bonusThreatRadius) with LOS to the base; we take a prize
+  // only if it is within pickupLeash of the base and the field is not overrun by enemies. The base is not exposed.
+  // Identical to the default (DEFAULT_CFG).
   bh: { threatGatedBonus: true, bonusThreatRadius: 8, pickupLeash: 20, maxEnemiesBonus: 3, minBonusValue: 80, wBonusValue: 2.5, wBonusPath: 0.2, wBonusBase: 0.0 },
 };
 
-// Переопределить параметры ИИ (для оптимизации). Можно передать имя пресета (строка).
-// Возвращает текущий cfg.
+// Override AI parameters (for optimization). A preset name (string) may be passed.
+// Returns the current cfg.
 export function setStrategyConfig(over: any = {}) {
   const o: any = typeof over === "string" ? ((PRESETS as any)[over] ?? {}) : over;
   cfg = { ...cfg, ...o };
@@ -99,13 +99,13 @@ const PLAYER_SPAWN_Y = [0xd8, 0xd8];
 
 const dirToBtn = (d: any) => DIR_BTN[d];
 
-// Полностью ли жив/двигается танк (широкий диапазон 0x80..0xd0, как план).
+// Whether the tank is fully alive/moving (wide range 0x80..0xd0, like the plan).
 function onField(t: any) {
   if (!t || t.x >= 255) return false;
   return isTankActive(t.flag);
 }
 
-// Клетки, которые в ближайшие кадры пройдут вражеские пули (для уворота/avoid).
+// Cells that enemy bullets will pass through in the coming frames (for dodging/avoid).
 function enemyThreatCells(perc: any) {
   const set = new Set();
   for (const b of perc.bullets) {
@@ -115,24 +115,24 @@ function enemyThreatCells(perc: any) {
   return set;
 }
 
-// Ближайшее укрытие (общий слой steer.js).
+// Nearest cover (shared steer.js layer).
 const nearestCover = nearestCoverShared;
 
-// --- цель стрельбы (линия огня; кирпич пробивается) ---
+// --- firing target (line of fire; brick is punched through) ---
 function fireDir(bf: any, from: any, to: any) {
   if (from.row === to.row) return to.col > from.col ? 3 : 1;
   if (from.col === to.col) return to.row > from.row ? 2 : 0;
   return null;
 }
 
-// Навигация на мелкой сетке (общий слой steer.js): точный хитбокс 16×16 + обход частично
-// разрушенных кирпичей; фолбэк на коарс с прострелом, если allowBreak. Возвращает 0..3 или null.
+// Navigation on the fine grid (shared steer.js layer): exact 16×16 hitbox + bypassing partially
+// destroyed bricks; falls back to coarse with line-of-fire if allowBreak. Returns 0..3 or null.
 function navigateFine(field: any, tank: any, goalCell: any, threatCells: any, allowBreak: any) {
   return steerTo(field, tank.x, tank.y, goalCell, { avoid: threatCells, allowBreak });
 }
 
-// Блокирует ли союзник-защитник линию огня от from до to (клетки строго на линии,
-// кроме стрелка и цели). Пуля тонкая — соседний танк рядом с линией не мешает.
+// Does a friendly defender block the line of fire from from to to (cells strictly on the line,
+// except the shooter and the target). The bullet is thin — a neighboring tank next to the line does not interfere.
 function allyBlockingLine(perc: any, from: any, to: any, selfIndex: any) {
   if (from.row !== to.row && from.col !== to.col) return false;
   const dc = Math.sign(to.col - from.col), dr = Math.sign(to.row - from.row);
@@ -148,7 +148,7 @@ function allyBlockingLine(perc: any, from: any, to: any, selfIndex: any) {
   return false;
 }
 
-// Лучшая выровненная цель для стрельбы (линия огня, без friendly fire).
+// Best aligned target to fire at (line of fire, no friendly fire).
 function bestAlignedFire(perc: any, tank: any): any {
   const cell = tank.cell;
   let best = null, bestD = Infinity, bestDir = null;
@@ -164,7 +164,7 @@ function bestAlignedFire(perc: any, tank: any): any {
   return best ? { e: best, dir: bestDir, d: bestD } : null;
 }
 
-// --- FSM/utility-состояние по танку ---
+// --- FSM/utility state per tank ---
 function tankState(state: any, t: any) {
   if (!state.has(t)) state.set(t, {
     fsm: "PATROL", prevDir: null, held: 0, prevFire: false,
@@ -173,14 +173,14 @@ function tankState(state: any, t: any) {
   return state.get(t);
 }
 
-// Выбор лучшего врага для задействования (utility цели).
-// Включает: угрозу базе, близость, мигающего (1 хит = бонус), анти-декой.
+// Choose the best enemy to engage (target utility).
+// Includes: base threat, proximity, flashing (1 hit = bonus), anti-decoy.
 function bestTarget(perc: any, tank: any): any {
   let best = null, bestScore = -Infinity;
   const enemies = perc.enemies;
   for (const e of enemies) {
     if (!e.tank.inField) continue;
-    // анти-декой: разрешаем охоту, если враг близко к базе ИЛИ нет другого с LOS на базу
+    // anti-decoy: allow the hunt if the enemy is close to the base OR there is no other with LOS to the base
     const dBase = e.distToBase;
     const otherLos = enemies.some((o: any) => o !== e && o.tank.inField && o.hasLosToBase);
     if (!(dBase < cfg.decoyRadius || !otherLos)) continue;
@@ -194,18 +194,18 @@ function bestTarget(perc: any, tank: any): any {
   return best;
 }
 
-// --- utility отдельных действий ---
+// --- utility of individual actions ---
 function uEngage(perc: any, tank: any, target: any) {
-  // близость к базе снижает цену дальнего перехвата; риск — входящие пули.
+  // proximity to the base lowers the cost of a long-range intercept; risk — incoming bullets.
   const base = perc.base;
   const dBase = dist(tank.cell, { col: base.col, row: base.row });
   const risk = perc.bullets.filter((b: any) => b.team === "ATT"
     && dist(b.cell, tank.cell) <= cfg.dodgeRadius).length * cfg.wRisk;
   return target.score - dBase * cfg.wEngageBase - risk;
 }
-// «Безопасное окно» для сбора приза (agent2/bh): нет врага, который одновременно близок
-// к базе (bonusThreatRadius) И имеет LOS на базу. Если такой враг есть — коридор базы под
-// угрозой, приз не берём.
+// "Safe window" for prize collection (agent2/bh): no enemy that is simultaneously close
+// to the base (bonusThreatRadius) AND has LOS to the base. If such an enemy exists — the base corridor is
+// under threat, so we don't take the prize.
 function bonusSafeWindow(perc: any) {
   for (const e of perc.enemies) {
     if (!e.tank.inField) continue;
@@ -220,16 +220,16 @@ function uRushBonus(perc: any, tank: any, prize: any) {
   const baseCell = { col: base.col, row: base.row };
   const dBase = dist(tank.cell, baseCell);
   const dPrizeBase = dist(prize.cell, baseCell);
-  // hard-gate только для пресета bh (balanced не трогаем)
+  // hard-gate only for the bh preset (don't touch balanced)
   if (cfg.threatGatedBonus) {
-    // привязка: не уходим за призом дальше pickupLeash от базы
+    // tether: don't go for a prize farther than pickupLeash from the base
     if (dPrizeBase > cfg.pickupLeash) return -Infinity;
-    // ценность: не уходим ради дешёвого приза
+    // value: don't leave for a cheap prize
     if (prize.value < cfg.minBonusValue) return -Infinity;
-    // безопасное окно: нет угрозы коридору базы
+    // safe window: no threat to the base corridor
     if (!bonusSafeWindow(perc)) return -Infinity;
-    // число врагов: уходим за призом, только когда поле относительно чистое, иначе
-    // отвлекаемся от боя и теряем убийства
+    // enemy count: leave for a prize only when the field is relatively clear, otherwise
+    // we get distracted from the fight and lose kills
     const aliveEnemies = perc.enemies.filter((e: any) => e.tank.inField).length;
     if (aliveEnemies > cfg.maxEnemiesBonus) return -Infinity;
   }
@@ -248,7 +248,7 @@ function uRetreat(perc: any, tank: any, incoming: any) {
   return tank.helmet ? ret * cfg.retreatHelmet : ret;
 }
 
-// Реактивный COUNTER_SHOT: летящая в нас пуля на нашей оси и в пределах досягаемости.
+// Reactive COUNTER_SHOT: a bullet flying at us on our axis and within reach.
 function counterShot(perc: any, tank: any, ourBusy: any) {
   if (ourBusy) return null;
   const cell = tank.cell;
@@ -258,7 +258,7 @@ function counterShot(perc: any, tank: any, ourBusy: any) {
     const dc = b.cell.col - cell.col, dr = b.cell.row - cell.row;
     if (dc === 0 || dr === 0) {
       if (dc === 0 && (b.cell.row < cell.row || b.cell.row > cell.row)) {
-        // в той же колонке
+        // in the same column
         if (cell.col === b.cell.col && lineClear(perc.field, cell, b.cell)) {
           const d = Math.abs(b.cell.row - cell.row);
           if (d < bestD && d >= 1) { bestD = d; best = { dir: b.cell.row < cell.row ? 0 : 2, d }; }
@@ -274,8 +274,8 @@ function counterShot(perc: any, tank: any, ourBusy: any) {
   return best;
 }
 
-// --- главная функция решения по одному танку ---
-// Возвращает { dir, fire } (dir может быть null = стоять).
+// --- main per-tank decision function ---
+// Returns { dir, fire } (dir may be null = stand still).
 function decideTank(perc: any, tank: any, st: any, frame: any) {
   const field = perc.field;
   const cell = tank.cell;
@@ -284,7 +284,7 @@ function decideTank(perc: any, tank: any, st: any, frame: any) {
   const ourBusy = (perc.state.mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   const threatCells = enemyThreatCells(perc);
 
-  // --- 0. COUNTER_SHOT (реактивный, наивысший приоритет) ---
+  // --- 0. COUNTER_SHOT (reactive, highest priority) ---
   const cs = counterShot(perc, tank, ourBusy);
   if (cs) {
     st.fsm = "COUNTER_SHOT";
@@ -292,9 +292,9 @@ function decideTank(perc: any, tank: any, st: any, frame: any) {
     return { dir: cs.dir, fire: edgeFire(st, true, ourBusy) };
   }
 
-  // --- 0b. ОГОНЬ по лучшей выровненной цели (линия огня, без friendly fire).
-  // Стреляем по любой выровненной цели и одновременно подходим (в пределах leash
-  // от базы). Дизайн: защитник активно отстреливает врагов, не ждёт их у базы.
+  // --- 0b. FIRE at the best aligned target (line of fire, no friendly fire).
+  // We fire at any aligned target while simultaneously closing in (within leash
+  // of the base). Design: the defender actively shoots enemies rather than waiting for them at the base.
   const aligned = bestAlignedFire(perc, tank);
   if (aligned) {
     st.fsm = "ENGAGE";
@@ -305,67 +305,67 @@ function decideTank(perc: any, tank: any, st: any, frame: any) {
     return { dir: move, fire: edgeFire(st, true, ourBusy) };
   }
 
-  // --- входящие пули, летящие в нас ---
+  // --- incoming bullets flying at us ---
   const incoming = perc.bullets.filter((b: any) => b.team === "ATT"
     && dist(b.cell, cell) <= 12
     && (b.cell.col === cell.col || b.cell.row === cell.row));
 
-  // --- 1. DEFEND_BASE: база под прямой угрозой → оба сходятся к ближайшему к базе врагу
+  // --- 1. DEFEND_BASE: base under direct threat → both converge on the enemy nearest the base
   const target = bestTarget(perc, tank);
   const dBaseSelf = dist(cell, baseCell);
 
-  // --- 2. выбор действия по utility с гистерезисом ---
+  // --- 2. action selection by utility with hysteresis ---
   const actions = [];
 
-  // DEFEND_BASE / INTERCEPT / HUNT_BLINK: цель
+  // DEFEND_BASE / INTERCEPT / HUNT_BLINK: target
   if (target) actions.push({ id: "ENGAGE", u: uEngage(perc, tank, target) });
 
-  // RUSH_BONUS / COLLECT_BONUS: приз
+  // RUSH_BONUS / COLLECT_BONUS: prize
   const prize = perc.state.prizes[0];
   if (prize) actions.push({ id: "BONUS", u: uRushBonus(perc, tank, prize) });
 
-  // RETREAT: входящие пули и нет укрытия / низкая безопасность
+  // RETREAT: incoming bullets and no cover / low safety
   if (incoming.length >= cfg.retreatFire && !tank.helmet) {
     actions.push({ id: "RETREAT", u: uRetreat(perc, tank, incoming) });
   }
 
-  // PATROL: базовое удержание якоря у базы
+  // PATROL: basic holding of the anchor at the base
   const anchor = anchorSpot(field, base, tank.index);
   const patrolU = dBaseSelf > cfg.maxLeash ? 3 - dBaseSelf * 0.2 : 1;
   actions.push({ id: "PATROL", u: patrolU });
 
-  // --- выбор: argmax с гистерезисом (не переключаться, пока не вырастет на 15%) ---
+  // --- choice: argmax with hysteresis (don't switch until it grows by 15%) ---
   actions.sort((a, b) => b.u - a.u);
   const best = actions[0];
   const current = actions.find((a) => a.id === st.fsm);
   let action = best;
   if (current && st.fsm !== "PATROL" && st.fsm !== "ENGAGE") {
-    // держим текущее, если оно всё ещё жизнеспособно и не сильно хуже лучшего
+    // keep the current one if it is still viable and not much worse than the best
     if (current.u >= 0 && best.u - current.u < cfg.hysteresis * Math.max(1, current.u)) {
       action = current;
     }
   }
 
-  // --- исполнение действия ---
+  // --- action execution ---
   switch (action.id) {
     case "ENGAGE": {
       const e = target.e;
       st.fsm = "ENGAGE";
       const fd = fireDir(field, cell, e.cell);
       if (fd !== null && lineClear(field, cell, e.cell)) {
-        // на прицеле → стреляем, продвигаясь по линии (если свободно и не уводит от базы)
+        // on target → fire while advancing along the line (if clear and it doesn't lead away from the base)
         const ncell = { col: cell.col + DX[fd], row: cell.row + DY[fd] };
         const move = (tankPassable(field[cellIdx(ncell.col, ncell.row)])
           && dist(ncell, baseCell) <= cfg.maxLeash) ? fd : null;
         st.prevDir = fd; st.held = 0;
         return { dir: move, fire: edgeFire(st, true, ourBusy) };
       }
-      // нет линии → перехват: A* к предсказанной клетке врага (с учётом реального хитбокса
-      // и частично разрушенных кирпичей; избегание зон под пулями)
+      // no line → intercept: A* to the enemy's predicted cell (accounting for the real hitbox
+      // and partially destroyed bricks; avoiding zones under bullets)
       const goal = e.predicted || e.cell;
       const d = navigateFine(field, tank, goal, threatCells, true);
       const out = smoothAndDetour(st, tank, d, field, goal, baseCell);
-      // если шаг ведёт в кирпич вплотную к цели — простреливаем его
+      // if the step leads into a brick right next to the target — shoot through it
       if (out.dir !== null) {
         const fwd = field[cellIdx(cell.col + DX[out.dir], cell.row + DY[out.dir])];
         if (isBrick(fwd) && !tankPassable(fwd)) return { dir: out.dir, fire: edgeFire(st, true, ourBusy) };
@@ -392,7 +392,7 @@ function decideTank(perc: any, tank: any, st: any, frame: any) {
 
     default: { // PATROL
       st.fsm = "PATROL";
-      // у якоря — патрулируем (не стоим): ближайшая свободная клетка от базы, лёгкое смещение
+      // at the anchor — patrol (don't stand still): nearest free cell from the base, slight offset
       const atAnchor = dist(cell, anchor) <= 1;
       const goal = atAnchor ? { col: anchor.col, row: anchor.row + 1 } : anchor;
       const d = navigateFine(field, tank, goal, threatCells, false);
@@ -402,7 +402,7 @@ function decideTank(perc: any, tank: any, st: any, frame: any) {
   }
 }
 
-// Edge-trigger огня: A удерживается только когда слот свободен; fire=true лишь на фронте.
+// Fire edge-trigger: A is held only while the slot is free; fire=true only on the rising edge.
 function edgeFire(st: any, want: any, ourBusy: any) {
   const can = want && !ourBusy;
   const fire = can && !st.prevFire;
@@ -410,9 +410,9 @@ function edgeFire(st: any, want: any, ourBusy: any) {
   return fire;
 }
 
-// Гистерезис направления + анти-застревание (обход при отсутствии прогресса).
+// Direction hysteresis + anti-stuck (detour when there is no progress).
 function smoothAndDetour(st: any, tank: any, dir: any, field: any, goal: any, baseCell: any) {
-  // анти-застревание
+  // anti-stuck
   let moveDir = dir;
   const gd = dist(tank.cell, goal);
   if ((st.detourFrames || 0) > 0) {
@@ -437,7 +437,7 @@ function smoothAndDetour(st: any, tank: any, dir: any, field: any, goal: any, ba
   }
   st.prevGoalDist = gd;
 
-  // гистерезис направления: держим prevDir, пока не настоится новое
+  // direction hysteresis: keep prevDir until a new one settles
   if (moveDir === null) return { dir: null };
   if (st.prevDir === null || moveDir === st.prevDir) { st.held = 0; st.prevDir = moveDir; return { dir: moveDir }; }
   const fc = tank.cell.col + DX[st.prevDir], fr = tank.cell.row + DY[st.prevDir];
@@ -448,8 +448,8 @@ function smoothAndDetour(st: any, tank: any, dir: any, field: any, goal: any, ba
   return { dir: st.prevDir };
 }
 
-// Якорная позиция защитника: левый (t0) / правый (t1) фланг у базы. Ищет ближайшую
-// проходимую клетку к желаемой, с лимитом ретраев.
+// Defender anchor position: left (t0) / right (t1) flank at the base. Looks for the nearest
+// passable cell to the desired one, with a retry limit.
 function anchorSpot(field: any, base: any, index: any) {
   const side = index === 0 ? -1 : 1;
   const want = { col: base.col + side * 3, row: base.row - 3 };
@@ -464,7 +464,7 @@ function anchorSpot(field: any, base: any, index: any) {
     if (tankPassable(field[cellIdx(c, r)])) return { col: c, row: r };
     if (++retries >= cfg.maxRetry) break;
   }
-  // fallback: рядом с базой
+  // fallback: near the base
   for (const [dc, dr] of [[-1, 0], [1, 0], [0, 1], [0, -1], [-2, 0], [2, 0]]) {
     const c = base.col + dc, r = base.row + dr;
     if (inBounds(c, r) && tankPassable(field[cellIdx(c, r)])) return { col: c, row: r };
@@ -472,7 +472,7 @@ function anchorSpot(field: any, base: any, index: any) {
   return { col: base.col, row: base.row - 1 };
 }
 
-// --- ГЛАВНАЯ ФУНКЦИЯ (интерфейс как у planDefense) ---
+// --- MAIN FUNCTION (interface like planDefense) ---
 export function strategyDefense(mem: any, frame: any, state: any = new Map()) {
   const bf: any = readState(mem);
   const perc = perceive(bf, { threat: cfg.threat });
@@ -486,7 +486,7 @@ export function strategyDefense(mem: any, frame: any, state: any = new Map()) {
     let buttons = 0;
 
     if (started && tank.flag === 0 && frame % 30 === 0) {
-      // респавн мёртвого танка напрямую (без Start — иначе пауза)
+      // respawn a dead tank directly (without Start — otherwise it pauses)
       mem[RAM.TANK_TYPE + t] = 0;
       mem[RAM.TANK_X + t] = PLAYER_SPAWN_X[t];
       mem[RAM.TANK_Y + t] = PLAYER_SPAWN_Y[t];
@@ -506,5 +506,5 @@ export function strategyDefense(mem: any, frame: any, state: any = new Map()) {
   return { buttons: out, respawn };
 }
 
-// Сброс персистентного состояния (при переключении ИИ на лету).
+// Reset persistent state (when switching AI on the fly).
 export function resetStrategyDefense() {}

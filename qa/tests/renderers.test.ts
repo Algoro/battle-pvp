@@ -1,4 +1,4 @@
-// renderers.test.ts — контракт слоя рендера: манифест ↔ реестр и корректность метаданных.
+// renderers.test.ts — contract of the render layer: manifest ↔ registry and metadata correctness.
 import { test } from "node:test";
 import assert from "node:assert";
 import { RENDER_MANIFEST } from "../../shared/renderers.ts";

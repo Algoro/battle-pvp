@@ -1,5 +1,5 @@
-// AudioControl.tsx — раздельные громкость и mute для музыки и эффектов.
-// Настройки хранятся в AudioOutput (localStorage).
+// AudioControl.tsx — separate volume and mute for music and effects.
+// Settings are stored in AudioOutput (localStorage).
 import { useState } from "react";
 import type { AudioOutput } from "../engine/audio";
 import { useT } from "../i18n/index.tsx";

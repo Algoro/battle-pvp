@@ -1,18 +1,18 @@
-// props.ts — динамические объекты: пули, приз и вспышки взрывов.
+// props.ts — dynamic objects: bullets, bonus and explosion flashes.
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/models/props.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/models/props.ts
 import * as THREE from "three";
 import { COLORS } from "../textures.ts";
 import { DIR_ROT, spriteCenter, tankCenter } from "../../../coords.ts";
 import type { SceneState } from "../../../types.ts";
 
 const PRIZE_COLORS: Record<number, number> = {
-  0: 0x9fe8ff, // каска
-  1: 0x7aa2ff, // часы
-  2: 0xb07a3a, // лопата
-  3: 0xffd54a, // звезда
-  4: 0xff5c5c, // граната
-  5: 0x6fe08a, // жизнь
+  0: 0x9fe8ff, // helmet
+  1: 0x7aa2ff, // clock
+  2: 0xb07a3a, // shovel
+  3: 0xffd54a, // star
+  4: 0xff5c5c, // grenade
+  5: 0x6fe08a, // life
 };
 
 export interface Props {
@@ -60,7 +60,7 @@ export function createProps(): Props {
   return {
     group,
     update(scene: SceneState, timeMs: number) {
-      // пули
+      // bullets
       for (const b of bullets) b.visible = false;
       scene.bullets.forEach((bl, i) => {
         const m = bullets[i];
@@ -71,7 +71,7 @@ export function createProps(): Props {
         m.visible = true;
       });
 
-      // приз
+      // bonus
       if (scene.prize) {
         const p = spriteCenter(scene.bounds, scene.prize.x, scene.prize.y, 16);
         prize.visible = true;
@@ -85,7 +85,7 @@ export function createProps(): Props {
         prize.visible = false;
       }
 
-      // вспышки взрывов танков
+      // tank explosion flashes
       for (let i = 0; i < bursts.length; i++) {
         const t = scene.tanks[i];
         const b = bursts[i];

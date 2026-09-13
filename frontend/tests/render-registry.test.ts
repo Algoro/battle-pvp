@@ -1,4 +1,4 @@
-// render-registry.test.ts — контракт слоя рендера: манифест ↔ реестр, capabilities, kind.
+// render-registry.test.ts — render layer contract: manifest ↔ registry, capabilities, kind.
 import { test } from "node:test";
 import assert from "node:assert";
 import {

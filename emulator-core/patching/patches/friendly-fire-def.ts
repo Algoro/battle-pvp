@@ -1,10 +1,10 @@
-// friendly-fire-def.ts — ROM-дескриптор фичи `friendly-fire-def` (полностью JS-рантайм).
+// friendly-fire-def.ts — ROM descriptor of the `friendly-fire-def` feature (fully JS runtime).
 //
-// ROM уже обрабатывает попадание DEF-пули в союзного DEF-танка (sub_E70C, 3-й проход),
-// но эффект — стан. Фича меняет исход на смерть через JS-рантайм
-// (features/friendly-fire-def.ts), поэтому ROM не патчится.
+// The ROM already handles a DEF bullet hitting a friendly DEF tank (sub_E70C, 3rd pass),
+// but the effect is a stun. The feature changes the outcome to death via the JS runtime
+// (features/friendly-fire-def.ts), so the ROM is not patched.
 //
-// Относительный путь: ./emulator-core/patching/patches/friendly-fire-def.ts
+// Relative path: ./emulator-core/patching/patches/friendly-fire-def.ts
 export const friendlyFireDef = {
   id: "friendly-fire-def",
   version: 1,

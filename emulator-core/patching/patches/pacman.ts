@@ -1,11 +1,11 @@
-// pacman.ts — ROM-дескриптор режима «Pac-Man»: авторская стадия-лабиринт + замуровка базы.
+// pacman.ts — ROM descriptor of the "Pac-Man" mode: authored maze stage + base walling.
 //
-// 1) Перезаписывает данные stage 1 (tbl_F07A, 91 байт) лабиринтом из features/pacman-maze;
-//    режим форсит старт на этой стадии. Стены — бетон (неразрушаемы).
-// 2) Заменяет кирпич базы (0x0F) на бетон (0x10) в таблицах отрисовки базы
-//    (tbl_D374/D37B/D382): орёл остаётся внутри, но недосягаем (ATT не может снести базу).
+// 1) Overwrites stage 1 data (tbl_F07A, 91 bytes) with the maze from features/pacman-maze;
+//    the mode forces the start on this stage. Walls — concrete (indestructible).
+// 2) Replaces the base brick (0x0F) with concrete (0x10) in the base draw tables
+//    (tbl_D374/D37B/D382): the eagle stays inside but is unreachable (ATT cannot destroy the base).
 //
-// Относительный путь: ./emulator-core/patching/patches/pacman.ts
+// Relative path: ./emulator-core/patching/patches/pacman.ts
 import { hex } from "../descriptor.ts";
 import { buildStageBytes } from "../../features/pacman-maze.ts";
 
@@ -30,7 +30,7 @@ export const pacman = {
       expect: hex(STAGE1),
       bytes: Array.from(buildStageBytes()),
     },
-    // Замуровка базы: кирпич -> бетон (визуал + коллизия FIELD).
+    // Base walling: brick -> concrete (visual + FIELD collision).
     {
       id: "pacman-base-seal-1",
       at: 0xd374,

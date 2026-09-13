@@ -1,11 +1,11 @@
-// extract-patches.mjs — верификация/инспекция in-memory патчей ROM.
+// extract-patches.mjs — verification/inspection of in-memory ROM patches.
 //
-// Использование:
-//   node scripts/extract-patches.mjs           # diff оригинал vs собранный ROM
-//   node scripts/extract-patches.mjs --check   # применить набор 'pvp' к оригиналу
-//                                              # и сверить с собранным ROM (exit 1 при расхождении)
+// Usage:
+//   node scripts/extract-patches.mjs           # diff original vs built ROM
+//   node scripts/extract-patches.mjs --check   # apply the 'pvp' set to the original
+//                                              # and compare against the built ROM (exit 1 on mismatch)
 //
-// Относительный путь: ./scripts/extract-patches.mjs
+// Relative path: ./scripts/extract-patches.mjs
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";

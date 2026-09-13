@@ -1,18 +1,18 @@
-// session.ts — rollback-сессия (аналог GGPO) поверх детерминированного ядра.
+// session.ts — rollback session (GGPO-like) on top of a deterministic core.
 //
-// Принцип:
-//  1. На каждом кадре сохраняем saveState() в ring-buffer (окно = window кадров).
-//  2. Полный ввод кадра = мои порты + (полученный/предсказанный ввод соперника).
-//     Предсказание по умолчанию — «повтор последнего известного ввода соперника».
-//  3. Когда приходит поздний ввод соперника для уже симулированного кадра — откат
-//     к состоянию этого кадра и переигровка вперёд с корректными входами.
-//  4. Desync detection: периодически шлём getFrameHash() кадра; расхождение — событие.
-//  5. Задержка: периодические ping/pong (событие "latency").
-//  6. Реконнект: rebindTransport() перевешивает сессию на новый транспорт.
-//  7. Desync-recovery: не-авторитетный клиент запрашивает полный снапшот у авторитета
-//     (меньший playerId) и восстанавливается на его кадре (событие "resync").
+// Principle:
+//  1. On every frame we save saveState() into a ring buffer (the window = window frames).
+//  2. The full frame input = my ports + (received/predicted remote input).
+//     The default prediction is "repeat the last known remote input".
+//  3. When a late remote input arrives for an already simulated frame — roll back
+//     to that frame's state and replay forward with the correct inputs.
+//  4. Desync detection: periodically send getFrameHash() of a frame; a mismatch is an event.
+//  5. Latency: periodic ping/pong (the "latency" event).
+//  6. Reconnection: rebindTransport() re-binds the session to a new transport.
+//  7. Desync-recovery: a non-authoritative client requests a full snapshot from the authority
+//     (the smaller playerId) and restores at its frame (the "resync" event).
 //
-// Относительный путь: ./netcode/rollback/session.ts
+// Relative path: ./netcode/rollback/session.ts
 import {
   encodeFrameBatch,
   decodeFrameBatch,
@@ -36,37 +36,37 @@ import {
 import { systemClock } from "../ports.ts";
 import type { Clock, GameCore, Input, Transport } from "../ports.ts";
 
-export const HASH_INTERVAL = 30; // сверка хэша каждые 30 кадров
-export const PING_INTERVAL = 60; // ping каждые 60 кадров
-export const PING_TIMEOUT = 600; // нет pong — считаем соперника недоступным (10 c)
-export const DEFAULT_REDUNDANCY = 4; // сколько последних кадров дублировать в каждом пакете
+export const HASH_INTERVAL = 30; // hash check every 30 frames
+export const PING_INTERVAL = 60; // ping every 60 frames
+export const PING_TIMEOUT = 600; // no pong — consider the peer unreachable (10 s)
+export const DEFAULT_REDUNDANCY = 4; // how many of the latest frames to duplicate in each packet
 
 export type SessionEvent = { type: string; [key: string]: any };
 export type SessionEventHandler = (ev: SessionEvent) => void;
 
 export interface RollbackSessionOptions {
-  /** ядро: stepFrame(inputs), saveState(), loadState(), getFrameHash() */
+  /** core: stepFrame(inputs), saveState(), loadState(), getFrameHash() */
   game: GameCore;
   /** { send(buf), onMessage(cb), onClose?(cb), isOpen?() } */
   transport: Transport | null;
-  /** порты, которыми управляет этот клиент */
+  /** ports controlled by this client */
   myPorts: number[];
-  /** порты соперника */
+  /** the remote peer's ports */
   remotePorts: number[];
   onEvent?: SessionEventHandler;
-  /** размер окна состояний (кадров) */
+  /** state window size (in frames) */
   window?: number;
   confirmDelay?: number;
   checkpointInterval?: number;
-  /** мой id (для определения авторитета) */
+  /** my id (for determining authority) */
   playerId?: string | null;
-  /** id соперника */
+  /** the remote peer's id */
   remotePeerId?: string | null;
-  /** явно задать авторитет (иначе меньший playerId) */
+  /** explicitly set authority (otherwise the smaller playerId) */
   authority?: boolean;
-  /** включить desync-recovery (по умолчанию true) */
+  /** enable desync-recovery (true by default) */
   recovery?: boolean;
-  /** сколько последних кадров дублировать в пакете */
+  /** how many of the latest frames to duplicate in a packet */
   redundancy?: number;
   pingInterval?: number;
   pingTimeout?: number;
@@ -98,23 +98,23 @@ export class RollbackSession {
   pingTimeout: number;
 
   currentFrame = 0;
-  remoteHeadFrame = -1; // следующий кадр соперника (для догона после resync)
+  remoteHeadFrame = -1; // the remote peer's next frame (for catching up after resync)
   _needCatchUp = false;
-  lastRemoteInput: Record<number, number> = {}; // port -> последние buttons (для предсказания)
-  remoteInputs: Map<number, Input[]> = new Map(); // frame -> [inputs] (порты соперника)
-  remoteUsed: Map<number, Input[]> = new Map(); // frame -> [inputs], реально применённые при симуляции
-  myInputsHistory: Map<number, Input[]> = new Map(); // frame -> inputs (мои порты)
+  lastRemoteInput: Record<number, number> = {}; // port -> last buttons (for prediction)
+  remoteInputs: Map<number, Input[]> = new Map(); // frame -> [inputs] (the remote peer's ports)
+  remoteUsed: Map<number, Input[]> = new Map(); // frame -> [inputs], actually applied during simulation
+  myInputsHistory: Map<number, Input[]> = new Map(); // frame -> inputs (my ports)
   states: Map<number, Uint8Array> = new Map(); // frame -> saveState() bytes
   hashHistory: Map<number, string> = new Map(); // frame -> getFrameHash()
   desyncCount = 0;
   rollbackCount = 0;
-  skippedRollbacks = 0; // откаты, пропущенные т.к. ввод совпал с предсказанием
-  lastUsed: Map<number, [number, number][]> = new Map(); // frame -> финальные входы (для отладки)
+  skippedRollbacks = 0; // rollbacks skipped because the input matched the prediction
+  lastUsed: Map<number, [number, number][]> = new Map(); // frame -> final inputs (for debugging)
 
-  // Связь
+  // Communication
   latency = 0; // ms
   pingSeq = 0;
-  lastPongFrame = 0; // на каком кадре обновлялся pong
+  lastPongFrame = 0; // the frame on which pong was last updated
   peerUnresponsive = false;
   transportClosed = false;
 
@@ -129,13 +129,13 @@ export class RollbackSession {
     this.myPorts = opts.myPorts;
     this.remotePorts = opts.remotePorts;
     this.onEvent = opts.onEvent || (() => {});
-    this.clock = opts.clock || systemClock; // порт Clock (детерминируемое время)
+    this.clock = opts.clock || systemClock; // Clock port (deterministic time)
     this.window = opts.window || 120;
-    this.confirmDelay = opts.confirmDelay || 20; // кадров до «подтверждения» (сверка хэша)
-    // Разреженные чекпоинты состояний: сохраняем полный saveState() не каждый кадр,
-    // а раз в checkpointInterval. Откат к промежуточному кадру = загрузка ближайшего
-    // чекпоинта + пере-симуляция до целевого кадра по сохранённым вводам (myInputsHistory
-    // + remoteUsed). Экономит память (окно×state -> окно/интервал) и аллокации saveState.
+    this.confirmDelay = opts.confirmDelay || 20; // frames until "confirmation" (hash check)
+    // Sparse state checkpoints: we do not save the full saveState() every frame,
+    // but once per checkpointInterval. Rolling back to an intermediate frame = loading the nearest
+    // checkpoint + re-simulation up to the target frame using the saved inputs (myInputsHistory
+    // + remoteUsed). Saves memory (window×state -> window/interval) and saveState allocations.
     this.checkpointInterval = Math.max(1, opts.checkpointInterval || 8);
     this.playerId = opts.playerId ?? null;
     this.remotePeerId = opts.remotePeerId ?? null;
@@ -157,14 +157,14 @@ export class RollbackSession {
     }
   }
 
-  // Меньший playerId — авторитет (его состояние источник истины при resync).
+  // The smaller playerId is the authority (its state is the source of truth during resync).
   isAuthority(): boolean {
     if (typeof this._authority === "boolean") return this._authority;
     if (this.playerId && this.remotePeerId) return this.playerId < this.remotePeerId;
     return true;
   }
 
-  // Перевесить сессию на новый транспорт (после реконнекта).
+  // Re-bind the session to a new transport (after reconnection).
   rebindTransport(transport: Transport): void {
     this._bindTransport(transport);
     this.transportClosed = false;
@@ -187,12 +187,12 @@ export class RollbackSession {
     return out;
   }
 
-  // Сохранить чекпоинт состояния ПЕРЕД кадром f (только на границах интервала).
+  // Save a state checkpoint BEFORE frame f (only at interval boundaries).
   _saveCheckpoint(f: number): void {
     if (f % this.checkpointInterval === 0) this.states.set(f, this.game.saveState());
   }
 
-  // Один шаг симуляции кадра (без отправки/событий) — используется и при догоне.
+  // A single frame simulation step (no sending/events) — also used when catching up.
   _coreStep(myInputs: Input[]): string {
     const f = this.currentFrame;
     this._saveCheckpoint(f);
@@ -211,14 +211,14 @@ export class RollbackSession {
     return h;
   }
 
-  // Монотонные 32-битные миллисекунды из порта Clock (для RTT).
+  // Monotonic 32-bit milliseconds from the Clock port (for RTT).
   _now32(): number {
     return this.clock.now() >>> 0;
   }
 
   advanceFrame(myInputs: Input[]): string {
-    // Догон после resync: доводим счётчик до кадра соперника (пропущенные кадры
-    // симулируем с предсказанием; реальные вводы исправят их через rollback).
+    // Catch-up after resync: advance the counter to the remote peer's frame (skipped frames
+    // are simulated with prediction; real inputs will correct them via rollback).
     if (this._needCatchUp && this.remoteHeadFrame > this.currentFrame) {
       let guard = 0;
       this.game.setAudioSuppressed?.(true);
@@ -233,12 +233,12 @@ export class RollbackSession {
     const f = this.currentFrame;
     const h = this._coreStep(myInputs);
 
-    // отправляем свой ввод сопернику — избыточно (последние N кадров),
-    // чтобы потеря одиночного пакета не приводила к необратимому desync.
+    // send our input to the remote peer — redundantly (the last N frames),
+    // so that the loss of a single packet does not cause an irreversible desync.
     this._sendInputBatch(f);
 
-    // периодическая сверка хэша ТОЛЬКО подтверждённых кадров (в прошлом),
-    // чтобы не ловить ложные desync от ещё не согласованных предсказаний
+    // periodic hash check of ONLY confirmed frames (in the past),
+    // so as not to catch false desyncs from not-yet-agreed predictions
     const confirmed = f - this.confirmDelay;
     if (confirmed >= 0 && confirmed % HASH_INTERVAL === 0) {
       this.transport!.send(
@@ -246,7 +246,7 @@ export class RollbackSession {
       );
     }
 
-    // ping (задержка) и детект «соперник молчит»
+    // ping (latency) and detection of "the peer is silent"
     if (f % this.pingInterval === 0) this._sendPing(f);
     if (f - this.lastPongFrame > this.pingTimeout && !this.peerUnresponsive) {
       this.peerUnresponsive = true;
@@ -306,7 +306,7 @@ export class RollbackSession {
 
   _onRemoteInput(frame: number, inputs: Input[]): void {
     const known = this.remoteInputs.get(frame);
-    // дедупликация: избыточная отправка не должна повторно применять тот же ввод
+    // deduplication: redundant sending must not re-apply the same input
     const fresh: Input[] = [];
     for (const inp of inputs) {
       if (known && known.some((x) => x.port === inp.port)) continue;
@@ -318,9 +318,9 @@ export class RollbackSession {
     this.remoteInputs.get(frame)!.push(...fresh);
 
     if (frame < this.currentFrame) {
-      // Откат нужен только если пришедший ввод ОТЛИЧАЕТСЯ от предсказанного
-      // (иначе пере-симуляция даст то же состояние — пропускаем: экономия CPU и
-      // меньше визуальных «прыжков» удалённого танка).
+      // A rollback is only needed if the arriving input DIFFERS from the predicted one
+      // (otherwise re-simulation would produce the same state — we skip it: saves CPU and
+      // fewer visual "jumps" of the remote tank).
       const used = this.remoteUsed.get(frame);
       if (used && this._remoteEqual(used, this.remoteInputs.get(frame)!)) {
         this.skippedRollbacks++;
@@ -331,7 +331,7 @@ export class RollbackSession {
     }
   }
 
-  // Совпадает ли применённый ранее ввод с текущим (по портам и кнопкам).
+  // Whether the previously applied input matches the current one (by ports and buttons).
   _remoteEqual(a: Input[], b: Input[]): boolean {
     if (a.length !== b.length) return false;
     for (let i = 0; i < a.length; i++) {
@@ -340,8 +340,8 @@ export class RollbackSession {
     return true;
   }
 
-  // Восстановить состояние ПЕРЕД кадром frame из ближайшего чекпоинта + пере-симуляция.
-  // Возвращает байты состояния или undefined, если чекпоинт за окном.
+  // Restore the state BEFORE frame frame from the nearest checkpoint + re-simulation.
+  // Returns the state bytes or undefined if the checkpoint is outside the window.
   _materialize(frame: number): Uint8Array | undefined {
     if (this.states.has(frame)) return this.states.get(frame);
     let cp = -1;
@@ -363,7 +363,7 @@ export class RollbackSession {
 
   _rollback(fromFrame: number): void {
     const target = this.currentFrame;
-    // Во время отката/переигровки глушим аудио (иначе повторная эмиссия сэмплов).
+    // During rollback/replay we mute audio (otherwise samples are emitted again).
     this.game.setAudioSuppressed?.(true);
     const st = this._materialize(fromFrame);
     if (st === undefined) {
@@ -376,8 +376,8 @@ export class RollbackSession {
     this.rollbackCount++;
     this.onEvent({ type: "rollback", fromFrame, toFrame: target });
 
-    // переигровка вперёд с буферизованными/предсказанными входами.
-    // ВАЖНО: чекпоинты пересохраняются на границах интервала.
+    // replay forward with buffered/predicted inputs.
+    // IMPORTANT: checkpoints are re-saved at interval boundaries.
     while (this.currentFrame < target) {
       const f = this.currentFrame;
       this._saveCheckpoint(f);
@@ -397,7 +397,7 @@ export class RollbackSession {
   }
 
   _onHashCheck({ frame, hash }: DecodedHashCheck): void {
-    // сравниваем только если кадр подтверждён и на нашей стороне
+    // compare only if the frame is confirmed and on our side
     if (this.currentFrame - frame < this.confirmDelay) return;
     const local = this.hashHistory.get(frame);
     if (local === undefined) {
@@ -407,7 +407,7 @@ export class RollbackSession {
     if (local !== hash) {
       this.desyncCount++;
       this.onEvent({ type: "desync", frame, localHash: local, remoteHash: hash });
-      // не-авторитет запрашивает снапшот у авторитета
+      // the non-authority requests a snapshot from the authority
       if (this.recovery && !this.isAuthority()) this._requestResync(frame);
     }
   }
@@ -420,7 +420,7 @@ export class RollbackSession {
     this.lastPongFrame = this.currentFrame;
     this.peerUnresponsive = false;
     const rtt = this._now32() - (t >>> 0);
-    // защита от некорректных/огромных значений
+    // guard against invalid/huge values
     if (rtt >= 0 && rtt < 60000) {
       this.latency = rtt;
       this.onEvent({ type: "latency", ms: rtt });
@@ -436,7 +436,7 @@ export class RollbackSession {
   }
 
   _onSnapshotRequest(_req?: { frame: number }): void {
-    // отвечает только авторитет
+    // only the authority responds
     if (!this.isAuthority()) return;
     const frame = this.currentFrame;
     const hash = this.hashHistory.get(frame - 1) || "00000000";
@@ -446,7 +446,7 @@ export class RollbackSession {
   }
 
   _onResume(): void {
-    /* зарезервировано: сервер/пир может явно снять паузу после resync */
+    /* reserved: the server/peer may explicitly resume after resync */
   }
 
   _onSnapshotChunk(chunk: DecodedSnapshotChunk): void {
@@ -482,11 +482,11 @@ export class RollbackSession {
   _applySnapshot(frame: number, bytes: Uint8Array): void {
     this.game.loadState(bytes);
     this.currentFrame = frame;
-    // states/hashHistory невалидны после загрузки чужого состояния — пересоберём.
-    // remoteInputs/myInputsHistory СОХРАНЯЕМ: это авторитетные вводы, нужные для догона.
+    // states/hashHistory are invalid after loading someone else's state — rebuild them.
+    // We KEEP remoteInputs/myInputsHistory: these are authoritative inputs needed for catch-up.
     this.states.clear();
     this.hashHistory.clear();
-    // сид-чекпоинт на кадре снапшота, чтобы откаты сразу после resync не «теряли окно»
+    // seed checkpoint at the snapshot frame so that rollbacks right after resync do not "lose the window"
     this.states.set(frame, this.game.saveState());
     this._needCatchUp = true;
     this.onEvent({ type: "resync", frame, bytes: bytes.length });

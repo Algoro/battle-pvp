@@ -1,4 +1,4 @@
-// GameUi.tsx — HUD и оверлеи игрового экрана (вынесено из GameCanvas).
+// GameUi.tsx — HUD and overlays of the game screen (extracted from GameCanvas).
 import AudioControl from "./AudioControl";
 import type { Team } from "../engine/net";
 import type { AudioOutput } from "../engine/audio";

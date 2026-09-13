@@ -1,5 +1,5 @@
-// TowerDefenceSetup.tsx — предстартовый экран tower defence: карта, сложность,
-// мобильный танк. Показывает превью стадии из ROM и запускает режим.
+// TowerDefenceSetup.tsx — tower defence pre-start screen: map, difficulty,
+// mobile tank. Shows a stage preview from the ROM and launches the mode.
 import { useMemo, useState } from "react";
 import StagePreview from "./StagePreview";
 import { useT } from "../i18n/index.tsx";
@@ -28,7 +28,7 @@ export default function TowerDefenceSetup({ emulator, onCancel, onStart }: Props
   const [difficulty, setDifficulty] = useState<TdDifficulty>("normal");
   const [mobileTank, setMobileTank] = useState(true);
   const diff = difficultyById(difficulty);
-  // Предпросмотр строится из общих данных карты (ROM ещё не пропатчен TD-фичей).
+  // The preview is built from the shared map data (the ROM is not patched with the TD feature yet).
   const previewBlocks = useMemo(() => tdBlocks(tdMapById(map)), [map]);
 
   const start = () => {

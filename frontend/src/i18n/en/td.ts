@@ -1,7 +1,7 @@
 // en/td.ts — English translations (source Russian string -> English).
 // Filled by localization; keep keys exactly as the Russian source strings.
 const messages: Record<string, string> = {
-  // --- Манифест: башни (shared/tower-defence.ts) -------------------------------
+  // --- Manifest: towers (shared/tower-defence.ts) -------------------------------
   "Пушка": "Gun",
   "Сбалансированная башня.": "Balanced tower.",
   "Пулемёт": "Machine gun",
@@ -11,7 +11,7 @@ const messages: Record<string, string> = {
   "Орудие": "Cannon",
   "Медленный, но мощный.": "Slow but powerful.",
 
-  // --- Манифест: карты и сложности ---------------------------------------------
+  // --- Manifest: maps and difficulties ---------------------------------------------
   "Змейка": "Snake",
   "Коридоры": "Lanes",
   "Зигзаг": "Zigzag",
@@ -19,7 +19,7 @@ const messages: Record<string, string> = {
   "Норма": "Normal",
   "Сложно": "Hard",
 
-  // --- Экран настройки (TowerDefenceSetup) -------------------------------------
+  // --- Setup screen (TowerDefenceSetup) -------------------------------------
   "Покупайте неподвижные танки-башни на очки от уничтожения врагов. Не дайте волнам ATT добраться до базы.":
     "Buy stationary tower tanks with points earned from destroying enemies. Don't let the ATT waves reach the base.",
   "Сложность:": "Difficulty:",
@@ -28,7 +28,7 @@ const messages: Record<string, string> = {
   "В бой": "Into battle",
   "Отмена": "Cancel",
 
-  // --- Игровой экран (TowerDefenceView) ----------------------------------------
+  // --- Game screen (TowerDefenceView) ----------------------------------------
   "Очки:": "Points:",
   "Волна: {wave}/{total}": "Wave: {wave}/{total}",
   "Фаза:": "Phase:",

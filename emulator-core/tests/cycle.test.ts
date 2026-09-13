@@ -1,4 +1,4 @@
-// cycle.test.js — юнит-тесты абстрагированного цикла (CycleSim).
+// cycle.test.js — unit tests for the abstracted cycle (CycleSim).
 import { test } from "node:test";
 import assert from "node:assert";
 import { CycleSim, FRAME_SCRIPT } from "../sim/cycle.ts";
@@ -8,7 +8,7 @@ import { DX, DY } from "../model/game-view.ts";
 
 function makeSim(over = {}) {
   const field = new Uint8Array(32 * 32);
-  field[27 * 32 + 15] = 0xc8; // орёл
+  field[27 * 32 + 15] = 0xc8; // eagle
   const tanks = over.tanks ?? [
     { index: 0, x: 64, y: 136, dir: 0, team: "DEF", type: 0, alive: true },
     { index: 2, x: 120, y: 24, dir: 2, team: "ATT", type: 0x80, alive: true },
@@ -33,7 +33,7 @@ test("CycleSim: граната (приз id=4) уничтожает всех в�
     { index: 2, x: 120, y: 24, dir: 2, team: "ATT", type: 0x80, alive: true },
     { index: 3, x: 216, y: 24, dir: 2, team: "ATT", type: 0x80, alive: true },
   ]});
-  sim.applyPrize(4); // граната
+  sim.applyPrize(4); // grenade
   const dead = sim.state.tanks.filter((t) => t.team === "ATT" && t.alive);
   assert.strictEqual(dead.length, 0, "граната должна уничтожить всех врагов");
 });
@@ -44,7 +44,7 @@ test("CycleSim: танк-в-танк — нельзя встать на друг
     { index: 2, x: 100, y: 96, dir: 2, team: "ATT", type: 0x80, alive: true },
   ]});
   const t0 = sim.state.tanks[0];
-  // t0 движется вправо, но впереди враг — не должен встать на него
+  // t0 moves right, but there is an enemy ahead — it must not stand on it
   const blocked = sim._tankBlocked(sim.state, { x: 96, y: 96 }, t0);
   assert.strictEqual(blocked, true, "танк должен быть заблокирован другим танком");
   const free = sim._tankBlocked(sim.state, { x: 60, y: 96 }, t0);
@@ -65,10 +65,10 @@ test("CycleSim: танк-в-танк коллизия в движении — т
     { index: 0, x: 64, y: 96, dir: 3, team: "DEF", type: 0, alive: true },
     { index: 2, x: 80, y: 96, dir: 2, team: "ATT", type: 0x80, alive: true },
   ]});
-  sim.frame = 0; // двигаемся
+  sim.frame = 0; // move
   const t0 = sim.state.tanks[0];
   sim.proc_tank_movement(sim.state);
-  // t0 не должен пройти сквозь врага (расстояние < 13 блокирует)
+  // t0 must not pass through the enemy (distance < 13 blocks)
   assert.ok(Math.abs(t0.x - sim.state.tanks[1].x) < 13 || Math.abs(t0.x - 64) < 8,
     "танк не должен пройти сквозь другого танка");
 });
@@ -80,14 +80,14 @@ test("CycleSim: тип врага по стадии (sub_E3CB) — стадия 
   sim.state.counters.timer = 0; sim.state.counters.count = 5; sim.state.counters.stage = 1; sim.state.counters.typeOffset = 0;
   sim.proc_enemy_spawn(sim.state);
   const spawned = sim.state.tanks.find((t) => t.team === "ATT" && t.alive && t.index !== 2);
-  // счётчик: враг спавнится в слот 4 (limit 4), т.к. слот 2 занят? нет, слот 2 пуст
+  // counter: the enemy spawns in slot 4 (limit 4), since slot 2 is occupied? no, slot 2 is free
   const enemy = sim.state.tanks.find((t) => t.team === "ATT" && t.alive);
   assert.strictEqual(enemy.type & 0xf0, 0x80, "первый враг стадии 1 — basic (0x80)");
 });
 
 test("CycleSim: вода блокирует танк (не проходима)", () => {
   const field = new Uint8Array(32 * 32);
-  field[6 * 32 + 8] = 0x15; // вода прямо перед передней кромкой танка (dir вниз)
+  field[6 * 32 + 8] = 0x15; // water right in front of the tank's front edge (dir down)
   const tanks = [{ index: 0, x: 64, y: 40, dir: 2, team: "DEF", type: 0, alive: true }];
   const sim = new CycleSim({ field, tanks, bullets: [], counters: {}, prize: null }, () => 1);
   const t0 = tanks[0];
@@ -97,7 +97,7 @@ test("CycleSim: вода блокирует танк (не проходима)",
 
 test("CycleSim: 2-я пуля — powered-танк может иметь 2 пули, обычный — 1", () => {
   const sim = makeSim();
-  const t0 = sim.state.tanks[0]; // игрок, не powered
+  const t0 = sim.state.tanks[0]; // player, not powered
   sim.state.bullets.push({ tank: 0, team: "DEF", x: 64, y: 100, dir: 0, alive: true });
   assert.strictEqual(sim.canFire(t0), false, "обычный танк не стреляет со 2-й пулей");
   t0.powered = true;
@@ -107,7 +107,7 @@ test("CycleSim: 2-я пуля — powered-танк может иметь 2 пу�
 test("CycleSim: приз спавнится из мигающего врага при его гибели", () => {
   const sim = makeSim({ tanks: [
     { index: 0, x: 64, y: 136, dir: 0, team: "DEF", type: 0, alive: true },
-    { index: 2, x: 120, y: 24, dir: 2, team: "ATT", type: 0x84, alive: true }, // мигающий
+    { index: 2, x: 120, y: 24, dir: 2, team: "ATT", type: 0x84, alive: true }, // flashing
   ]});
   sim.state.prize = null;
   sim._maybeSpawnPrize(sim.state, 2);
@@ -127,7 +127,7 @@ test("CycleSim: жизни игрока уменьшаются при смерт
 
 test("CycleSim: лёд — проходим (не блокирует)", () => {
   const field = new Uint8Array(32 * 32);
-  field[6 * 32 + 8] = 0x2a; // лёд перед кромкой
+  field[6 * 32 + 8] = 0x2a; // ice in front of the edge
   const tanks = [{ index: 0, x: 64, y: 40, dir: 2, team: "DEF", type: 0, alive: true }];
   const sim = new CycleSim({ field, tanks, bullets: [], counters: {}, prize: null }, () => 1);
   const n = canLead(tanks[0].x, tanks[0].y, 2, field) ? true : false;
@@ -139,8 +139,8 @@ test("GameSim: флаговая машина — враг из респавна 
   const sim = new GameSim({ field, tanks: [{ index: 2, x: 120, y: 40, dir: 2, team: "ATT", type: 0x80, alive: true, flag: 0xf0 }], bullets: [] }, () => 1);
   const t = sim.tanks[0];
   const state = { frmCntLo: 0, frmCntHi: 0, interval: 8, p1x: 88, p1y: 216, p2x: 152, p2y: 216, p1Alive: true, p2Alive: false };
-  // Респавн (0xF0->0xE0->0xA2) идёт с супер-пиксельным гейтом (idx^frmCntLo)&1,
-  // как в ASM sub_DBF1; затем враг начинает двигаться.
+  // Respawn (0xF0->0xE0->0xA2) goes with the sub-pixel gate (idx^frmCntLo)&1,
+  // like in ASM sub_DBF1; then the enemy starts moving.
   let moved = false;
   for (let f = 0; f < 120; f++) {
     sim.frame = f;

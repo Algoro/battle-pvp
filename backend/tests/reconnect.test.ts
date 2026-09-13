@@ -1,5 +1,5 @@
-// reconnect.test.js — реконнект в идущем матче: обрыв игрока -> peer.left,
-// возврат с тем же playerId -> joined{reconnected}, peer.reconnected партнёру.
+// reconnect.test.js — reconnection during an ongoing match: a player drops -> peer.left,
+// return with the same playerId -> joined{reconnected}, peer.reconnected to the partner.
 import { test } from "node:test";
 import assert from "node:assert";
 import { createApp } from "../server.ts";
@@ -26,13 +26,13 @@ test("реконнект в идущем матче: peer.left -> повторн
 
   const c1 = new WebSocket(wsBase);
   await new Promise((r) => c1.on("open", r));
-  // host создаёт лобби
+  // host creates a lobby
   const joinedHost = waitMsg(c1, "lobby.joined");
   c1.send(JSON.stringify({ type: "lobby.create", playerId: "host", name: "Host", settings: { defSlots: 2, attSlots: 2 } }));
   const jh = await joinedHost;
   const lobbyId = jh.lobbyId;
 
-  // att присоединяется и стартует матч
+  // att joins and starts the match
   const c2 = new WebSocket(wsBase);
   await new Promise((r) => c2.on("open", r));
   const joinedAtt = waitMsg(c2, "lobby.joined");
@@ -46,13 +46,13 @@ test("реконнект в идущем матче: peer.left -> повторн
   await ms2;
   assert.ok(s1.matchId);
 
-  // обрыв att1 -> host получает peer.left
+  // att1 drops -> host receives peer.left
   const leftP = waitMsg(c1, "peer.left", (m) => m.playerId === "att1");
   c2.close();
   const left = await leftP;
   assert.strictEqual(left.matchId, s1.matchId);
 
-  // возврат att1 тем же playerId -> host получает peer.reconnected
+  // att1 returns with the same playerId -> host receives peer.reconnected
   const c2b = new WebSocket(wsBase);
   await new Promise((r) => c2b.on("open", r));
   const reconnP = waitMsg(c1, "peer.reconnected", (m) => m.playerId === "att1");
@@ -90,7 +90,7 @@ test("room state отражает online-статус игроков", async () 
   c1.send(JSON.stringify({ type: "lobby.start", lobbyId: jh.lobbyId }));
   await ms1;
 
-  // после обрыва host получает room, где att1 offline
+  // after the drop, host receives a room where att1 is offline
   const roomP = waitMsg(c1, "room", (m) => m.room.players?.some((p) => p.playerId === "att1" && p.online === false));
   c2.close();
   const room = await roomP;
@@ -228,12 +228,12 @@ test("реконнект в матче: возвращается история 
   c1.send(JSON.stringify({ type: "lobby.start", lobbyId }));
   const s1 = await ms1;
 
-  // сообщение в чат матча
+  // a message to the match chat
   const chatP = waitMsg(c2, "chat", (m) => m.scope === "match");
   c1.send(JSON.stringify({ type: "chat.send", scope: "match", id: s1.matchId, text: "держим базу" }));
   await chatP;
 
-  // обрыв и возврат att1
+  // att1 drops and returns
   c2.close();
   await waitMsg(c1, "peer.left");
   const c2b = new WebSocket(wsBase);
@@ -268,7 +268,7 @@ test("spectator: включается в комнату и получает да
   c1.send(JSON.stringify({ type: "lobby.start", lobbyId }));
   const s1 = await ms1;
 
-  // наблюдатель
+  // spectator
   const spec = new WebSocket(wsBase);
   await new Promise((r) => spec.on("open", r));
   const startP = waitMsg(spec, "spectate.start");
@@ -276,13 +276,13 @@ test("spectator: включается в комнату и получает да
   const st = await startP;
   assert.strictEqual(st.matchId, s1.matchId);
 
-  // игрок шлёт снапшот -> наблюдатель получает
+  // the player sends a snapshot -> the spectator receives it
   const dataP = waitMsg(spec, "spectate.data", (m) => m.frame === 10);
   c1.send(JSON.stringify({ type: "spectate.data", matchId: s1.matchId, frame: 10, data: "AAAA" }));
   const d = await dataP;
   assert.strictEqual(d.data, "AAAA");
 
-  // посторонний (не игрок комнаты) не может слать спектатор-данные
+  // an outsider (not a room player) cannot send spectator data
   const spec2 = new WebSocket(wsBase);
   await new Promise((r) => spec2.on("open", r));
   let leaked = false;

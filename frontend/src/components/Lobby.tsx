@@ -1,4 +1,4 @@
-// Lobby.tsx — качественное лобби: выбор команды/имени, онлайн-матч или соло.
+// Lobby.tsx — high-quality lobby: team/name selection, online match or solo.
 import { useState } from "react";
 import type { Team } from "../engine/net";
 import { useT } from "../i18n/index.tsx";
@@ -43,7 +43,7 @@ export default function Lobby({ onStart, onSolo }: Props) {
   const handleOnline = () => {
     setBusy(true);
     onStart(team, playerId || "player");
-    // сброс busy при возврате обработает App через смену экрана
+    // busy reset on return is handled by App via the screen change
   };
 
   return (

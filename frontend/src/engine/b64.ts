@@ -1,5 +1,5 @@
-// b64.ts — base64 для бинарных снапшотов (spectator). Чанки, чтобы не превысить
-// лимит аргументов String.fromCharCode.apply на больших массивах.
+// b64.ts — base64 for binary snapshots (spectator). Chunks, to avoid exceeding the
+// String.fromCharCode.apply argument limit on large arrays.
 export function bytesToBase64(bytes: Uint8Array): string {
   let s = "";
   const chunk = 0x8000;

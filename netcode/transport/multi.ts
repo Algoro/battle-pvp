@@ -1,12 +1,12 @@
-// multi.ts — мультиплекс N транспортов в один логический (для 2v2 / N игроков).
+// multi.ts — multiplexes N transports into one logical transport (for 2v2 / N players).
 //
-// Вещание: send() уходит во ВСЕ транспорты; входящие сообщения объединяются в один
-// поток onMessage. Порты танков уникальны по клиентам, поэтому ввод из разных
-// транспортов не конфликтует; hash-пакеты всех пиров должны совпадать.
+// Broadcast: send() goes to ALL transports; incoming messages are merged into a single
+// onMessage stream. Tank ports are unique per client, so input from different
+// transports does not conflict; hash packets from all peers must match.
 //
-// Контракт совместим с RollbackSession: { send, onMessage, onClose?, isOpen? }.
+// The contract is compatible with RollbackSession: { send, onMessage, onClose?, isOpen? }.
 //
-// Относительный путь: ./netcode/transport/multi.ts
+// Relative path: ./netcode/transport/multi.ts
 import type { Transport } from "../ports.ts";
 
 export interface ManagedTransport extends Transport {
@@ -50,7 +50,7 @@ export class MultiTransport {
     this.cb = cb;
   }
 
-  // Вызывается, когда любой из транспортов закрывается (для реконнекта).
+  // Called when any of the transports closes (for reconnection).
   onClose(cb: (t?: ManagedTransport) => void): void {
     this.closeCb = cb;
   }

@@ -1,17 +1,17 @@
-// attacker-strategy.js — демонстрация переиспользования высокоуровневого слоя для АТАКУЮЩЕГО.
-// Строит решение на `perceive(state, {role:"att"})` (противники = DEF, орёл = цель) + общем
-// steering (`steerTo`) + опасности от пуль (`danger`). Возвращает { dir, fire } для каждого
-// ATT-танка (как plan/scan/lookahead), чтобы встроиться в runBrain/pvp.
+// attacker-strategy.js — demonstration of reusing the high-level layer for the ATTACKER.
+// Builds a decision on `perceive(state, {role:"att"})` (opponents = DEF, eagle = target) + shared
+// steering (`steerTo`) + bullet danger (`danger`). Returns { dir, fire } for each
+// ATT tank (like plan/scan/lookahead) so it can plug into runBrain/pvp.
 //
-// Это НЕ заменяет plan/scan/lookahead, а показывает, что слой достаточно обобщён, чтобы
-// на нём строить и атакующего. Логика намеренно простая: охотиться на ближайшего защитника,
-// уворачиваться от пуль, стрелять по линии.
+// This does NOT replace plan/scan/lookahead, but shows the layer is general enough to
+// build an attacker on it too. The logic is intentionally simple: hunt the nearest defender,
+// dodge bullets, fire along the line.
 
 import { readState, DX, DY, inBounds, dist, lineClear } from "../model/game-view.ts";
 import { perceive } from "../model/perception.ts";
 import { steerTo } from "../model/steer.ts";
 
-// Область цели для атакующего: ближайший живой защитник, иначе орёл.
+// Target area for the attacker: the nearest living defender, otherwise the eagle.
 function chooseTarget(perc: any, tank: any) {
   const opps = perc.opponents.filter((o: any) => o.tank.inField);
   let best = null, bestD = Infinity;
@@ -22,7 +22,7 @@ function chooseTarget(perc: any, tank: any) {
   return best ? best.cell : { col: perc.base.col, row: perc.base.row };
 }
 
-// Выровнен ли танк с целью (линия огня, кирпич пробивается) → направление выстрела.
+// Is the tank aligned with the target (line of fire, brick is punched through) → fire direction.
 function fireDir(field: any, from: any, to: any) {
   if (from.row === to.row) { const d = to.col > from.col ? 3 : 1; return lineClear(field, from, to) ? d : null; }
   if (from.col === to.col) { const d = to.row > from.row ? 2 : 0; return lineClear(field, from, to) ? d : null; }
@@ -38,14 +38,14 @@ export function attackerPlan(mem: any, prev: any = {}) {
     if (t.team !== "ATT" || !t.inField) continue;
     const goal = chooseTarget(perc, t);
     const fd = fireDir(perc.field, t.cell, goal);
-    // клетки под пулями защитников — избегаем
+    // cells under defender bullets — avoid
     const dangerSet = new Set();
     for (const d of perc.danger({ col: t.cell.col, row: t.cell.row })) for (const c of d.cells) dangerSet.add(c.col * 32 + c.row);
-    // если следующий шаг опасен — уворачиваемся, иначе идём к цели
+    // if the next step is dangerous — dodge, otherwise head to the target
     let dir = steerTo(perc.field, t.x, t.y, goal, { allowBreak: false, avoid: dangerSet });
     if (dir !== null) {
       const nc = t.cell.col + DX[dir], nr = t.cell.row + DY[dir];
-      if (inBounds(nc, nr) && dangerSet.has(nc * 32 + nr)) dir = null; // шаг под пулю — не идём
+      if (inBounds(nc, nr) && dangerSet.has(nc * 32 + nr)) dir = null; // step under a bullet — don't go
     }
     decisions.set(t.index, { dir, fire: fd !== null });
   }

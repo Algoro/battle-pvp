@@ -1,4 +1,4 @@
-// ChatPanel.tsx — панель чата (лобби/комната): список сообщений + ввод.
+// ChatPanel.tsx — chat panel (lobby/room): message list + input.
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../engine/lobby-client";
 import { useT } from "../i18n/index.tsx";

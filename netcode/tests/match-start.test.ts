@@ -1,7 +1,7 @@
-// match-start.test.js — проверка синхронного старта матча и lockstep (Фазы 1-2 онлайн).
-// Два «клиента»: одинаковый детерминированный сброс + идентичный автостарт партии
-// (порт 0 Start каждые 30 кадров), затем rollback-lockstep с «человеческими» портами 0 и 2.
-// Ожидание: состояния сходятся, desync=0.
+// match-start.test.js — verifies synchronous match start and lockstep (online Phases 1-2).
+// Two "clients": identical deterministic reset + identical auto-start of the match
+// (port 0 Start every 30 frames), then rollback-lockstep with "human" ports 0 and 2.
+// Expectation: the states converge, desync=0.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -15,9 +15,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..", "..");
 const ROM = readFileSync(join(root, "rom", "disasm", "_battle_city.nes"));
 const START = 0x08;
-const INPUT_MASK = 0x01 | 0x10 | 0x20 | 0x40 | 0x80; // A + направления (без Start — чтобы не паузить)
+const INPUT_MASK = 0x01 | 0x10 | 0x20 | 0x40 | 0x80; // A + directions (without Start — so as not to pause)
 
-// Детерминированный автостарт (как App.beginOnlineMatch): порт 0 Start каждые 30 кадров.
+// Deterministic auto-start (like App.beginOnlineMatch): port 0 Start every 30 frames.
 function preloadStart(game: any): boolean {
   let started = false;
   for (let f = 1; f <= 1200 && !started; f++) {
@@ -32,7 +32,7 @@ test("синхронный старт + lockstep: два клиента сход
   const b = new PvPNes({ attAI: "lookahead", defAI: "plan", defMode: "active" });
   a.loadROM(ROM);
   b.loadROM(ROM);
-  // человеческие танки: A — DEF(0), враг ATT(2); B — ATT(2), враг DEF(0)
+  // human tanks: A — DEF(0), enemy ATT(2); B — ATT(2), enemy DEF(0)
   a.setHumanDefTank(0); a.setHumanTank(2);
   b.setHumanDefTank(0); b.setHumanTank(2);
 

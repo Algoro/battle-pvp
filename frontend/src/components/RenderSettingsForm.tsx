@@ -1,5 +1,5 @@
-// RenderSettingsForm.tsx — универсальная форма настроек плагина рендера по декларативной
-// схеме из shared/renderers.ts. Не знает о конкретном драйвере.
+// RenderSettingsForm.tsx — universal render plugin settings form based on a declarative
+// schema from shared/renderers.ts. It knows nothing about a specific driver.
 import type { RenderSettingSpec, RenderSettingsSpec, SettingValue } from "../../../shared/renderers.ts";
 import { applyPreset, type SettingValues } from "../render/settings";
 import { useT } from "../i18n/index.tsx";

@@ -1,12 +1,12 @@
-// golden-state.js — харнесс детерминированного состояния игры.
+// golden-state.js — deterministic game-state harness.
 //
-// Назначение: гарантия «без побочных эффектов». Фиксированный входной скрипт
-// прогоняется на эмуляторе, и каждые snapshotEvery кадров снимается полный образ
-// RAM (0x0000-0x07FF) + ключевые регистры. Полученная последовательность хэшей —
-// эталон (golden). Любое изменение (ASM-патч или JS-логика), меняющее состояние
-// даже в «нетронутой» области, даст расхождение и будет поймано.
+// Purpose: guarantee "no side effects". A fixed input script
+// is run on the emulator, and every snapshotEvery frames a full image of
+// RAM (0x0000-0x07FF) + key registers is captured. The resulting sequence of hashes is the
+// reference (golden). Any change (ASM patch or JS logic) that alters state
+// even in an "untouched" region will produce a mismatch and be caught.
 //
-// Относительный путь: ./qa/golden-state.js
+// Relative path: ./qa/golden-state.js
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const GOLDEN_DIR = join(__dirname, "golden");
 export const ROM = join(__dirname, "..", "rom", "disasm", "_battle_city.nes");
 
-// FNV-1a 32 (как в ядре)
+// FNV-1a 32 (as in the core)
 function fnv(buf) {
   let h = 0x811c9dc5;
   for (let i = 0; i < buf.length; i++) {
@@ -26,7 +26,7 @@ function fnv(buf) {
   return ("00000000" + h.toString(16)).slice(-8);
 }
 
-// Полный образ «детерминирующего» состояния: RAM 0x0000-0x07FF + картридж.
+// Full image of the "determinizing" state: RAM 0x0000-0x07FF + cartridge.
 function snapshot(emu) {
   const mem = emu.cpu.mem;
   const ram = new Uint8Array(0x0800);
@@ -34,8 +34,8 @@ function snapshot(emu) {
   return fnv(ram);
 }
 
-// Фиксированный детерминированный входной скрипт — соло-режим за атакующих:
-//  автостарт -> авто-респавн танка игрока -> движение (влево/вверх) -> стрельба.
+// Fixed deterministic input script — solo mode as the attackers:
+//  auto-start -> auto-respawn of the player tank -> movement (left/up) -> shooting.
 export function runScript(emu, opts = {}) {
   const { frames = 1800, snapshotEvery = 60 } = opts;
   const hashes = [];
@@ -48,18 +48,18 @@ export function runScript(emu, opts = {}) {
     frame++;
     if (emu.cpu.mem[0x80] !== 0xff) started = true;
 
-    // фаза 1: автостарт — Start на порту 0, пока бой не начался
-    // фаза 2: авто-респавн танка 2 — Start на порту 2, пока не живой
+    // phase 1: auto-start — Start on port 0 until the battle begins
+    // phase 2: auto-respawn of tank 2 — Start on port 2 while not alive
     const hi = emu.cpu.mem[0xa2] & 0xf0;
     const attAlive = hi >= 0x90 && hi <= 0xd0;
 
     let buttons = 0;
-    // фаза 3+ (после старта боя и живого танка): управление
+    // phase 3+ (after the battle starts and the tank is alive): control
     if (started && attAlive) {
       const t = frame % 900;
       if (t < 300) buttons = BTN.Left;
       else if (t < 600) buttons = BTN.Up;
-      else buttons = BTN.A; // огонь
+      else buttons = BTN.A; // fire
     }
 
     const autoStart = !started && frame % 30 === 0;
@@ -75,7 +75,7 @@ export function runScript(emu, opts = {}) {
   return { hashes, finalHash: snapshot(emu), frameCount: frame, frames, snapshotEvery };
 }
 
-// Сохранить/загрузить golden.
+// Save/load golden.
 export function saveGolden(name, data) {
   if (!existsSync(GOLDEN_DIR)) mkdirSync(GOLDEN_DIR, { recursive: true });
   writeFileSync(join(GOLDEN_DIR, name + ".json"), JSON.stringify(data, null, 2));
@@ -89,7 +89,7 @@ export function hasGolden(name) {
   return existsSync(join(GOLDEN_DIR, name + ".json"));
 }
 
-// Сравнение фактического прогона с эталоном; возвращает список расхождений.
+// Compare the actual run against the reference; returns a list of mismatches.
 export function compareGolden(actual, expected) {
   const diffs = [];
   if (actual.frames !== expected.frames) diffs.push(`frames ${actual.frames} != ${expected.frames}`);
@@ -106,7 +106,7 @@ export function compareGolden(actual, expected) {
   return diffs;
 }
 
-// Запуск с эталоном: если golden нет — создать; иначе сравнить.
+// Run with the reference: if golden is missing — create it; otherwise compare.
 export function runGolden(name, opts) {
   const emu = new PvPNes();
   emu.loadROM(readFileSync(ROM));

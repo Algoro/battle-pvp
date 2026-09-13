@@ -1,4 +1,4 @@
-// render-settings.test.ts — универсальные настройки плагинов рендера по декларативной схеме.
+// render-settings.test.ts — universal settings of render plugins via a declarative schema.
 import { test } from "node:test";
 import assert from "node:assert";
 import { rendererById } from "../../shared/renderers.ts";

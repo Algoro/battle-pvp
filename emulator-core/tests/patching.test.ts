@@ -1,6 +1,6 @@
-// patching.test.js — in-memory патчинг ROM: воспроизведение собранного ROM, база,
-// идемпотентность, ошибки линкера и детерминизм.
-// Запуск: node --test tests/patching.test.js
+// patching.test.js — in-memory ROM patching: reproduction of the assembled ROM, base,
+// idempotency, linker errors, and determinism.
+// Run: node --test tests/patching.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -36,8 +36,8 @@ test("patching: набор 'pvp' на оригинале побайтово во
   const report = applyPatchSet(rom, "pvp");
   assert.strictEqual(report.fingerprint, prgFingerprintOf(PATCHED), "отпечаток PRG не совпал");
   assert.strictEqual(report.fingerprint, "94cb0636");
-  assert.deepStrictEqual(report.features, []); // база без опциональных фич
-  // побайтовое сравнение PRG
+  assert.deepStrictEqual(report.features, []); // base without optional features
+  // byte-for-byte comparison of PRG
   for (let b = 0; b < rom.romCount; b++) {
     for (let i = 0; i < 16384; i++) {
       assert.strictEqual(rom.rom[b][i], PATCHED[16 + b * 16384 + i], `PRG diff @bank${b}+0x${i.toString(16)}`);
@@ -50,10 +50,10 @@ test("patching: опциональные фичи меняют набор и fin
   const repPistol = applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["pistol"] });
   assert.deepStrictEqual(repPistol.features, ["pistol"]);
   assert.notStrictEqual(repPistol.fingerprint, repCore.fingerprint, "fingerprint должен зависеть от фич");
-  // канонизация: порядок/дубли не влияют
+  // canonicalization: order/duplicates don't matter
   const repAgain = applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["pistol", "pistol"] });
   assert.strictEqual(repAgain.fingerprint, repPistol.fingerprint);
-  // неизвестная фича
+  // unknown feature
   assert.throws(
     () => applyPatchSet(prgOf(ORIG), { base: "pvp", features: ["nope"] }),
     (e) => e instanceof PatchError && e.code === "PATCH_BAD_SET",
@@ -62,7 +62,7 @@ test("patching: опциональные фичи меняют набор и fin
 
 test("patching: неверная база отвергается (BASE_MISMATCH)", () => {
   const rom = prgOf(ORIG);
-  rom.rom[0][0x145d] ^= 0xff; // портим байт в PRG -> отпечаток не совпадёт
+  rom.rom[0][0x145d] ^= 0xff; // corrupt a byte in PRG -> the fingerprint won't match
   assert.throws(() => applyPatchSet(rom, "pvp"), (e) => e instanceof PatchError && e.code === "PATCH_BASE_MISMATCH");
 });
 
@@ -75,7 +75,7 @@ test("patching: повторное применение к тому же обр�
 test("patching: EXPECT_FAILED без base-отпечатка (неверные исходные байты хука)", () => {
   const bare = composeSets({ id: "t", symbols: {}, free: [{ start: 0xef75, end: 0xefff }] }, pvp);
   const rom = prgOf(ORIG);
-  rom.rom[0][0x145d] ^= 0xff; // портим байт в зоне expect хука prng
+  rom.rom[0][0x145d] ^= 0xff; // corrupt a byte in the prng hook expect area
   assert.throws(() => applyPatchSet(rom, bare), (e) => e instanceof PatchError && e.code === "PATCH_EXPECT_FAILED");
 });
 
@@ -150,11 +150,11 @@ test("relocation: токены резолвят внешние и собстве
   const rep = applyPatchSet(rom, reloc);
   const at = rep.routines.find((r) => r.symbol === "r").at;
   const img = new RomImage(rom);
-  // selfJmp -> адрес рутины (не зашитый EFxx)
+  // selfJmp -> routine address (not hardcoded EFxx)
   assert.strictEqual(img.read(at + 4), 0x4c);
   assert.strictEqual(img.read(at + 5), at & 0xff);
   assert.strictEqual(img.read(at + 6), (at >> 8) & 0xff);
-  // jsr на внешний символ -> $E363
+  // jsr to an external symbol -> $E363
   assert.strictEqual(img.read(at + 7), 0x20);
   assert.strictEqual(img.read(at + 8), 0x63);
   assert.strictEqual(img.read(at + 9), 0xe3);

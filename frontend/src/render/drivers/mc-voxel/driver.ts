@@ -1,7 +1,7 @@
-// driver.ts — драйвер рендера `mc-voxel`: воксельный «sandbox» look (кубические блоки,
-// пиксельные текстуры, небо/день-ночь, вода, частицы). Читает только SceneState.
+// driver.ts — `mc-voxel` render driver: voxel "sandbox" look (cubic blocks,
+// pixel textures, sky/day-night, water, particles). Reads only SceneState.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/driver.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/driver.ts
 import * as THREE from "three";
 import { createThreeBootstrap, type ThreeBootstrap } from "../../three/bootstrap.ts";
 import { attachCameraControls } from "../../camera-controls.ts";
@@ -175,8 +175,8 @@ export function createMcVoxelDriver(): RenderDriver {
         if (boot) boot.camera.updateProjectionMatrix();
         applyVignette();
       }
-      // Смена режима камеры: орбита смотрит вниз (pitch≈60°), «из глаз» — почти горизонтально,
-      // «от третьего лица» — средний наклон и небольшая дистанция до танка.
+      // Camera mode change: orbit looks down (pitch≈60°), first-person — almost horizontal,
+      // third-person — medium tilt and a small distance to the tank.
       if (modeChanged && host) {
         host.camera.roll = 0;
         if (options.cameraMode === "first") {
@@ -205,11 +205,11 @@ export function createMcVoxelDriver(): RenderDriver {
       }
       time += dtMs;
 
-      // Поле: сначала применяем режимы (ao/outline), затем пересобираем dirty-чанки.
+      // Field: first apply the modes (ao/outline), then rebuild dirty chunks.
       field.configure({ ao: options.ao, outline: options.outline });
       field.update(state.field, state.bounds);
 
-      // Танки.
+      // Tanks.
       for (let i = 0; i < tanks.length; i++) {
         const t = state.tanks[i];
         const model = tanks[i];
@@ -222,7 +222,7 @@ export function createMcVoxelDriver(): RenderDriver {
         model.update(t, dtMs, time);
       }
 
-      // Башни TD: неподвижные voxel-танки.
+      // TD towers: stationary voxel tanks.
       for (let i = 0; i < towerModels.length; i++) {
         const tw = state.towers[i];
         const model = towerModels[i];
@@ -238,7 +238,7 @@ export function createMcVoxelDriver(): RenderDriver {
       base.update(state.eagle, state.bounds, time);
       props.update(state, time);
 
-      // События для частиц.
+      // Events for particles.
       if (options.particles > 0) {
         const mult = options.particles;
         if (prevField && prevField.length === state.field.length) {
@@ -254,7 +254,7 @@ export function createMcVoxelDriver(): RenderDriver {
             }
           }
         }
-        // Мелкая пыль/искры из-под гусениц и вспышки выстрелов.
+        // Fine dust/sparks from under the tracks and muzzle flashes.
         const fly = state.bullets.filter((b) => !prevBullets.some((p) => Math.abs(p.x - b.x) < 3 && Math.abs(p.y - b.y) < 3));
         for (const b of fly) {
           const gx = b.x / 8 - state.bounds.col0 + 0.5;
@@ -279,13 +279,13 @@ export function createMcVoxelDriver(): RenderDriver {
       }
       prevField = state.field.slice();
       particles.update(dtMs);
-      // «Живой мир»: птицы, мышки, блочные облака.
+      // "Living world": birds, mice, blocky clouds.
       ambient.update(dtMs, state.bounds, time);
       ambient.setBirds(options.birds);
       ambient.setMice(options.mice);
       ambient.setVoxelClouds(options.clouds === "voxel");
 
-      // Небо/свет/туман.
+      // Sky/light/fog.
       sky.setClouds(options.clouds === "flat");
       sky.setCloudDrift(options.cloudsDrift);
       const day = sky.update(options.time, dtMs, time);
@@ -323,8 +323,8 @@ export function createMcVoxelDriver(): RenderDriver {
       const viewerTank = state.tanks[host.viewer.port];
       const tankVisible = !!viewerTank && viewerTank.state !== "dead" && viewerTank.state !== "exploding";
 
-      // Плавный доворот камеры к направлению танка — во всех режимах (орбита/третье/из глаз),
-      // если пользователь не крутит обзор вручную.
+      // Smooth camera turn toward the tank direction — in all modes (orbit/third/first person),
+      // if the user is not rotating the view manually.
       if (options.cameraFollow && tankVisible) {
         const now = typeof performance !== "undefined" ? performance.now() : 0;
         if (now > rig.userHoldUntil) {
@@ -336,10 +336,10 @@ export function createMcVoxelDriver(): RenderDriver {
       }
 
       if (options.cameraMode === "first" && tankVisible) {
-        // Вид «из глаз»: камера чуть впереди и над танком игрока, направление — из rig.
+        // First-person view: the camera is slightly ahead of and above the player's tank, direction — from rig.
         const p = tankCenter(state.bounds, viewerTank!.x, viewerTank!.y);
         const f = FACING[viewerTank!.dir & 3];
-        // Чуть впереди и над башней, чтобы камера не оказалась внутри модели танка.
+        // Slightly ahead of and above the turret, so the camera does not end up inside the tank model.
         const eye = new THREE.Vector3(p.x + f.x * 0.55, 1.28, p.z + f.z * 0.55);
         world.localToWorld(eye);
         const cp = Math.cos(rig.pitch);
@@ -351,7 +351,7 @@ export function createMcVoxelDriver(): RenderDriver {
         boot.camera.up.set(0, 1, 0);
         boot.camera.lookAt(eye.x + dir.x, eye.y + dir.y, eye.z + dir.z);
       } else if (options.cameraMode === "third" && tankVisible) {
-        // Вид от третьего лица: камера вращается вокруг танка игрока (yaw/pitch/zoom rig).
+        // Third-person view: the camera rotates around the player's tank (yaw/pitch/zoom rig).
         const p = tankCenter(state.bounds, viewerTank!.x, viewerTank!.y);
         const target = new THREE.Vector3(p.x, 0.8, p.z);
         world.localToWorld(target);

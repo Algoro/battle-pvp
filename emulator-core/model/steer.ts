@@ -1,17 +1,17 @@
-// steer.js — общий «steering» слой: навигация + укрытие для ЛЮБОГО танка (атакующего или
-// защитника), поверх fine-grid (точный хитбокс 16×16) и коарс-A*.
+// steer.js — shared "steering" layer: navigation + cover for ANY tank (attacker or
+// defender), on top of fine-grid (exact 16×16 hitbox) and coarse-A*.
 //
-// Дедупликация: раньше BFS/cover/навигация дублировались в tactical/scan/lookahead и
-// defender-strategy. Здесь — единые функции:
-//   - fineSteer()   — fine-направление к цели (обход частично разрушенных кирпичей, 16×16);
-//   - steerTo()     — сводно: fine, затем коарс с прострелом кирпичей (если allowBreak);
-//   - nearestCover()/isCover() — ближайшее укрытие (клетка рядом с препятствием).
+// Deduplication: previously BFS/cover/navigation were duplicated in tactical/scan/lookahead and
+// defender-strategy. Here — unified functions:
+//   - fineSteer()   — fine direction to the goal (bypassing partially destroyed bricks, 16×16);
+//   - steerTo()     — combined: fine, then coarse with brick punch-through (if allowBreak);
+//   - nearestCover()/isCover() — nearest cover (a cell next to an obstacle).
 
 import { buildFineGrid, tankFinePos, cellFinePos, coarseToFineAvoid, finePathDirection, FINE_SIZE } from "./fine-grid.ts";
 import { pathDirection } from "./pathfind.ts";
 import { inBounds, cellIdx, tankPassable, isBrick, DX, DY } from "./game-view.ts";
 
-// Fine-направление (0..3) к цели для произвольного танка с центром (tankX,tankY).
+// Fine direction (0..3) to the goal for an arbitrary tank centered at (tankX,tankY).
 // opts: { avoid: Set<coarseIdx>, avoidFine: Set<fineIdx>, maxCost }.
 export function fineSteer(field: any, tankX: number, tankY: number, goalCell: any, opts: any = {}) {
   const g = buildFineGrid(field);
@@ -21,8 +21,8 @@ export function fineSteer(field: any, tankX: number, tankY: number, goalCell: an
   return finePathDirection(g, start, goal, { avoid, maxCost: opts.maxCost }, FINE_SIZE, field);
 }
 
-// Сводный steering: fine-маршрут, при недостижимости — коарс с прострелом кирпичей
-// (если opts.allowBreak !== false). Возвращает направление (0..3) или null.
+// Combined steering: fine route, and if unreachable — coarse with brick punch-through
+// (if opts.allowBreak !== false). Returns the direction (0..3) or null.
 export function steerTo(field: any, tankX: number, tankY: number, goalCell: any, opts: any = {}) {
   const d = fineSteer(field, tankX, tankY, goalCell, opts);
   if (d !== null) return d;
@@ -31,7 +31,7 @@ export function steerTo(field: any, tankX: number, tankY: number, goalCell: any,
   return pathDirection(field, from, goalCell, { allowBreak: true, avoid: opts.avoid });
 }
 
-// Проходимая клетка рядом с препятствием (укрытие).
+// Passable cell next to an obstacle (cover).
 export function isCover(field: any, c: number, r: number) {
   if (!inBounds(c, r) || !tankPassable(field[cellIdx(c, r)])) return false;
   for (let d = 0; d < 4; d++) {
@@ -41,7 +41,7 @@ export function isCover(field: any, c: number, r: number) {
   return false;
 }
 
-// Ближайшее укрытие от клетки `from` (проходимо, обходит кирпич; avoid — запрещённые клетки).
+// Nearest cover from cell `from` (passable, bypasses brick; avoid — forbidden cells).
 export function nearestCover(field: any, from: any, avoid: any) {
   const q = [{ c: from.col, r: from.row }];
   const visited = new Uint8Array(1024);

@@ -1,6 +1,6 @@
-// tactical-ai.test.js — тесты тактического мозга атакующих (tactical-ai.js).
-// Проверяем чистые функции (линия огня, поиск орла, plan) детерминированно.
-// Запуск: node --test tests/tactical-ai.test.js
+// tactical-ai.test.js — tests for the tactical attacker brain (tactical-ai.js).
+// We test the pure functions (line of fire, eagle search, plan) deterministically.
+// Run: node --test tests/tactical-ai.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -36,9 +36,9 @@ test("findEagle: орёл обнаруживается в нижней част�
 test("lineClear: чистая линия через проходимые клетки, блокируется сталью/орлом", () => {
   const emu = loadAndStart();
   const field = emu.cpu.mem.subarray(0x0400, 0x0400 + 1024);
-  // пустой коридор вверху (строки 2-3) — линия должна быть чистой
+  // empty corridor at the top (rows 2-3) — the line must be clear
   assert.strictEqual(lineClear(field, { col: 5, row: 2 }, { col: 10, row: 2 }), true);
-  // линия в стену (0x11) блокируется, но кирпич (0x0f) пробиваем
+  // a line into a wall (0x11) is blocked, but a brick (0x0f) is punch-through
 });
 
 test("plan: детерминирован и возвращает решения для живых врагов", () => {
@@ -46,9 +46,9 @@ test("plan: детерминирован и возвращает решения 
   for (let f = 0; f < 300; f++) emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   const r1 = plan(emu.cpu.mem, new Map());
   const r2 = plan(emu.cpu.mem, new Map());
-  // детерминизм: одинаковые входы -> одинаковые решения
+  // determinism: same inputs -> same decisions
   assert.deepStrictEqual([...r1.decisions], [...r2.decisions]);
-  // решения только для живых ATT-танков
+  // decisions only for living ATT tanks
   const bf = readBattlefield(emu.cpu.mem);
   for (const [t] of r1.decisions) {
     assert.ok(t >= 2 && t < 8, "решения только для ATT-танков");
@@ -59,7 +59,7 @@ test("plan: детерминирован и возвращает решения 
 test("isCover: проходимая клетка рядом с препятствием — укрытие", () => {
   const emu = loadAndStart();
   const field = emu.cpu.mem.subarray(0x0400, 0x0400 + 1024);
-  // найдём любую клетку укрытия (проходимую рядом с препятствием)
+  // find any cover cell (passable next to an obstacle)
   let found = false;
   for (let r = 2; r < 30; r++) for (let c = 0; c < 32; c++) {
     if (isCover(field, c, r)) { found = true; break; }
@@ -87,7 +87,7 @@ test("plan: детерминирован и возвращает цели kill/b
   const r2 = plan(emu.cpu.mem, new Map());
   assert.deepStrictEqual([...r1.decisions], [...r2.decisions], "детерминизм нарушен");
   const goals = new Set([...r1.decisions.values()].map((d) => d.goal));
-  // допускаем kill (огонь), hunt (охота), base (штурм), cover (укрытие),
-  // dodge/intercept (уворот/перехват пули), wander (анти-застревание), stuck (заперт)
+  // we allow kill (fire), hunt (hunt), base (assault), cover (cover),
+  // dodge/intercept (dodge/intercept a bullet), wander (anti-stuck), stuck (boxed in)
   for (const g of goals) assert.ok(["kill", "base", "def", "cover", "hunt", "aim", "dodge", "intercept", "wander", "stuck"].includes(g), `неизвестная цель ${g}`);
 });

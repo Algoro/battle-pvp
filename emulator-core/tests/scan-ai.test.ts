@@ -1,12 +1,12 @@
-// scan-ai.test.js — юнит-тесты ИИ с полным сканированием ситуации (scan-ai.js).
-// Проверяем: детерминизм, решения для живых атакующих, валидность направлений,
-// «не замерзает» (всегда движение или огонь, если не заперт), прострел кирпичей.
+// scan-ai.test.js — unit tests for the AI with a full situation scan (scan-ai.js).
+// Verifies: determinism, decisions for living attackers, validity of directions,
+// "does not freeze" (always movement or fire if not boxed in), brick line-of-fire.
 import { test } from "node:test";
 import assert from "node:assert";
 import { scanPlan } from "../ai/scan-ai.ts";
 import { buildState, readState } from "../model/game-view.ts";
 
-// Синтетическое состояние через buildState (без адресов RAM).
+// Synthetic state via buildState (no RAM addresses).
 function buildMem({ attackers = [[88, 80]], bricks = [], obstacles = [], prize = null, bullets = [] }) {
   const rows = Array.from({ length: 32 }, () => Array(32).fill("."));
   for (const [c, r] of bricks) rows[r][c] = "B";
@@ -33,14 +33,14 @@ test("scanPlan: детерминирован и даёт решения живы
 test("scanPlan: не замирает — атакующий в открытом поле всегда движется", () => {
   const mem = buildMem({ attackers: [[88, 80]] });
   const r = scanPlan(mem, new Map());
-  const d = r.decisions.get(0); // индекс танка 2 -> decision key 2? используем фактический
+  const d = r.decisions.get(0); // tank index 2 -> decision key 2? use the actual one
   for (const [t, dec] of r.decisions) {
     assert.ok(dec.dir !== null, `танк ${t} замер (dir=null) на открытом поле`);
   }
 });
 
 test("scanPlan: прострел — при кирпичной стене на пути к базе танк целится в неё", () => {
-  // кирпичная стена на строке 14 (слева-центр), цель (база) внизу
+  // brick wall on row 14 (center-left), goal (base) below
   const mem = buildMem({ attackers: [[80, 88]], bricks: [[10, 14], [11, 14], [12, 14], [13, 14]] });
   const r = scanPlan(mem, new Map());
   for (const [t, dec] of r.decisions) {
@@ -49,7 +49,7 @@ test("scanPlan: прострел — при кирпичной стене на �
 });
 
 test("scanPlan: учитывает приз — при близком призе цель двигает к нему", () => {
-  const mem = buildMem({ attackers: [[80, 80]], prize: { id: 3, x: 112, y: 80 } }); // звезда справа
+  const mem = buildMem({ attackers: [[80, 80]], prize: { id: 3, x: 112, y: 80 } }); // star to the right
   const r = scanPlan(mem, new Map());
   for (const [t, dec] of r.decisions) {
     assert.ok(dec.dir !== null, `танк ${t} замер при наличии приза`);
@@ -57,7 +57,7 @@ test("scanPlan: учитывает приз — при близком призе
 });
 
 test("scanPlan: защищён от пуль — решение корректно при вражеской пуле", () => {
-  // вражеская пуля (танк 0 DEF) летит вниз на атакующего
+  // an enemy bullet (DEF tank 0) flies down at the attacker
   const mem = buildMem({ attackers: [[88, 88]], bullets: [{ i: 0, x: 88, y: 48, dir: 2, team: "DEF" }] });
   const r = scanPlan(mem, new Map());
   for (const [t, dec] of r.decisions) {

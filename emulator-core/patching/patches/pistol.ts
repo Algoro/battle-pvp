@@ -1,15 +1,15 @@
-// pistol.js — PvP-патч ROM: приз «пистолет» (id 6) и супер-оружие.
+// pistol.js — PvP ROM patch: the "pistol" prize (id 6) and the super-weapon.
 //
-// Что делает патч (правила получения — в ROM):
-//   1. Разрешает выпадение приза id 6 (таблица tbl_E8FA_bonus).
-//   2. Обработчик подбора id 6 -> sub_grant_super_weapon (флаг + боезапас).
-//   3. 4-я звезда (звезда при upgrade == 0x60) -> тот же sub_grant_super_weapon.
-//   4. Смерть игрока сбрасывает флаг/боезапас (хук на $E76A).
+// What the patch does (the pickup rules are in the ROM):
+//   1. Allows the id 6 prize to drop (tbl_E8FA_bonus table).
+//   2. Handler for picking up id 6 -> sub_grant_super_weapon (flag + ammo).
+//   3. 4th star (a star at upgrade == 0x60) -> the same sub_grant_super_weapon.
+//   4. Player death resets the flag/ammo (hook at $E76A).
 //
-// Сам эффект «луч через весь экран» исполняет JS-ядро (PvPNes): см. emulator-core/pvp.js.
-// Все хуки — строго равного размера (JMP/JSR + NOP-пады не нужны, длины совпадают).
+// The effect itself, "a beam across the whole screen", is performed by the JS core (PvPNes): see emulator-core/pvp.js.
+// All hooks are strictly the same size (JMP/JSR + NOP pads are not needed, lengths match).
 //
-// Относительный путь: ./emulator-core/patching/patches/pistol.js
+// Relative path: ./emulator-core/patching/patches/pistol.js
 import { hex, jmp, jsr, jmpT, absT } from "../descriptor.ts";
 
 export const pistol = {
@@ -23,24 +23,24 @@ export const pistol = {
     ram_pistol_ammo: 0x01f0,
     ram_sfx_bonus_pickup: 0x0306,
   },
-  // Свободная зона (0xFF) под новые рутины. Отдельная от pvp (EF75-EFFF).
+  // Free area (0xFF) for new routines. Separate from pvp (EF75-EFFF).
   free: [{ start: 0xff50, end: 0xfff9 }],
   routines: [
     {
-      // X = индекс игрока (0/1). Выдать супер-оружие и пополнить боезапас (N=3).
+      // X = player index (0/1). Grant the super-weapon and refill the ammo (N=3).
       symbol: "sub_grant_super_weapon",
       bytes: [
         0xa9, 0x01, // LDA #$01
         0x9d, absT("ram_pistol"), // STA ram_pistol,X
-        0xa9, 0x03, // LDA #$03 (N выстрелов)
+        0xa9, 0x03, // LDA #$03 (N shots)
         0x9d, absT("ram_pistol_ammo"), // STA ram_pistol_ammo,X
         0xa9, 0x01, 0x8d, absT("ram_sfx_bonus_pickup"), // LDA #1; STA sfx_bonus_pickup
         0x60, // RTS
       ],
     },
     {
-      // Хук входа обработчика звезды ($EA07): апгрейд или супер-оружие на 4-й звезде.
-      // X = индекс игрока.
+      // Star handler entry hook ($EA07): upgrade or super-weapon on the 4th star.
+      // X = player index.
       symbol: "sub_star_pickup",
       bytes: [
         0xbd, 0x01, 0x01, // LDA ram_tank_upgrade,X
@@ -55,8 +55,8 @@ export const pistol = {
       ],
     },
     {
-      // Хук смерти игрока ($E76A): обнулить апгрейд и супер-оружие, оставив A=0
-      // (следующая инструкция STA ram_tank_type,X использует A).
+      // Player death hook ($E76A): reset upgrade and super-weapon, leaving A=0
+      // (the next instruction STA ram_tank_type,X uses A).
       symbol: "sub_clear_super_weapon",
       bytes: [
         0xa9, 0x00, // LDA #$00
@@ -69,7 +69,7 @@ export const pistol = {
   ],
   writes: [
     {
-      // tbl_E8FA_bonus[6]: было «граната» ($04) -> «пистолет» ($06).
+      // tbl_E8FA_bonus[6]: was "grenade" ($04) -> "pistol" ($06).
       id: "allow-pistol-drop",
       at: 0xe900,
       len: 1,
@@ -77,7 +77,7 @@ export const pistol = {
       bytes: hex("06"),
     },
     {
-      // tbl_E9E2_bonus_pickup_handler[6]: было ofs_..._06_RTS ($EA48) -> grant.
+      // tbl_E9E2_bonus_pickup_handler[6]: was ofs_..._06_RTS ($EA48) -> grant.
       id: "pistol-pickup-handler",
       at: 0xe9ee,
       len: 2,
@@ -88,7 +88,7 @@ export const pistol = {
       },
     },
     {
-      // ofs_bonus_EA07_03_star -> наш sub_star_pickup.
+      // ofs_bonus_EA07_03_star -> our sub_star_pickup.
       id: "star-4th-hook",
       at: 0xea07,
       len: 3,
@@ -96,7 +96,7 @@ export const pistol = {
       bytes: jmp("sub_star_pickup", 3),
     },
     {
-      // Поражение DEF-танка: STA ram_tank_upgrade,X -> JSR clear (A остаётся 0).
+      // DEF tank defeat: STA ram_tank_upgrade,X -> JSR clear (A stays 0).
       id: "super-clear-on-death",
       at: 0xe76a,
       len: 3,

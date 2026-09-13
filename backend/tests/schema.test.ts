@@ -1,4 +1,4 @@
-// schema.test.js — валидация WS-сообщений.
+// schema.test.js — validation of WS messages.
 import { test } from "node:test";
 import assert from "node:assert";
 import { validateMessage, knownTypes } from "../signaling/schema.ts";

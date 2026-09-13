@@ -1,32 +1,32 @@
-// fine-grid.js — мелкая сетка проходимости для точной навигации танка (стратегический слой).
+// fine-grid.js — fine passability grid for precise tank navigation (strategic layer).
 //
-// Реализация патча «движение по настоящей мелкой сетке» (battle_city_defender_ai_patch_...),
-// с исправлением ключевой ошибки автора: он задаёт хитбокс танка как 2×2 fine-узла (=8×8 px).
-// На самом деле хитбокс танка в игре 16×16 px (sub_DC97/canLead: передняя кромка ±8 от центра),
-// т.е. = 2×2 коарс-тайла = **4×4 fine-клетки** (fine-клетка 4×4 px). Поэтому сценарий «squeeze через
-// 8px-стык» невозможен для реального танка, но точная fine-сетка полезна: учёт частично разрушенных
-// кирпичей (квадранты 0x01..0x0f) и корректная 16×16 «конфигурация» при маршрутизации.
+// Implementation of the "movement on the real fine grid" patch (battle_city_defender_ai_patch_...),
+// with a fix for the author's key mistake: he defines the tank hitbox as 2×2 fine nodes (=8×8 px).
+// In fact the tank hitbox in the game is 16×16 px (sub_DC97/canLead: front edge ±8 from the center),
+// i.e. = 2×2 coarse tiles = **4×4 fine cells** (fine cell 4×4 px). So the "squeeze through
+// an 8px seam" scenario is impossible for a real tank, but the exact fine grid is useful: accounting for partially destroyed
+// bricks (quadrants 0x01..0x0f) and a correct 16×16 "configuration" during routing.
 //
-// Сетка: каждый тайл 8×8 -> 2×2 суб-клетки 4×4. Кирпич кодирует занятые квадранты
-// (bit0=TL, bit1=TR, bit2=BL, bit3=BR — как sub_E604/_bulletSub). Сталь/вода — блок.
+// Grid: each 8×8 tile -> 2×2 sub-cells of 4×4. A brick encodes occupied quadrants
+// (bit0=TL, bit1=TR, bit2=BL, bit3=BR — like sub_E604/_bulletSub). Steel/water — block.
 
 import { FIELD, TILE, DX, DY, inBounds, tankPassable, isBrick, isTree, isIce } from "./game-view.ts";
 
-export const FINE = 2;            // делений тайла на сторону (8px -> 4px)
+export const FINE = 2;            // divisions of a tile per side (8px -> 4px)
 export const FINE_SIZE = FIELD * FINE; // 64
-export const TANK_FINE = 4;       // хитбокс танка 16×16 px = 4×4 fine-клетки (ИСПРАВЛЕНИЕ патча: не 2×2)
+export const TANK_FINE = 4;       // tank hitbox 16×16 px = 4×4 fine cells (PATCH FIX: not 2×2)
 
-// Строит fine-сетку проходимости (1=проходимо, 0=блок). Возвращает Uint8Array FINE_SIZE².
+// Build the fine passability grid (1=passable, 0=block). Returns Uint8Array FINE_SIZE².
 export function buildFineGrid(field: any, fieldSize: number = FIELD) {
   const n = fieldSize * FINE;
   const g = new Uint8Array(n * n);
   for (let r = 0; r < fieldSize; r++) {
     for (let c = 0; c < fieldSize; c++) {
       const v = field[r * fieldSize + c];
-      let mask; // занятые квадранты (bit0=TL,1=TR,2=BL,3=BR)
-      if (tankPassable(v) || isTree(v) || isIce(v)) mask = 0;        // пусто/дорога/дерево/лёд — открыто
-      else if (isBrick(v)) mask = v & 0x0f;                          // кирпич: занято = наличие квадранта
-      else mask = 0x0f;                                              // сталь/вода/прочее — полностью блок
+      let mask; // occupied quadrants (bit0=TL,1=TR,2=BL,3=BR)
+      if (tankPassable(v) || isTree(v) || isIce(v)) mask = 0;        // empty/road/tree/ice — open
+      else if (isBrick(v)) mask = v & 0x0f;                          // brick: occupied = quadrant present
+      else mask = 0x0f;                                              // steel/water/other — fully blocked
       for (let fr = 0; fr < FINE; fr++) {
         for (let fc = 0; fc < FINE; fc++) {
           const bit = 2 * fr + fc; // TL=0,TR=1,BL=2,BR=3
@@ -38,7 +38,7 @@ export function buildFineGrid(field: any, fieldSize: number = FIELD) {
   return g;
 }
 
-// Может ли танк (хитбокс TANK_FINE×TANK_FINE) стоять с верхним-левым углом в (fx,fy).
+// Can a tank (hitbox TANK_FINE×TANK_FINE) stand with its top-left corner at (fx,fy).
 export function canOccupy(g: any, fx: number, fy: number, n: number = FINE_SIZE) {
   if (fx < 0 || fy < 0 || fx + TANK_FINE > n || fy + TANK_FINE > n) return false;
   for (let y = fy; y < fy + TANK_FINE; y++) {
@@ -48,19 +48,19 @@ export function canOccupy(g: any, fx: number, fy: number, n: number = FINE_SIZE)
   return true;
 }
 
-// fine-позиция (верхний-левый угол хитбокса) из пиксельного центра танка.
+// fine position (top-left corner of the hitbox) from the tank's pixel center.
 export function tankFinePos(x: number, y: number) {
-  // хитбокс [x-8, x+8] (центр); верхний-левый угол = x-8. fine-клетка = /4.
+  // hitbox [x-8, x+8] (center); top-left corner = x-8. fine cell = /4.
   return { x: Math.floor((x - 8) / 4), y: Math.floor((y - 8) / 4) };
 }
 
-// fine-позиция (верхний-левый угол хитбокса), чтобы танк стоял в центре тайла {col,row}.
+// fine position (top-left corner of the hitbox) so the tank stands at the center of tile {col,row}.
 export function cellFinePos(col: number, row: number) {
   const px = col * 8 + 4, py = row * 8 + 4;
   return { x: Math.floor((px - 8) / 4), y: Math.floor((py - 8) / 4) };
 }
 
-// Множество fine-клеток, соответствующих coarse-клеткам (Set<idx=r*32+c>) для избегания.
+// Set of fine cells corresponding to coarse cells (Set<idx=r*32+c>) for avoidance.
 export function coarseToFineAvoid(coarseIdxSet: any) {
   const out = new Set();
   if (!coarseIdxSet) return out;
@@ -73,7 +73,7 @@ export function coarseToFineAvoid(coarseIdxSet: any) {
   return out;
 }
 
-// Стоимость шага (входа в fine-позицию) по доминирующей поверхности под хитбоксом.
+// Step cost (entering a fine position) by the dominant surface under the hitbox.
 function surfaceCost(field: any, fx: number, fy: number, n: number) {
   let ice = false, tree = false;
   for (let y = fy; y < fy + TANK_FINE; y++) {
@@ -88,7 +88,7 @@ function surfaceCost(field: any, fx: number, fy: number, n: number) {
   return ice ? 1.5 : tree ? 1.2 : 1;
 }
 
-// Минимальная бинарная куча (A*).
+// Min binary heap (A*).
 class MinHeap {
   a: any[];
   constructor() { this.a = []; }
@@ -114,9 +114,9 @@ class MinHeap {
   }
 }
 
-// Сдвиг старта к ближайшей валидной fine-позиции, если текущая не влезает (танк на границе).
-// Промежуточные позиции BFS ограничены только границами fine-сетки (не хитбокса) — иначе из
-// угла, где хитбокс не влезает ни у одной соседней позиции, релаксация бы застряла.
+// Shift the start to the nearest valid fine position if the current one doesn't fit (tank on a boundary).
+// Intermediate BFS positions are limited only by the fine-grid bounds (not the hitbox) — otherwise from
+// a corner where the hitbox doesn't fit at any neighboring position, relaxation would get stuck.
 function relaxStart(g: any, start: any, n: number) {
   const seen = new Set();
   const q = [{ x: start.x, y: start.y }];
@@ -137,8 +137,8 @@ function relaxStart(g: any, start: any, n: number) {
   return null;
 }
 
-// A* по fine-позициям (верхний-левый угол хитбокса). Возвращает путь (без старта, с целью)
-// или null. opts: { avoid: Set<fineIdx>, maxCost }.
+// A* over fine positions (top-left corner of the hitbox). Returns the path (without the start, with the goal)
+// or null. opts: { avoid: Set<fineIdx>, maxCost }.
 export function fineAStar(g: any, start: any, goal: any, opts: any = {}, n: number = FINE_SIZE, field: any = null) {
   if (start.x === goal.x && start.y === goal.y) return null;
   if (!canOccupy(g, goal.x, goal.y, n)) return null;
@@ -185,7 +185,7 @@ export function fineAStar(g: any, start: any, goal: any, opts: any = {}, n: numb
   return null;
 }
 
-// Направление первого шага (0..3) к цели, либо null.
+// Direction of the first step (0..3) toward the goal, or null.
 export function finePathDirection(g: any, start: any, goal: any, opts: any = {}, n: number = FINE_SIZE, field: any = null) {
   const path = fineAStar(g, start, goal, opts, n, field);
   if (!path || !path.length) return null;
@@ -195,9 +195,9 @@ export function finePathDirection(g: any, start: any, goal: any, opts: any = {},
   return null;
 }
 
-// Длина пути (в fine-шагах) по ортогональному A*. Infinity — недостижимо.
-// Используется для feasibility-модели (патч «gravity well»): оценка времени рейда
-// защитника и прихода угрозы к базе через реальную длину маршрута, а не эвристику.
+// Path length (in fine steps) via orthogonal A*. Infinity — unreachable.
+// Used for the feasibility model ("gravity well" patch): estimating the defender's raid time
+// and the threat's arrival at the base via the real route length rather than a heuristic.
 export function finePathLen(g: any, start: any, goal: any, opts: any = {}, n: number = FINE_SIZE, field: any = null) {
   const path = fineAStar(g, start, goal, opts, n, field);
   if (!path) return Infinity;

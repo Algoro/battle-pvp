@@ -1,5 +1,5 @@
-// stage.test.js — данные стадий из ROM и выбор стартовой стадии.
-// Запуск: node --test tests/stage.test.js
+// stage.test.js — stage data from the ROM and starting-stage selection.
+// Run: node --test tests/stage.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -24,7 +24,7 @@ test("stage-data: 35 стадий по 169 блоков, стадии разли
   const s2 = readStageBlocks(rom, 2);
   assert.strictEqual(STAGE_COUNT, 35);
   assert.strictEqual(s1.length, STAGE_BLOCKS);
-  // stage_01 начинается с байта 0xDD -> два пустых блока (0xD)
+  // stage_01 starts with the byte 0xDD -> two empty blocks (0xD)
   assert.strictEqual(s1[0], 0x0d);
   assert.strictEqual(s1[1], 0x0d);
   assert.notDeepStrictEqual(Array.from(s1), Array.from(s2));
@@ -77,7 +77,7 @@ test("stage-data: раскладка блоков совпадает с реал
       if ((nt.getTileIndex(2 + col * 2, 2 + row * 2) & 0xff) === tl) match++;
     }
   }
-  // допускаем пару отличий в зоне орла/базы
+  // we allow a couple of differences in the eagle/base area
   assert.ok(match >= 160, `совпадение с полем слишком низкое: ${match}/169`);
 });
 

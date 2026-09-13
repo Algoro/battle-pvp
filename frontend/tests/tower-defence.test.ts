@@ -1,4 +1,4 @@
-// tower-defence.test.ts — общая геометрия/данные режима TD (используются UI и ядром).
+// tower-defence.test.ts — shared TD mode geometry/data (used by the UI and the core).
 import { test } from "node:test";
 import assert from "node:assert";
 import {
@@ -64,7 +64,7 @@ test("td-shared: типы башен корректны, апгрейд усил
 test("td-shared: очки за типы и сложности", () => {
   assert.strictEqual(pointsForTankType(0x80), 100);
   assert.strictEqual(pointsForTankType(0xe0), 400);
-  assert.strictEqual(pointsForTankType(0x84), 500); // бонусный
+  assert.strictEqual(pointsForTankType(0x84), 500); // bonus
   assert.strictEqual(difficultyById("nope").id, TD_DEFAULT_CONFIG.difficulty);
 });
 

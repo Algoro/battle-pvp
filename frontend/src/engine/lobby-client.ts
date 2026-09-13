@@ -1,5 +1,5 @@
-// lobby-client.ts — браузерный клиент лобби: WS-протокол (список игр, комната, чат) +
-// хендофф в матч (negotiation WebRTC/relay -> RollbackSession).
+// lobby-client.ts — browser lobby client: WS protocol (game list, room, chat) +
+// handoff into the match (WebRTC/relay negotiation -> RollbackSession).
 import { RollbackSession } from "@netcode/rollback/session.ts";
 import { RelayTransport } from "@netcode/transport/relay.ts";
 import { WebRTCTransport } from "@netcode/transport/webrtc.ts";
@@ -7,7 +7,7 @@ import { MultiTransport } from "@netcode/transport/multi.ts";
 import { getIceServers } from "./ice";
 import type { Team } from "../ports";
 
-// Тим — доменный тип: единое определение в ports.ts, здесь ре-экспорт для компонентов.
+// Team — domain type: single definition in ports.ts, re-exported here for components.
 export type { Team };
 
 export interface LobbyPlayer {
@@ -22,7 +22,7 @@ export interface LobbyState {
 export interface ChatMessage { scope: string; id: string | null; from: string; name: string; text: string; ts: number; }
 export interface MatchStart { matchId: string; peers: { playerId: string; team: Team; port: number; name?: string }[]; stage?: number; defStars?: number; defPistol?: boolean; features?: string[]; featureOptions?: Record<string, Record<string, string | number | boolean>>; }
 
-// Клиент лобби поверх одного WS-соединения. События — через колбэки.
+// Lobby client over a single WS connection. Events — via callbacks.
 export class LobbyClient {
   private ws!: WebSocket;
   public playerId: string;
@@ -79,7 +79,7 @@ export class LobbyClient {
     this.ws = ws;
     ws.onmessage = (ev) => this._onMessage(JSON.parse(ev.data));
     ws.onclose = () => this._onClose();
-    ws.onerror = () => { /* onclose обработает */ };
+    ws.onerror = () => { /* onclose will handle it */ };
     await new Promise<void>((r, j) => {
       ws.onopen = () => r();
       const t = setTimeout(() => j(new Error("ws timeout")), 5000);
@@ -113,7 +113,7 @@ export class LobbyClient {
     }, delay);
   }
 
-  // Запомнить контекст матча, чтобы после обрыва WS вернуться в ту же комнату.
+  // Remember the match context so that after a WS drop we return to the same room.
   rejoinMatch(matchId: string, team: Team) {
     this.matchCtx = { matchId, team };
   }
@@ -122,13 +122,13 @@ export class LobbyClient {
     this.matchCtx = null;
   }
 
-  // Сообщить серверу о конце матча (согласованный победитель + возврат в лобби).
+  // Notify the server about the end of the match (agreed winner + return to the lobby).
   finishMatch(matchId: string, winner: Team | null) {
     this.send({ type: "finish", matchId, winner });
     this.matchCtx = null;
   }
 
-  // --- наблюдатель ---
+  // --- spectator ---
   spectate(matchId: string) { this.send({ type: "spectate", matchId, playerId: this.playerId }); }
   spectateLeave(matchId: string) { this.send({ type: "spectate.leave", matchId }); }
   sendSpectateData(matchId: string, frame: number, data: string) { this.send({ type: "spectate.data", matchId, frame, data }); }
@@ -141,7 +141,7 @@ export class LobbyClient {
     return this.ws?.readyState === WebSocket.OPEN;
   }
 
-  // --- операции лобби (Promise по lobby.joined) ---
+  // --- lobby operations (Promise on lobby.joined) ---
   create(settings: LobbySettings, lobbyName?: string): Promise<{ lobbyId: string; code: string; port: number; team: Team }> {
     const p = this._waitJoin();
     this.send({ type: "lobby.create", playerId: this.playerId, name: this.name, lobbyName, settings, cartridgeFingerprint: this.cartridgeFingerprint });
@@ -159,7 +159,7 @@ export class LobbyClient {
   kick(lobbyId: string, playerId: string) { this.send({ type: "lobby.kick", lobbyId, playerId }); }
   start(lobbyId: string) { this.send({ type: "lobby.start", lobbyId }); }
   sendChat(scope: "global" | "lobby" | "match", text: string, id?: string) { this.send({ type: "chat.send", scope, id, text }); }
-  // Пауза матча (при скрытии вкладки) — обе стороны останавливают симуляцию.
+  // Match pause (when the tab is hidden) — both sides stop the simulation.
   pauseMatch(matchId: string) { this.send({ type: "pause", matchId }); }
   resumeMatch(matchId: string) { this.send({ type: "resume", matchId }); }
 
@@ -192,9 +192,9 @@ export class LobbyClient {
     }
   }
 
-  // --- хендофф в матч: сопряжение с противником ---
-  // Роли детерминированы (меньший playerId = offerer), чтобы не было «glare» двух offer'ов.
-  // Возвращает транспорт и режим (webrtc | relay). Сигналинг идёт через тот же WS.
+  // --- handoff into the match: pairing with the opponent ---
+  // The roles are deterministic (lower playerId = offerer) so there is no "glare" of two offers.
+  // Returns the transport and mode (webrtc | relay). Signaling goes through the same WS.
   async negotiate(peerId: string, matchId: string): Promise<{ transport: any; mode: "webrtc" | "relay" }> {
     const iAmOfferer = this.playerId < peerId;
     const pc = new RTCPeerConnection({ iceServers: getIceServers() });
@@ -221,7 +221,7 @@ export class LobbyClient {
         } else if (m.data?.ice) {
           await pc.addIceCandidate(m.data.ice);
         }
-      } catch { /* игнор некорректного сигнала */ }
+      } catch { /* ignore invalid signal */ }
     });
     if (iAmOfferer) {
       const o = await pc.createOffer();
@@ -243,8 +243,8 @@ export class LobbyClient {
     return new RollbackSession({ game: emu, transport, myPorts, remotePorts, onEvent, window: 120, ...extra });
   }
 
-  // Сопряжение со всеми соперниками (2v2 / N). Один -> обычный транспорт,
-  // несколько -> MultiTransport (вещание/мультиплекс).
+  // Pairing with all opponents (2v2 / N). One -> a normal transport,
+  // several -> MultiTransport (broadcast/multiplex).
   async negotiateAll(peerIds: string[], matchId: string): Promise<{ transport: any; mode: "webrtc" | "relay" }> {
     const results: { transport: any; mode: "webrtc" | "relay" }[] = [];
     for (const pid of peerIds) results.push(await this.negotiate(pid, matchId));

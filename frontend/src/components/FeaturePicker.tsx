@@ -1,6 +1,6 @@
-// FeaturePicker.tsx — единый выбор опциональных патчей: карточки с названием и
-// описанием + авто-UI настроек включённых фич (по схеме из shared/features.ts).
-// Используется на всех предполётных экранах.
+// FeaturePicker.tsx — unified selection of optional patches: cards with name and
+// description + auto-UI for settings of enabled features (per the shared/features.ts schema).
+// Used on all pre-flight screens.
 import { OPTIONAL_FEATURES } from "../features";
 import type { FeatureSettingSpec, FeatureSettingValue } from "../../../shared/features.ts";
 import { useT } from "../i18n/index.tsx";
@@ -10,9 +10,9 @@ export type FeatureOptions = Record<string, Record<string, FeatureSettingValue>>
 interface Props {
   features: string[];
   onChange: (next: string[]) => void;
-  /** Текущие настройки фич (id → значения); отсутствующие — берутся из default. */
+  /** Current feature settings (id → values); missing ones are taken from default. */
   options?: FeatureOptions;
-  /** Изменение одной настройки: id фичи → её полный набор значений. */
+  /** Change of a single setting: feature id → its full set of values. */
   onOptionsChange?: (featureId: string, values: Record<string, FeatureSettingValue>) => void;
   title?: string;
   disabled?: boolean;
@@ -30,7 +30,7 @@ export default function FeaturePicker({
   const toggle = (id: string) => {
     onChange(features.includes(id) ? features.filter((x) => x !== id) : [...features, id]);
   };
-  // hidden-фичи (напр. tower-defence) включаются отдельным режимом, не чекбоксом.
+  // hidden features (e.g. tower-defence) are enabled by a separate mode, not a checkbox.
   const visible = OPTIONAL_FEATURES.filter((f) => !f.hidden);
   const selected = visible.filter((f) => features.includes(f.id));
 

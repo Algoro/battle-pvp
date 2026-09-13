@@ -1,15 +1,15 @@
-// sync-mode.js — sync-test режим: прогон двух клиентов (rollback) и отчёт.
-// Проверяет детерминизм RNG/rollback: при задержке/джитре клиенты должны
-// сойтись к одинаковым хэшам без desync.
+// sync-mode.js — sync-test mode: run two clients (rollback) and report.
+// Checks RNG/rollback determinism: under delay/jitter the clients must
+// converge to identical hashes without desync.
 //
-// Относительный путь: ./qa/sync-mode.js
+// Relative path: ./qa/sync-mode.js
 import { readFileSync } from "node:fs";
 import PvPNes from "../emulator-core/pvp.ts";
 import { RollbackSession } from "../netcode/rollback/session.ts";
 import { LocalEndpoint, makeRng } from "../netcode/transport/local.ts";
 
 /**
- * Прогон двух клиентов. Возвращает sync-отчёт.
+ * Run two clients. Returns a sync report.
  * @param {object} opts {romPath, frames, delayA, delayB, jitter, loss, seed}
  */
 export function runSync(opts = {}) {
@@ -46,7 +46,7 @@ export function runSync(opts = {}) {
     window: 120, redundancy,
   });
 
-  // детерминированные входы
+  // deterministic inputs
   let s = seed >>> 0;
   const next = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0));
   const hashes = [];
@@ -57,7 +57,7 @@ export function runSync(opts = {}) {
     sessB.advanceFrame(inB);
     ta.flush();
     tb.flush();
-    // hash сходимости в моменте
+    // convergence hash at this moment
     if (f % 30 === 0) hashes.push({ frame: f, a: gameA.getFrameHash(), b: gameB.getFrameHash() });
   }
   // drain

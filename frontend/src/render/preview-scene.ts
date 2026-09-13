@@ -1,7 +1,7 @@
-// preview-scene.ts — синтетическая сцена для предпросмотра драйверов рендера до старта
-// матча. Не читает RAM и не трогает ядро: это демонстрационное поле Battle City.
+// preview-scene.ts — synthetic scene for previewing render drivers before the
+// match starts. It does not read RAM and does not touch the core: this is a demonstration Battle City field.
 //
-// Относительный путь: ./frontend/src/render/preview-scene.ts
+// Relative path: ./frontend/src/render/preview-scene.ts
 import { PLAY_BOUNDS } from "./scene-state.ts";
 import type { SceneState, SceneTank } from "./types.ts";
 
@@ -12,7 +12,7 @@ function demoField(): Uint8Array {
     f[r * 32 + c] = v;
   };
 
-  // Стальная рамка вокруг игровой зоны.
+  // Steel frame around the game area.
   const c0 = b.col0 - 1;
   const r0 = b.row0 - 1;
   for (let c = c0; c <= c0 + b.cols + 1; c++) {
@@ -29,7 +29,7 @@ function demoField(): Uint8Array {
     for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++) rel(rc + i, rr + j, 0x0f);
   };
 
-  // Кирпичные блоки.
+  // Brick blocks.
   for (const [rc, rr] of [
     [3, 3], [9, 3], [15, 3], [21, 3],
     [6, 8], [18, 8], [3, 14], [21, 14],
@@ -37,11 +37,11 @@ function demoField(): Uint8Array {
   ]) {
     brickBlock(rc, rr);
   }
-  // Полуразрушенный кирпич (показывает квадранты).
+  // Half-destroyed brick (shows the quadrants).
   rel(9, 3, 0x0c);
   rel(10, 3, 0x05);
 
-  // Стальные башни, вода, лёд, деревья.
+  // Steel towers, water, ice, trees.
   set(b.col0 + 12, b.row0 + 5, 0x11);
   set(b.col0 + 13, b.row0 + 5, 0x10);
   set(b.col0 + 12, b.row0 + 15, 0x10);
@@ -49,7 +49,7 @@ function demoField(): Uint8Array {
   for (let i = 0; i < 3; i++) for (let j = 0; j < 2; j++) rel(19 + i, 11 + j, 0x21);
   for (const [rc, rr] of [[8, 11], [8, 12], [17, 11], [17, 12]]) rel(rc, rr, 0x22);
 
-  // Орёл (штаб DEF) 2×2.
+  // Eagle (DEF HQ) 2×2.
   const ec = b.col0 + 12;
   const er = b.row0 + 24;
   f[er * 32 + ec] = 0xc8;
@@ -109,7 +109,7 @@ function demo(): SceneState {
   };
 }
 
-// Демо-сцена статична: строим один раз и переиспользуем в провайдере предпросмотра.
+// The demo scene is static: we build it once and reuse it in the preview provider.
 let cached: SceneState | null = null;
 export function previewScene(): SceneState {
   if (!cached) cached = demo();

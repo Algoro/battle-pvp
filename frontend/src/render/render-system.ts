@@ -1,12 +1,12 @@
-// render-system.ts — хост СЛОЯ РЕНДЕРА: композиция «один драйвер + N расширений».
+// render-system.ts — host of the RENDER LAYER: composition of "one driver + N extensions".
 //
-// Пайплайн кадра:
-//   scene -> driver.setScene -> ext.beforeRender (в порядке) -> driver.render
-//         -> ext.afterRender (в обратном порядке)
+// Frame pipeline:
+//   scene -> driver.setScene -> ext.beforeRender (in order) -> driver.render
+//         -> ext.afterRender (in reverse order)
 //
-// Хост не знает о детерминизме и не вызывает ядро: сцену он получает провайдером.
+// The host knows nothing about determinism and does not call the core: it gets the scene from a provider.
 //
-// Относительный путь: ./frontend/src/render/render-system.ts
+// Relative path: ./frontend/src/render/render-system.ts
 import { CameraRig } from "./camera-rig.ts";
 import { loadLang, translate } from "../i18n/translate.ts";
 import { canonicalRenderExtensions, driverCapabilities, rendererById, resolveDriver, resolveExtensions } from "./registry.ts";
@@ -59,7 +59,7 @@ export class RenderSystem {
     this.measure();
   }
 
-  /** Указать локального игрока (порт танка) — для камер «из глаз». */
+  /** Set the local player (tank port) — for first-person cameras. */
   setViewer(viewer: { port: number }): void {
     this.host.viewer = { port: viewer.port | 0 };
   }
@@ -90,11 +90,11 @@ export class RenderSystem {
       try {
         next.dispose();
       } catch {
-        /* устаревший кандидат */
+        /* legacy candidate */
       }
       return false;
     }
-    // Новая связка: расширения пересобираются под capabilities нового драйвера.
+    // New wiring: extensions are rebuilt for the new driver's capabilities.
     await this.disposeExtensions();
     this.disposeDriver();
     this.capabilities = driverCapabilities(id);
@@ -115,7 +115,7 @@ export class RenderSystem {
       this.driverId = "";
       this.capabilities = new Set();
       this.host.capabilities = this.capabilities;
-      // Откат на безопасный пиксельный драйвер (например, нет WebGL).
+      // Fall back to a safe pixel driver (for example, no WebGL).
       if (id !== "pixel-2d") {
         const fallback = await resolveDriver("pixel-2d").catch(() => null);
         if (fallback) {
@@ -140,7 +140,7 @@ export class RenderSystem {
     return true;
   }
 
-  /** Применить сохранённые в prefs настройки драйвера (независимо от UI-панели). */
+  /** Apply the driver settings saved in prefs (independently of the UI panel). */
   private applyStoredOptions(id: string): void {
     const spec = rendererById(id)?.settings;
     if (!spec || !this.driver?.setOptions) return;
@@ -184,7 +184,7 @@ export class RenderSystem {
     }
   }
 
-  /** Отрисовать текущий кадр. Вызывается из игрового цикла (после step/advance/draw). */
+  /** Draw the current frame. Called from the game loop (after step/advance/draw). */
   frame(): void {
     const now = performance.now();
     const dt = this.lastT ? Math.min(100, now - this.lastT) : 16.7;
@@ -201,7 +201,7 @@ export class RenderSystem {
     for (let i = this.extensions.length - 1; i >= 0; i--) this.extensions[i].ext.afterRender?.(scene, dt);
   }
 
-  /** Передать локальные настройки активному драйверу (если он их поддерживает). */
+  /** Pass local settings to the active driver (if it supports them). */
   setDriverOptions(options: unknown): void {
     this.pendingOptions = options;
     this.driver?.setOptions?.(options);

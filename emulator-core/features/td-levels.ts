@@ -1,10 +1,10 @@
-// td-levels.ts — конструктор уровней tower defence.
+// td-levels.ts — tower defence level constructor.
 //
-// Геометрия и карты вынесены в `shared/tower-defence.ts`, чтобы фронтенд (редактор
-// расстановки) и рантайм пользовались одним источником без импорта emulator-core.
-// Модуль оставлен точкой входа emulator-core и ре-экспортирует общие функции.
+// The geometry and maps were moved to `shared/tower-defence.ts` so that the frontend (placement
+// editor) and the runtime use a single source without importing emulator-core.
+// The module is left as the emulator-core entry point and re-exports the shared functions.
 //
-// Относительный путь: ./emulator-core/features/td-levels.ts
+// Relative path: ./emulator-core/features/td-levels.ts
 export {
   TD_SIZE,
   TD_STRIDE,

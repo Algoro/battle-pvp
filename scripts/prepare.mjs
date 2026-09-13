@@ -1,14 +1,14 @@
-// prepare.mjs — идемпотентная подготовка рабочего дерева к сборке/тестам.
+// prepare.mjs — idempotent preparation of the working tree for build/tests.
 //
-//  1. vendor/jsnes (git-сабмодуль, неизменный апстрим) -> emulator-core/src (генерируемая копия).
-//  2. rom/original/_battle_city.nes -> frontend/public/rom/battle_city.nes (оригинал для dev/build).
-//  3. rom/original + набор патчей "pvp" -> rom/disasm/_battle_city.nes (эталон для тестов).
+//  1. vendor/jsnes (git submodule, unchanged upstream) -> emulator-core/src (generated copy).
+//  2. rom/original/_battle_city.nes -> frontend/public/rom/battle_city.nes (original for dev/build).
+//  3. rom/original + the "pvp" patch set -> rom/disasm/_battle_city.nes (reference for tests).
 //
-// Безопасно запускать параллельно: копии атомарны, повторные запуски пропускаются.
-// jsnes НЕ редактируется. Оригинальный ROM в репозиторий не входит (авторские права):
-// положите его в rom/original/_battle_city.nes (sha1 941ad7ca…).
+// Safe to run in parallel: copies are atomic, repeated runs are skipped.
+// jsnes is NOT edited. The original ROM is not part of the repository (copyright):
+// put it in rom/original/_battle_city.nes (sha1 941ad7ca…).
 //
-// Относительный путь: ./scripts/prepare.mjs
+// Relative path: ./scripts/prepare.mjs
 import {
   existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, renameSync, readdirSync, statSync,
 } from "node:fs";
@@ -61,8 +61,8 @@ function copyJsnes() {
     existsSync(join(CORE_SRC, "nes.js")) && existsSync(CORE_STAMP) && readFileSync(CORE_STAMP, "utf8") === stamp;
   if (upToDate()) return;
 
-  // Замок: при параллельном запуске (несколько сьютов) копирует только один процесс,
-  // остальные ждут готовности, чтобы не читать полу-скопированный src.
+  // Lock: on parallel startup (several suites) only one process copies,
+  // the rest wait for readiness so they do not read a half-copied src.
   let locked = false;
   try {
     writeFileSync(CORE_LOCK, String(process.pid), { flag: "wx" });

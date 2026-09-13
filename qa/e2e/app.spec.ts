@@ -1,5 +1,5 @@
-// app.spec.js — e2e: лобби, соло-игра, соло за атакующих.
-// Требует: frontend собрана (npm run build), браузер установлен (npx playwright install chromium).
+// app.spec.js — e2e: lobby, solo game, solo as the attackers.
+// Requires: frontend built (npm run build), browser installed (npx playwright install chromium).
 import { test, expect } from "@playwright/test";
 
 test("лобби отображается с выбором команды", async ({ page }) => {
@@ -28,7 +28,7 @@ test("соло за атакующих: AI танка игрока отключ�
   await page.getByText("Атакующие", { exact: false }).first().click();
   await page.getByRole("button", { name: /Соло/ }).first().click();
 
-  // ждём спавна танка 2 (позиция != 255,255)
+  // wait for the spawn of tank 2 (position != 255,255)
   let spawned = false;
   for (let i = 0; i < 12; i++) {
     await page.waitForTimeout(2000);
@@ -38,18 +38,18 @@ test("соло за атакующих: AI танка игрока отключ�
 
   const snap = () => page.evaluate(() => [window.__bc.readMem(0x92), window.__bc.readMem(0x9a)]);
 
-  // ведём вниз, чтобы войти в поле
+  // drive down to enter the field
   await page.keyboard.down("ArrowDown");
   await page.waitForTimeout(3000);
   await page.keyboard.up("ArrowDown");
   const afterDown = await snap();
 
-  // без ввода — танк стоит (AI отключён)
+  // with no input — the tank stays put (AI disabled)
   await page.waitForTimeout(2500);
   const idle = await snap();
   expect(idle[0] === afterDown[0] && idle[1] === afterDown[1], "танк двигался без ввода (AI не отключён)").toBe(true);
 
-  // ещё вниз — танк реагирует на ввод
+  // further down — the tank reacts to input
   await page.keyboard.down("ArrowDown");
   await page.waitForTimeout(2500);
   await page.keyboard.up("ArrowDown");

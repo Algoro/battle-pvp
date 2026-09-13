@@ -1,6 +1,6 @@
-// audio.test.js — звук из APU jsnes без правок ядра: эмиссия сэмплов, гейт на время
-// переигровки, независимость от детерминизма (getFrameHash).
-// Запуск: node --test tests/audio.test.js
+// audio.test.js — sound from the jsnes APU without core changes: sample emission, gate during
+// replay, independence from determinism (getFrameHash).
+// Run: node --test tests/audio.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";

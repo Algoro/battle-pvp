@@ -1,16 +1,16 @@
-// relay.ts — relay-транспорт (fallback при симметричном NAT).
-// Маршрутизирует фреймы через backend-релей (Agent-Backend, ./backend).
+// relay.ts — relay transport (fallback for symmetric NAT).
+// Routes frames through the backend relay (Agent-Backend, ./backend).
 //
-// Контракт интерфейса { send, onMessage } сохранён. Отличие от WebRTC:
-// байты идут не напрямую P2P, а через сервер-релей по комнате/матч-идентификатору.
+// The { send, onMessage } interface contract is preserved. The difference from WebRTC:
+// bytes go not directly P2P, but through a server relay by room/match identifier.
 //
-// WebSocket-протокол релея (детали — в docs/netcode.md):
+// Relay WebSocket protocol (details in docs/netcode.md):
 //   client -> server:  {type:"relay.data", matchId, to:peerId, data: base64}
 //   server -> client:  {type:"relay.data", matchId, from:peerId, data: base64}
 //
-// Относительный путь: ./netcode/transport/relay.ts
+// Relative path: ./netcode/transport/relay.ts
 
-// Минимальный структурный тип WebSocket: подходит и браузерному WebSocket, и ws-совместимым.
+// Minimal structural WebSocket type: fits both the browser WebSocket and ws-compatible ones.
 export interface WebSocketLike {
   readonly readyState: number;
   addEventListener(type: string, cb: (ev: any) => void): void;
@@ -37,9 +37,9 @@ export class RelayTransport {
   private _onClose = (): void => this._notifyClosed();
 
   /**
-   * @param socket   подключение к релею
-   * @param matchId  идентификатор матча
-   * @param peerId   идентификатор целевого клиента
+   * @param socket   connection to the relay
+   * @param matchId  match identifier
+   * @param peerId   target client identifier
    */
   constructor(socket: WebSocketLike, matchId: string, peerId: string) {
     this.socket = socket;

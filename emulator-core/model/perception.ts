@@ -1,34 +1,34 @@
-// perception.js — стратегический слой: построение полной картины боя для ИИ
-// защитника/атакующего из GameState (read-модель game-view).
+// perception.js — strategic layer: building a complete battle picture for defender/attacker AI
+// from GameState (the game-view read model).
 //
-// В отличие от разрозненных локальных хелперов scan/lookahead, Perception — это
-// единый, согласованный снимок:
-//   - классификация врагов по типу (basic/fast/power/armor) + скорость/броня/флеш,
-//   - оценка угрозы базе ThreatToBase (дизайн §2.2),
-//   - очередь спавна (мигающие 4/11/18),
-//   - модель пуль (скорость, траектория, точка перехвата),
-//   - состояние игроков (уровень/жизни/каска/стан/лёд),
-//   - классификация тайлов и стоимости маршрута (делегирует game-view/pathfind).
+// Unlike the scattered local helpers of scan/lookahead, Perception is a
+// single, consistent snapshot:
+//   - classification of enemies by type (basic/fast/power/armor) + speed/armor/flash,
+//   - ThreatToBase estimation (design §2.2),
+//   - spawn queue (flashing 4/11/18),
+//   - bullet model (speed, trajectory, intercept point),
+//   - player state (level/lives/helmet/stun/ice),
+//   - tile classification and route costs (delegates to game-view/pathfind).
 //
-// Чистый слой: perceive(state) -> Perception. Не мутирует состояние.
+// A pure layer: perceive(state) -> Perception. Does not mutate the state.
 
 import { DX, DY, inBounds, cellIdx, blocksBullet, bulletSpeed, hitsLeft, dist,
   lineClear, cellOf, enemySpeedClass } from "./game-view.ts";
 import { pathCost } from "./pathfind.ts";
 import { RAM } from "../rom-contract.ts";
 
-// --- параметры оценки угрозы (дизайн §2.2) ---
+// --- threat estimation parameters (design §2.2) ---
 export const THREAT_WEIGHTS = { speed: 0.30, los: 0.30, dist: 0.25, power: 0.10, path: 0.05 };
 export const DEFAULT_THREAT_WEIGHTS = THREAT_WEIGHTS;
 
 const SPEED_FACTOR: Record<string, number> = { basic: 0.4, power: 0.5, fast: 1.0, armor: 0.3 };
 const POWER_FACTOR: Record<string, number> = { basic: 0.5, power: 1.0, fast: 0.7, armor: 0.6 };
 
-// Мигающие (бонусные) враги появляются на 4-м, 11-м и 18-м спавне уровня.
+// Flashing (bonus) enemies appear on the 4th, 11th, and 18th spawn of the level.
 export const BLINK_SPAWN_INDICES = [4, 11, 18];
 export function isBlinkSpawn(index: number) { return BLINK_SPAWN_INDICES.includes(index); }
 
-// Класс типа врага по старшим 4 битам типа (0x80 basic, 0xA0 power, 0xC0 fast, 0xE0 armor).
+// Enemy type class by the high 4 bits of the type (0x80 basic, 0xA0 power, 0xC0 fast, 0xE0 armor).
 export function enemyClass(type: number) {
   if (type < 0x80) return "basic";
   switch (type & 0xf0) {
@@ -39,10 +39,10 @@ export function enemyClass(type: number) {
   }
 }
 
-// Обёртка клетки для удобных вызовов pathfind (позиция {col,row}).
+// Cell wrapper for convenient pathfind calls (position {col,row}).
 function cell(t: any) { return { col: t.col, row: t.row }; }
 
-// Предикат «есть линия огня» (кирпич пробивается) между двумя клетками.
+// Predicate "is there a line of fire" (brick is punched through) between two cells.
 export function fireLine(field: any, a: any, b: any) { return lineClear(field, a, b); }
 
 export class Perception {
@@ -62,15 +62,15 @@ export class Perception {
   constructor(state: any) {
     this.state = state;
     this.field = state.field;
-    this.enemies = [];      // классифицированные враги ATT
-    this.defenders = [];    // состояние защитников DEF
-    this.bullets = [];      // модель пуль
+    this.enemies = [];      // classified ATT enemies
+    this.defenders = [];    // DEF defender state
+    this.bullets = [];      // bullet model
     this.base = null;       // { col, row, fortified }
     this.spawn = null;      // { enemiesLeft, spawnTimer, spawned, nextBlink }
     this._index = new Map();
   }
 
-  // Классификация врагов с оценкой угрозы базе.
+  // Enemy classification with base threat estimation.
   _enemies() {
     const base = this.base;
     const tw = this.threatWeights ?? THREAT_WEIGHTS;
@@ -99,7 +99,7 @@ export class Perception {
     return out;
   }
 
-  // Модель пуль: скорость по владельцу, пройденные/будущие клетки траектории.
+  // Bullet model: speed by owner, past/future trajectory cells.
   _bullets() {
     const out = [];
     for (const b of this.state.bullets) {
@@ -113,7 +113,7 @@ export class Perception {
     return out;
   }
 
-  // Состояние защитников (игроков).
+  // Defender (player) state.
   _defenders() {
     const eagle = this.base;
     return this.state.defenders.map((d: any, i: number) => {
@@ -131,20 +131,20 @@ export class Perception {
     });
   }
 
-  // Вспомогательные запросы.
+  // Auxiliary queries.
   tileType(c: number, r: number) { return this.state.tileType(c, r); }
   costAt(c: number, r: number) { return this.state.tileCost(c, r); }
   passable(c: number, r: number) { return this.state.passable(c, r); }
-  // Есть ли линия огня от `from` к `to`.
+  // Is there a line of fire from `from` to `to`.
   lineClear(a: any, b: any) { return lineClear(this.field, a, b); }
-  // Точка пересечения пули с целью (для leading/counter shot), либо null.
+  // Bullet intersection point with the target (for leading/counter shot), or null.
   intercept(shotFrom: any, bullet: any) {
     for (const cc of bullet.cells) {
       if (this.lineClear(shotFrom, cc)) return cc;
     }
     return null;
   }
-  // Входящие пули ПРОТИВНИКА (oppTeam), которые попадут в клетку (для уворота/опасности).
+  // Incoming OPPONENT bullets (oppTeam) that will hit the cell (for dodging/danger).
   danger(cell: any) {
     const out = [];
     for (const b of this.bullets) {
@@ -158,9 +158,9 @@ export class Perception {
   }
 }
 
-// Оценка угрозы базе (дизайн §2.2): больше = опаснее.
+// Base threat estimation (design §2.2): greater = more dangerous.
 // e: { cls, dBase, losBase, pathCost, type }.
-// weights (необязательно): { speed, los, dist, power, path } — веса компонент.
+// weights (optional): { speed, los, dist, power, path } — component weights.
 export function threatToBase(e: any, weights: any = THREAT_WEIGHTS) {
   if (e.dBase === Infinity) return 0;
   const speedF = SPEED_FACTOR[e.cls] ?? 0.4;
@@ -173,7 +173,7 @@ export function threatToBase(e: any, weights: any = THREAT_WEIGHTS) {
        + weights.path * (1 / path);
 }
 
-// Предсказанная клетка врага через 1 шаг (по направлению взгляда), если он быстрый.
+// Predicted enemy cell after 1 step (by facing direction), if it is fast.
 export function predictedCell(field: any, t: any) {
   if (!t.inField || !(t.speedClass > 1.3)) return cell(t);
   const nc = t.cell.col + DX[t.dir], nr = t.cell.row + DY[t.dir];
@@ -181,8 +181,8 @@ export function predictedCell(field: any, t: any) {
   return { col: nc, row: nr };
 }
 
-// Клетки, которые пройдёт пуля (включая старт), пока не упрётся в препятствие/границу.
-// steps — глубина трассировки (по умолчанию 30).
+// Cells the bullet will pass through (including the start) until it hits an obstacle/border.
+// steps — tracing depth (default 30).
 export function trajectoryCells(field: any, bullet: any, speed: number, steps = 30) {
   const cells = [];
   let c = bullet.cell.col, r = bullet.cell.row;
@@ -196,15 +196,15 @@ export function trajectoryCells(field: any, bullet: any, speed: number, steps = 
   return cells;
 }
 
-// Главная точка входа: perceive(state, opts) -> Perception.
+// Main entry point: perceive(state, opts) -> Perception.
 // opts: { role: "def"|"att", threat: {speed,los,dist,power,path} }.
-//   - role: для какой команды строим снимок (по умолчанию "def"). Влияет на
-//     selfTeam/oppTeam/opponents/allies: для "att" противники = DEF-танки, союзники = ATT.
-//   - enemies/defenders — обратная совместимость (def): enemies=ATT, defenders=DEF.
+//   - role: which team to build the snapshot for (default "def"). Affects
+//     selfTeam/oppTeam/opponents/allies: for "att" opponents = DEF tanks, allies = ATT.
+//   - enemies/defenders — backward compatibility (def): enemies=ATT, defenders=DEF.
 export function perceive(state: any, opts: any = {}) {
   const p = new Perception(state);
   p.threatWeights = opts.threat ?? THREAT_WEIGHTS;
-  // база (орёл)
+  // base (eagle)
   const eagle = state.eagle;
   p.base = { col: eagle.col, row: eagle.row, fortified: state.fortified };
   p.enemies = p._enemies();
@@ -221,7 +221,7 @@ export function perceive(state: any, opts: any = {}) {
     spawned: spawnedCount,
     nextBlink,
   };
-  // role-aware (аддитивно): selfTeam/oppTeam/opponents/allies
+  // role-aware (additive): selfTeam/oppTeam/opponents/allies
   const role = opts.role ?? "def";
   p.selfTeam = role === "att" ? "ATT" : "DEF";
   p.oppTeam = role === "att" ? "DEF" : "ATT";

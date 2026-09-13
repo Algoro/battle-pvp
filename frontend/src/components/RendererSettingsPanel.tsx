@@ -1,5 +1,5 @@
-// RendererSettingsPanel.tsx — состояние настроек выбранного драйвера: загрузка из prefs,
-// сохранение, применение к RenderSystem. Рендерит универсальную форму по схеме манифеста.
+// RendererSettingsPanel.tsx — settings state of the selected driver: loading from prefs,
+// saving, applying to RenderSystem. Renders the universal form from the manifest schema.
 import { useEffect, useRef, useState } from "react";
 import { rendererById } from "../render/registry";
 import type { RenderSystem } from "../render/render-system";
@@ -20,7 +20,7 @@ export default function RendererSettingsPanel({ driver, system }: Props) {
   const ref = useRef(values);
   ref.current = values;
 
-  // Применить сохранённые настройки к драйверу (в т.ч. при смене system: превью → бой).
+  // Apply the saved settings to the driver (including on system change: preview → battle).
   useEffect(() => {
     if (spec) system?.setDriverOptions(ref.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps

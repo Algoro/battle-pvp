@@ -1,5 +1,5 @@
-// GameCanvas.tsx — игровой экран: canvas-рендер эмулятора, HUD команд,
-// индикатор задержки/rollback, экран результата.
+// GameCanvas.tsx — game screen: emulator canvas render, team HUD,
+// latency/rollback indicator, result screen.
 import { useEffect, useRef, useState } from "react";
 import { EmulatorDriver } from "../engine/emulator";
 import { KeyboardInput } from "../engine/input";
@@ -20,9 +20,9 @@ interface Props {
   emulator: EmulatorDriver;
   keyboard: KeyboardInput;
   team: Team;
-  port: number; // логический порт игрока
+  port: number; // logical player port
   online?: {
-    // Один шаг детерминированного ядра с МОИМИ кнопками (remote добавляет сессия).
+    // One step of the deterministic core with MY buttons (remote is added by the session).
     advance: (buttons: number) => void;
     draw: () => void;
     onEvent: (e: any) => void;
@@ -38,7 +38,7 @@ interface Props {
   audio?: AudioOutput;
 }
 
-// Чтение статуса команд из RAM (адреса совпадают с bank_ram.inc).
+// Read team status from RAM (addresses match bank_ram.inc).
 function hudState(emu: EmulatorDriver) {
   return {
     livesDef: emu.readMem(0x51),
@@ -58,8 +58,8 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
   const [status, setStatus] = useState({ rollbacks: 0, desyncs: 0, latency: 0, mode: "solo" });
   const [result, setResult] = useState<string | null>(null);
 
-  // Слой рендера: драйвер/расширения выбирает RenderSettings. Ядро только обновляет
-  // состояние, а кадр рисует RenderSystem (2D/3D/…), не влияя на детерминизм.
+  // Render layer: the driver/extensions are chosen by RenderSettings. The core only updates
+  // state, while the frame is drawn by RenderSystem (2D/3D/…), without affecting determinism.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -74,17 +74,17 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
     };
   }, [emulator, port]);
 
-  // Онлайн: индикаторы берём из состояния соединения (App), а не из событий сессии.
+  // Online: take indicators from the connection state (App), not from session events.
   const conn = online?.connection;
   useEffect(() => {
     if (conn) setStatus({ rollbacks: conn.rollbacks, desyncs: conn.desyncs, latency: conn.latency, mode: conn.mode || (online ? "online" : "solo") });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conn?.rollbacks, conn?.desyncs, conn?.latency, conn?.mode]);
 
-  // соло-режим: автостарт матча + (для ATT) авто-респавн танка игрока.
-  // В ОНЛАЙНЕ соло-цикл НЕ запускается — иначе двойной шаг ядра и рассинхрон.
+  // solo mode: auto-start the match + (for ATT) auto-respawn of the player's tank.
+  // In ONLINE mode the solo loop is NOT started — otherwise the core would step twice and desync.
   useEffect(() => {
-    if (online) return; // онлайном рулит rollback-сессия (ниже)
+    if (online) return; // online is driven by the rollback session (below)
     if (!containerRef.current) return;
 
     let raf = 0;
@@ -110,8 +110,8 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // онлайн-режим: фиксированный шаг 60 Гц — ровно один advanceFrame на игровой кадр,
-  // затем один draw(). remote-входы и rollback берёт на себя RollbackSession.
+  // online mode: fixed 60 Hz step — exactly one advanceFrame per game frame,
+  // then one draw(). Remote inputs and rollback are handled by RollbackSession.
   const onlineRef = useRef(online);
   onlineRef.current = online;
   useEffect(() => {
@@ -139,8 +139,8 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!online]);
 
-  // P3: детект конца матча и атрибуция победителя — ТОЛЬКО в реальной игре
-  // (stage 1..35). На титуле/демо (stage=0xFF) не определяем результат.
+  // P3: match end detection and winner attribution — ONLY in a real game
+  // (stage 1..35). On the title/demo (stage=0xFF) we do not determine the result.
   useEffect(() => {
     if (result) return;
     const w = determineWinner(hud.stage, hud.gameOver, hud.enemiesLeft, hud.pacmanWin);
@@ -151,7 +151,7 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hud.gameOver, hud.enemiesLeft, hud.stage, hud.pacmanWin]);
 
-  // Согласованный результат от сервера (на случай, если локальный детект не сработал).
+  // Agreed result from the server (in case local detection did not fire).
   useEffect(() => {
     if (!result && serverWinner) setResult(serverWinner);
     // eslint-disable-next-line react-hooks/exhaustive-deps

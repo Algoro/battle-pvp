@@ -1,26 +1,26 @@
-// enemy-prizes.ts — JS-рантайм фичи `enemy-prizes`: эффекты приза, забранного врагом.
-// ROM-часть (хук sub_E972) записывает пару (индекс врага, id приза) в RAM и поглощает
-// приз; этот рантайм применяет эффект подобравшему/защитникам.
+// enemy-prizes.ts — JS runtime of the `enemy-prizes` feature: effects of a prize taken by an enemy.
+// The ROM part (sub_E972 hook) writes the pair (enemy index, prize id) to RAM and absorbs
+// the prize; this runtime applies the effect to the picker/defenders.
 //
-// Соответствие (согласовано):
-//   0 helmet — без эффекта (только поглощение);
-//   1 clock  — заморозить защитников (DEF 0,1);
-//   2 shovel — снять защиту базы полностью (кирпич+сталь -> пусто, перманентно);
-//   3 star   — апгрейд брони врага;
-//   4 grenade— взорвать защитников;
-//   5 tank   — подкрепление (ENEMIES_LEFT++);
-//   6 pistol — супер-оружие врагу (если включена фича `pistol`).
+// Mapping (agreed):
+//   0 helmet — no effect (absorb only);
+//   1 clock  — freeze the defenders (DEF 0,1);
+//   2 shovel — remove the base protection entirely (brick+steel -> empty, permanently);
+//   3 star   — upgrade the enemy's armor;
+//   4 grenade— blow up the defenders;
+//   5 tank   — reinforcement (ENEMIES_LEFT++);
+//   6 pistol — super-weapon for the enemy (if the `pistol` feature is enabled).
 //
-// Относительный путь: ./emulator-core/features/enemy-prizes.ts
+// Relative path: ./emulator-core/features/enemy-prizes.ts
 import { RAM } from "../rom-contract.ts";
 import { DEF_PORTS, PISTOL_SHOTS, isBrick, isSteel } from "../domain.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
 import { fireRailgun, initRailgunFx, renderRailgunFx, resetRailgunFx } from "./railgun.ts";
 
-const FREEZE_FRAMES = 0x0a; // как ram_clock_timer в ROM
-const ENEMY_FIRST = 2; // танки 2..7 — враги/ATT
+const FREEZE_FRAMES = 0x0a; // like ram_clock_timer in ROM
+const ENEMY_FIRST = 2; // tanks 2..7 — enemies/ATT
 
-// id приза -> настройка «доступен врагу» (выкл — приз остаётся на поле).
+// prize id -> "available to enemy" setting (off — the prize stays on the field).
 const ALLOW_FIELD: Record<number, string> = {
   0: "allowHelmet",
   1: "allowClock",
@@ -39,8 +39,8 @@ function allowMask(options: Record<string, unknown>): number {
   return mask & 0xff;
 }
 
-// Снять защиту базы: кирпич и сталь вокруг орла -> пусто; штаб не трогаем.
-// Область стен базы — те же клетки, что рисует sub_CAF5_draw_default_base (rows 24..27, cols 12..17).
+// Remove base protection: bricks and steel around the eagle -> empty; don't touch the HQ.
+// Base wall area — the same cells that sub_CAF5_draw_default_base draws (rows 24..27, cols 12..17).
 function clearBaseProtection(ctx: FeatureContext): void {
   const mem = ctx.kernel.mem;
   const onlyBricks = ctx.options?.shovelMode === "bricks";
@@ -54,10 +54,10 @@ function clearBaseProtection(ctx: FeatureContext): void {
       for (const nt of ctx.kernel.ppuNameTable) nt.tile[off] = 0;
     }
   }
-  mem[RAM.FORTIFIED] = 0; // ram_shovel_timer: остановить восстановление/мигание
+  mem[RAM.FORTIFIED] = 0; // ram_shovel_timer: stop recovery/blinking
 }
 
-// Апгрейд брони врага на ступень (0x80 -> 0xa0 -> 0xc0 -> 0xe0), сохраняя младшие биты.
+// Upgrade enemy armor by one step (0x80 -> 0xa0 -> 0xc0 -> 0xe0), keeping the low bits.
 function upgradeEnemyArmor(ctx: FeatureContext, idx: number, levels = 1): void {
   const mem = ctx.kernel.mem;
   const type = mem[RAM.TANK_TYPE + idx];
@@ -65,18 +65,18 @@ function upgradeEnemyArmor(ctx: FeatureContext, idx: number, levels = 1): void {
   mem[RAM.TANK_TYPE + idx] = (type & 0x1f) | hi;
 }
 
-// Взорвать защитников (granata в руках врага): штатная последовательность взрыва.
+// Blow up the defenders (a grenade in the enemy's hands): the standard explosion sequence.
 function explodeDefenders(ctx: FeatureContext, lethal: boolean): void {
   const mem = ctx.kernel.mem;
   for (let t = 0; t < DEF_PORTS; t++) {
     const flag = mem[RAM.TANK_FLAG + t];
-    if (!(flag & 0x80) || flag >= 0xe0) continue; // только «на поле»
+    if (!(flag & 0x80) || flag >= 0xe0) continue; // only "on field"
     if (lethal) {
       mem[RAM.TANK_FLAG + t] = 0x73;
       mem[RAM.TANK_TYPE + t] = 0;
       mem[RAM.SFX_EXPLOSION_PLAYER] = 1;
     } else {
-      mem[RAM.STUN + t] = 0xc8; // стан вместо взрыва
+      mem[RAM.STUN + t] = 0xc8; // stun instead of explosion
     }
   }
 }
@@ -84,40 +84,40 @@ function explodeDefenders(ctx: FeatureContext, lethal: boolean): void {
 function applyEffect(ctx: FeatureContext, idx: number, id: number): void {
   const mem = ctx.kernel.mem;
   switch (id) {
-    case 1: { // clock — заморозить защитников
+    case 1: { // clock — freeze the defenders
       const frames = Math.max(1, Math.min(0xff, Math.round(Number(ctx.options?.freezeFrames ?? FREEZE_FRAMES) || FREEZE_FRAMES)));
       for (let t = 0; t < DEF_PORTS; t++) mem[RAM.PRIZE_FREEZE + t] = frames;
       break;
     }
-    case 2: // shovel — снять защиту базы
+    case 2: // shovel — remove base protection
       clearBaseProtection(ctx);
       break;
-    case 0: // helmet — по настройке: ничего или +1 броня
+    case 0: // helmet — by setting: nothing or +1 armor
       if (ctx.options?.helmetEffect === "armor") upgradeEnemyArmor(ctx, idx, 1);
       break;
-    case 3: { // star — броня врага на starLevels ступеней
+    case 3: { // star — enemy armor by starLevels steps
       const levels = Math.max(1, Math.min(3, Math.round(Number(ctx.options?.starLevels ?? 1) || 1)));
       upgradeEnemyArmor(ctx, idx, levels);
       break;
     }
-    case 4: // grenade — взорвать (или стан) защитников
+    case 4: // grenade — blow up (or stun) the defenders
       explodeDefenders(ctx, ctx.options?.grenadeLethal !== false);
       break;
-    case 5: { // tank — подкрепление (можно отключить настройкой)
+    case 5: { // tank — reinforcement (can be disabled by setting)
       if (ctx.options?.reinforcement !== false && mem[RAM.ENEMIES_LEFT] !== 0xff && mem[RAM.ENEMIES_LEFT] < 0xff) {
         const add = Math.max(1, Math.min(3, Math.round(Number(ctx.options?.reinforceCount ?? 1) || 1)));
         mem[RAM.ENEMIES_LEFT] = (mem[RAM.ENEMIES_LEFT] + add) & 0xff;
       }
       break;
     }
-    case 6: // pistol — супер-оружие врагу (только вместе с фичей `pistol`)
+    case 6: // pistol — super-weapon for the enemy (only together with the `pistol` feature)
       if (ctx.kernel.hasFeature("pistol") && idx >= ENEMY_FIRST) {
         const ammo = Math.max(1, Math.min(10, Math.round(Number(ctx.options?.pistolAmmo ?? PISTOL_SHOTS) || PISTOL_SHOTS)));
         mem[RAM.ENEMY_PISTOL_AMMO + (idx - ENEMY_FIRST)] = ammo;
       }
       break;
     default:
-      break; // неизвестные — без эффекта
+      break; // unknown — no effect
   }
 }
 
@@ -141,8 +141,8 @@ export const enemyPrizesRuntime: FeatureRuntime = {
 
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
-    mem[RAM.ENEMY_PRIZE_ALLOW] = allowMask(ctx.options || {}); // переживает rollback/loadState
-    // 1) событие подбора приза врагом (запись ROM-хука)
+    mem[RAM.ENEMY_PRIZE_ALLOW] = allowMask(ctx.options || {}); // survives rollback/loadState
+    // 1) enemy prize-pickup event (written by the ROM hook)
     const idx = mem[RAM.ENEMY_PRIZE_IDX];
     if (idx !== 0xff) {
       const id = mem[RAM.ENEMY_PRIZE_ID];
@@ -150,14 +150,14 @@ export const enemyPrizesRuntime: FeatureRuntime = {
       mem[RAM.ENEMY_PRIZE_ID] = 0xff;
       if (idx >= ENEMY_FIRST && idx <= 7) applyEffect(ctx, idx, id);
     }
-    // 2) враг с супер-оружием: обычный выстрел заменяем лучом
+    // 2) enemy with a super-weapon: replace the normal shot with a beam
     const before = ctx.state.enemyBulletBefore as number[];
     for (let i = 0; i < 6; i++) {
       const t = ENEMY_FIRST + i;
       if (mem[RAM.ENEMY_PISTOL_AMMO + i] <= 0) continue;
-      // выстрел врага (ROM/AI) в этом кадре: пуля появилась
+      // enemy shot (ROM/AI) this frame: a bullet appeared
       if (before[i] !== 0 || mem[RAM.BULLET_STATUS + t] === 0) continue;
-      mem[RAM.BULLET_STATUS + t] = 0; // подавить обычную пулю
+      mem[RAM.BULLET_STATUS + t] = 0; // suppress the normal bullet
       fireRailgun(ctx, t);
       const ammo = mem[RAM.ENEMY_PISTOL_AMMO + i] - 1;
       mem[RAM.ENEMY_PISTOL_AMMO + i] = ammo > 0 ? ammo : 0;

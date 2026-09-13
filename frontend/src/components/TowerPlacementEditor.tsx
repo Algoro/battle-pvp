@@ -1,17 +1,17 @@
-// TowerPlacementEditor.tsx — редактор расстановки башен (адаптация StagePreview).
-// Рисует стадию из ROM (блоки/тайлы/палитры), сетку 13×13, подсветку строимых клеток
-// и уже поставленные башни. Клик по клетке отдаёт её наружу (cell = row*13+col).
+// TowerPlacementEditor.tsx — tower placement editor (an adaptation of StagePreview).
+// Draws the stage from the ROM (blocks/tiles/palettes), a 13×13 grid, highlighting of buildable cells
+// and the towers already placed. A click on a cell reports it outward (cell = row*13+col).
 //
-// Стадия (тяжёлый попиксельный разбор) рисуется один раз в offscreen-канвас; каждый
-// кадр поверх копируется только дешёвый слой башен (иначе 60 fps перерисовывали всю
-// стадию из-за нового массива towers при каждом снимке статуса).
+// The stage (expensive per-pixel parsing) is drawn once into an offscreen canvas; each
+// frame only the cheap tower layer is copied on top (otherwise 60 fps would redraw the whole
+// stage because of a new towers array on every status snapshot).
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { useT } from "../i18n/index.tsx";
 import { TD_SIZE, towerById } from "../../../shared/tower-defence.ts";
 
-const FIELD = TD_SIZE; // блоков
-const BLOCK = 16; // пикселей на блок
+const FIELD = TD_SIZE; // blocks
+const BLOCK = 16; // pixels per block
 const SIZE = FIELD * BLOCK; // 208
 const BG = [10, 14, 20];
 
@@ -54,7 +54,7 @@ export default function TowerPlacementEditor({
   const baseRef = useRef<HTMLCanvasElement | null>(null);
   const [baseReady, setBaseReady] = useState(0);
 
-  // Слой 1: стадия + сетка + строимые клетки. Тяжёлый, пересобирается редко.
+  // Layer 1: stage + grid + buildable cells. Expensive, rebuilt rarely.
   useEffect(() => {
     const base = baseRef.current ?? document.createElement("canvas");
     baseRef.current = base;
@@ -110,7 +110,7 @@ export default function TowerPlacementEditor({
     setBaseReady((n) => n + 1);
   }, [emulator, stage, buildable]);
 
-  // Слой 2: копия стадии + башни. Дешёвый, обновляется при изменении состава.
+  // Layer 2: stage copy + towers. Cheap, updated when the composition changes.
   useEffect(() => {
     const canvas = canvasRef.current;
     const base = baseRef.current;
@@ -137,7 +137,7 @@ export default function TowerPlacementEditor({
       ctx.font = "bold 9px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      // Инициалы башни берём от переведённого названия, а не от русского источника.
+      // Tower initials are taken from the translated name, not from the Russian source.
       ctx.fillText(info ? t(info.title).slice(0, 2) : "?", cx, cy + 0.5);
     }
   }, [baseReady, towers, t]);

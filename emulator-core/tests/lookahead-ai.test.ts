@@ -1,4 +1,4 @@
-// lookahead-ai.test.js — юнит-тесты ИИ с предсказанием будущего (lookahead-ai.js).
+// lookahead-ai.test.js — unit tests for the future-prediction AI (lookahead-ai.js).
 import { test } from "node:test";
 import assert from "node:assert";
 import { lookaheadPlan } from "../ai/lookahead-ai.ts";

@@ -1,14 +1,14 @@
-// local.ts — in-process транспорт для тестов/эмуляции сети.
-// Поддерживает задержку (в кадрах), джиттер и потери пакетов, с детерминированным PRNG.
+// local.ts — in-process transport for tests/network emulation.
+// Supports delay (in frames), jitter, and packet loss, with a deterministic PRNG.
 //
-// Модель времени: тест после каждого advanceFrame() вызывает flush() на обоих
-// концах, доставляя сообщения, срок которых наступил на текущем «кадре».
+// Time model: after each advanceFrame() the test calls flush() on both
+// ends, delivering messages whose due time has arrived on the current "frame".
 //
-// Относительный путь: ./netcode/transport/local.ts
+// Relative path: ./netcode/transport/local.ts
 
 export type Rng = () => number;
 
-// Детерминированный LCG (чтобы тесты с задержкой/потерями были воспроизводимы).
+// Deterministic LCG (so tests with delay/loss are reproducible).
 export function makeRng(seed = 0x12345678): Rng {
   let s = seed >>> 0;
   return () => {
@@ -41,9 +41,9 @@ export class LocalEndpoint {
 
   constructor(peer: LocalEndpoint | null, { delay = 0, loss = 0, jitter = 0, rng = makeRng() }: LocalEndpointOptions = {}) {
     this.peer = peer;
-    this.delay = delay; // кадров
+    this.delay = delay; // frames
     this.loss = loss; // 0..1
-    this.jitter = jitter; // кадров (+-)
+    this.jitter = jitter; // frames (+-)
     this.rng = rng;
   }
 
@@ -71,7 +71,7 @@ export class LocalEndpoint {
     this.queue.get(dueFrame)!.push(buf);
   }
 
-  // Отправка ставит сообщение в ОЧЕРЕДЬ СОПЕРНИКА (delivery на его кадре/часах).
+  // Sending places the message in the PEER'S QUEUE (delivery on its frame/clock).
   send(buf: Uint8Array): void {
     if (this.closed) return;
     this.sent++;
@@ -84,7 +84,7 @@ export class LocalEndpoint {
     this.peer!.enqueue(due, buf);
   }
 
-  // Доставляет сообщения, срок которых наступил на текущем кадре, и инкрементит кадр.
+  // Delivers messages whose due time has arrived on the current frame, and increments the frame.
   flush(): void {
     const due = this.queue.get(this.frame);
     if (due && this.cb) {
@@ -97,13 +97,13 @@ export class LocalEndpoint {
     this.frame++;
   }
 
-  // Пара связанных endpoin'ов с независимыми (или общим) PRNG.
+  // A pair of linked endpoints with independent (or shared) PRNGs.
   static pair(
     optsA: Omit<LocalEndpointOptions, "rng"> = {},
     optsB: Omit<LocalEndpointOptions, "rng"> = {},
     sharedRng: Rng = makeRng(),
   ): { a: LocalEndpoint; b: LocalEndpoint } {
-    // чтобы конфигурации A и B были независимы, дадим им разные потоки PRNG
+    // to keep configurations A and B independent, give them separate PRNG streams
     const rngA = sharedRng;
     const rngB = makeRng(0x9e3779b9);
     const a = new LocalEndpoint(null, { ...optsA, rng: rngA });

@@ -1,25 +1,25 @@
-// wrap-borders.ts — JS-рантайм фичи «открытые края».
+// wrap-borders.ts — JS runtime of the "open borders" feature.
 //
-// ROM-патч убирает неразрушимую рамку уровня; здесь игровая зона (26×26 тайлов,
-// 2..27) превращается в тор: объект, вышедший за шов, появляется с противоположной
-// стороны. Границы — по центру объекта: игровая зона 208 px (26 тайлов), танк 16 px,
-// поэтому центр ходит в диапазоне 0x18..0xD8, а период тора = 0xD8-0x18 = 192 px
-// (объект выходит одной стороной ровно там, где входит другой).
+// The ROM patch removes the indestructible level border; here the play area (26×26 tiles,
+// 2..27) becomes a torus: an object that leaves through the seam appears on the opposite
+// side. The boundaries are at the object's center: the play area is 208 px (26 tiles), the tank 16 px,
+// so the center ranges over 0x18..0xD8, and the torus period = 0xD8-0x18 = 192 px
+// (an object exits on one side exactly where it enters on the other).
 //
-// Перенос делается только при фактическом переходе «внутри → снаружи» (запоминаем
-// прошлую позицию), поэтому спавн врагов у верхней кромки (y=0, вне зоны) не
-// телепортирует их сразу. Если противоположная сторона занята (кирпич/сталь/вода/
-// орёл), перенос не делается: танк упирается в шов, пуля гаснет. Всё в postFrame,
-// до getFrameHash, без Date/Math.random — детерминировано.
+// Wrapping is done only on an actual "inside → outside" transition (we remember
+// the previous position), so enemy spawns at the top edge (y=0, outside the area) do not
+// teleport immediately. If the opposite side is occupied (brick/steel/water/
+// eagle), no wrap is done: the tank stops at the seam, the bullet is extinguished. All in postFrame,
+// before getFrameHash, without Date/Math.random — deterministic.
 //
-// Относительный путь: ./emulator-core/features/wrap-borders.ts
+// Relative path: ./emulator-core/features/wrap-borders.ts
 import { RAM } from "../rom-contract.ts";
 import { BULLET, blocksBullet, tankPassable } from "../domain.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
 
-const LOW = 0x18; // центр танка в первой клетке игровой зоны (тайл 2)
-const HIGH = 0xd8; // центр танка в последней клетке игровой зоны (тайл 27)
-const PERIOD = HIGH - LOW; // 192 px — расстояние между швами (208 - ширина танка)
+const LOW = 0x18; // tank center in the first cell of the play area (tile 2)
+const HIGH = 0xd8; // tank center in the last cell of the play area (tile 27)
+const PERIOD = HIGH - LOW; // 192 px — distance between seams (208 - tank width)
 const FIELD_W = 32;
 
 interface WrapState {
@@ -38,7 +38,7 @@ function wst(ctx: FeatureContext): WrapState {
   }) as WrapState;
 }
 
-// Свободны ли 2×2 клетки под 16-px танк с центром (cx, cy).
+// Are the 2×2 cells under a 16-px tank centered at (cx, cy) free.
 function tankFits(mem: Uint8Array, cx: number, cy: number): boolean {
   const c0 = (cx - 8) >> 3;
   const r0 = (cy - 8) >> 3;
@@ -51,9 +51,9 @@ function tankFits(mem: Uint8Array, cx: number, cy: number): boolean {
   return true;
 }
 
-// Вышел за шов за этот кадр? Возвращает перенесённую координату или исходную.
-// prev === null — объект только что появился: танк не переносим (спавн у кромки),
-// пулю переносим, если она сразу оказалась снаружи и летит наружу (выстрел у шва).
+// Left through the seam this frame? Returns the wrapped coordinate or the original one.
+// prev === null — the object just appeared: the tank is not wrapped (spawn at the edge),
+// the bullet is wrapped if it immediately ended up outside and is flying outward (a shot at the seam).
 function crossAxis(prev: number | null, now: number, outwardLow: boolean, outwardHigh: boolean): number {
   if (prev === null) {
     if (outwardLow && now < LOW) return now + PERIOD;
@@ -73,7 +73,7 @@ function wrapTank(ctx: FeatureContext, mem: Uint8Array, t: number): void {
   if (flag < 0x80 || flag >= 0xe0) {
     s.tx[t] = null;
     s.ty[t] = null;
-    return; // мёртв/взрыв/респавн
+    return; // dead/exploding/respawning
   }
 
   const wrapX = ctx.options?.wrapX !== false;
@@ -138,7 +138,7 @@ function wrapBullet(ctx: FeatureContext, mem: Uint8Array, b: number): void {
 export const wrapBordersRuntime: FeatureRuntime = {
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
-    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // матч не начат
+    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // match not started
     for (let t = 0; t <= 7; t++) wrapTank(ctx, mem, t);
     for (let b = 0; b <= 7; b++) wrapBullet(ctx, mem, b);
   },

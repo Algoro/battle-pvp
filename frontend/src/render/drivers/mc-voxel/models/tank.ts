@@ -1,7 +1,7 @@
-// tank.ts — воксельный танк в стиле sandbox: кубические корпус/башня/гусеницы,
-// командный тинт, броня/скорость/звёзды/каска/стан/мигание.
+// tank.ts — voxel tank in sandbox style: cubic body/turret/tracks,
+// team tint, armor/speed/stars/helmet/stun/blinking.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/models/tank.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/models/tank.ts
 import * as THREE from "three";
 import type { TextureAtlas } from "../atlas.ts";
 import { DIR_ROT } from "../../../coords.ts";

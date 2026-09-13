@@ -1,7 +1,7 @@
-// settings.ts — универсальная работа с декларативными настройками плагинов рендера:
-// дефолты, нормализация по схеме, применение пресетов. Без знания о конкретном драйвере.
+// settings.ts — universal handling of declarative render plugin settings:
+// defaults, schema normalization, preset application. Without knowledge of a specific driver.
 //
-// Относительный путь: ./frontend/src/render/settings.ts
+// Relative path: ./frontend/src/render/settings.ts
 import type { RenderSettingSpec, RenderSettingsSpec, SettingValue } from "../../../shared/renderers.ts";
 
 export type SettingValues = Record<string, SettingValue>;
@@ -31,7 +31,7 @@ function coerce(field: RenderSettingSpec, value: unknown, fallback: SettingValue
   }
 }
 
-/** Полный валидный набор значений по схеме (лишние ключи отбрасываются). */
+/** Full valid set of values per the schema (extra keys are dropped). */
 export function normalizeValues(spec: RenderSettingsSpec, raw: unknown): SettingValues {
   const src = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const out: SettingValues = {};
@@ -39,7 +39,7 @@ export function normalizeValues(spec: RenderSettingsSpec, raw: unknown): Setting
   return out;
 }
 
-/** Применить пресет: его значения перекрывают текущие, остальные сохраняются. */
+/** Apply a preset: its values override the current ones, the rest are kept. */
 export function applyPreset(spec: RenderSettingsSpec, presetId: string, current: SettingValues): SettingValues {
   const preset = spec.presets?.find((p) => p.id === presetId);
   if (!preset) return current;

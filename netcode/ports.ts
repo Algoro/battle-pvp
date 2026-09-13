@@ -1,9 +1,9 @@
-// ports.ts — порты (интерфейсы) слоя netcode. Внутренний код зависит только от них,
-// конкретные реализации (jsnes, WebRTC, WebSocket) подаются адаптерами извне.
+// ports.ts — ports (interfaces) of the netcode layer. Internal code depends only on them;
+// concrete implementations (jsnes, WebRTC, WebSocket) are supplied by external adapters.
 //
-// Контракт для адаптеров и тестов. Модуль намеренно не импортирует ничего.
+// Contract for adapters and tests. The module intentionally imports nothing.
 
-// Полный ввод кадра: логический порт танка и битовая маска кнопок.
+// Full frame input: the tank's logical port and the button bitmask.
 export type Input = { port: number; buttons: number };
 
 export interface GameCore {
@@ -38,7 +38,7 @@ export interface Logger {
   error(msg: string): void;
 }
 
-/** Системные часы (монотонные миллисекунды). Для тестов подменяются fake Clock. */
+/** System clock (monotonic milliseconds). Replaced by a fake Clock in tests. */
 export const systemClock: Clock = {
   now() {
     return typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();

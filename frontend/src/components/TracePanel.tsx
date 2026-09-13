@@ -1,6 +1,6 @@
-// TracePanel.tsx — лог/трейс решений каждого ИИ с фильтрами событий.
-// Получает события из ядра (pvp.js: side, event, goal, dir, fire, tank, frame).
-// Опрос ядра по таймеру (не каждый кадр), фильтрация и рендер в прокручиваемый список.
+// TracePanel.tsx — log/trace of each AI's decisions with event filters.
+// Receives events from the core (pvp.js: side, event, goal, dir, fire, tank, frame).
+// Polls the core on a timer (not every frame), filters and renders into a scrollable list.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { useT } from "../i18n/index.tsx";
@@ -26,14 +26,14 @@ export default function TracePanel({ emulator }: Props) {
   const [events, setEvents] = useState<any[]>([]);
   const listRef = useRef<HTMLDivElement>(null);
 
-  // Включение сбора трейса на ядре.
+  // Enabling trace collection in the core.
   useEffect(() => {
     emulator.setTraceEnabled(enabled);
     emulator.setTraceCap(cap);
     if (!enabled) setEvents([]);
   }, [enabled, cap, emulator]);
 
-  // Периодический опрос ядра и автоскролл к последнему событию.
+  // Periodic polling of the core and auto-scroll to the latest event.
   useEffect(() => {
     if (!enabled) return;
     const id = setInterval(() => {

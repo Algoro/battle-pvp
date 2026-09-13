@@ -1,4 +1,4 @@
-// CreateRoomDialog.tsx — создание игры с настройкой числа слотов по сторонам.
+// CreateRoomDialog.tsx — creating a game with the number of slots configured per side.
 import { useState } from "react";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";

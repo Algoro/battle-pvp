@@ -1,7 +1,7 @@
-// camera-controls.ts — привязка ввода (мышь/тач/клавиатура) к CameraRig.
-// Клавиши не пересекаются с игровыми (WASD/стрелки/Z/Enter): Q/E, R/F, T/G, H, 1-3, +/-.
+// camera-controls.ts — binding input (mouse/touch/keyboard) to CameraRig.
+// The keys do not overlap with game keys (WASD/arrows/Z/Enter): Q/E, R/F, T/G, H, 1-3, +/-.
 //
-// Относительный путь: ./frontend/src/render/camera-controls.ts
+// Relative path: ./frontend/src/render/camera-controls.ts
 import type { CameraRig } from "./camera-rig.ts";
 
 const ORBIT_SPEED = 0.008;
@@ -49,7 +49,7 @@ export function attachCameraControls(container: HTMLElement, rig: CameraRig): ()
   const onDoubleClick = () => rig.reset();
 
   const onKeyDown = (e: KeyboardEvent) => {
-    // Не перехватываем ввод в текстовых полях/селектах (позывной, настройки и т.п.).
+    // Do not capture input in text fields/selects (callsign, settings, etc.).
     const t = e.target as HTMLElement | null;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
     switch (e.key) {

@@ -1,5 +1,5 @@
-// netcode-extra.test.js — sync-test режим + jitter/потери + нагрузка комнат.
-// Запуск: node --test tests/netcode-extra.test.js
+// netcode-extra.test.js — sync-test mode + jitter/loss + room load.
+// Run: node --test tests/netcode-extra.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { fileURLToPath } from "node:url";
@@ -20,8 +20,8 @@ test("sync-mode: клиенты с задержкой ~100мс сходятся 
 });
 
 test("sync-mode: избыточность ввода скрывает потери пакетов (без desync)", () => {
-  // с избыточностью (по умолчанию redundancy=4) кадр шлётся 4 раза —
-  // потеря 10% одиночных пакетов восстанавливается без необратимого desync
+  // with redundancy (redundancy=4 by default) a frame is sent 4 times —
+  // the loss of 10% of single packets is recovered without irreversible desync
   const r = runSync({ romPath: ROM, frames: 200, loss: 0.1, jitter: 1 });
   assert.strictEqual(r.converged, true, "состояния не сошлись при потере 10%");
   assert.strictEqual(r.desyncA, 0, "desyncA");
@@ -29,7 +29,7 @@ test("sync-mode: избыточность ввода скрывает потер
 });
 
 test("sync-mode: без избыточности потеря пакетов приводит к desync", () => {
-  // redundancy=1 — каждый кадр один раз; потери не восстанавливаются -> desync
+  // redundancy=1 — each frame once; losses are not recovered -> desync
   const r = runSync({ romPath: ROM, frames: 300, loss: 0.5, jitter: 1, redundancy: 1 });
   assert.ok(r.desyncA > 0 || r.desyncB > 0, "потеря пакетов не вызвала обнаружение desync");
 });
@@ -46,16 +46,16 @@ test("sync-mode: отчёт содержит пофреймовые хэши (д
 test("нагрузка комнат: массовое создание матчей и очистка TTL", () => {
   const rm = new RoomManager({ ttlMs: 100 });
   const mm = new Matchmaker(rm);
-  // 500 пар -> 500 комнат
+  // 500 pairs -> 500 rooms
   for (let i = 0; i < 500; i++) {
     mm.add(`d${i}`, TEAM_DEF, `s${i}`);
     mm.add(`a${i}`, TEAM_ATT, `s${i}`);
   }
   assert.strictEqual(rm.rooms.size, 500);
-  // завершаем матчи и чистим по TTL
+  // finish the matches and clean up by TTL
   for (const room of rm.rooms.values()) room.finish(TEAM_DEF);
   rm.cleanup(Date.now() + 1000);
   assert.strictEqual(rm.rooms.size, 0, "завершённые комнаты не очищены");
-  // очередь матчмейкера пуста после пар
+  // the matchmaker queue is empty after the pairs
   assert.strictEqual(mm.queue.length, 0);
 });

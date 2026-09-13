@@ -1,7 +1,7 @@
-// rollback.test.js — интеграционный тест netcode (критерий №4).
-// Два клиента играют через локальный транспорт с задержкой 50-150 мс (~3-9 кадров);
-// rollback должен свести оба к идентичному состоянию без desync-событий.
-// Запуск: node --test tests/rollback.test.js
+// rollback.test.js — netcode integration test (criterion #4).
+// Two clients play over a local transport with 50-150 ms latency (~3-9 frames);
+// rollback must converge both to an identical state without desync events.
+// Run: node --test tests/rollback.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -19,7 +19,7 @@ function loadRom() {
   return readFileSync(join(root, "rom", "disasm", "_battle_city.nes"));
 }
 
-// Детерминированная генерация входов: A управляет портами 0,1; B — портами 2,3.
+// Deterministic input generation: A controls ports 0,1; B — ports 2,3.
 function makePeerInputs(seed: number, frames: number, ports: number[]): Input[][] {
   let s = seed >>> 0;
   const next = () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0));
@@ -81,7 +81,7 @@ function runMatch({
     ta.flush();
     tb.flush();
   }
-  // drain: доставить оставшиеся сообщения, давая rollback'ам довести оба до согласованного состояния
+  // drain: deliver the remaining messages, letting the rollbacks bring both to an agreed state
   let safety = frames * 2;
   while ((ta.sent > ta.delivered || tb.sent > tb.delivered) && safety-- > 0) {
     ta.flush();
@@ -92,7 +92,7 @@ function runMatch({
 }
 
 test("два клиента с задержкой ~100 мс сходятся без desync (критерий №4)", () => {
-  // 6 кадров задержки ~ 100 мс при 60fps (в диапазоне 50-150 мс)
+  // 6 frames of latency ~ 100 ms at 60fps (within the 50-150 ms range)
   const { sessA, sessB, gameA, gameB } = runMatch({
     delayA: 6, delayB: 6, jitter: 1, frames: 120,
   });
@@ -108,27 +108,27 @@ test("без задержки оба клиента идентичны с пер
   const { gameA, gameB, sessA, sessB } = runMatch({ frames: 120 });
   assert.strictEqual(gameA.getFrameHash(), gameB.getFrameHash());
   assert.strictEqual(sessA.desyncCount, 0);
-  // даже при delay=0 есть задержка в 1 кадр (send после симуляции -> flush соперника),
-  // поэтому rollback происходит на каждом кадре; главное — сходимость.
+  // even with delay=0 there is a 1-frame delay (send after simulation -> peer's flush),
+  // so a rollback happens on every frame; the important thing is convergence.
   assert.strictEqual(sessA.rollbackCount, 120);
   assert.strictEqual(sessA.currentFrame, sessB.currentFrame);
 });
 
 test("детект десинка: расхождение состояния фиксируется сверкой хэша", () => {
-  // checkpointInterval=1: искусственная порча game не воспроизводится реплеем из
-  // чекпоинта (sparse-откат её сотрёт), поэтому здесь нужен покадровый чекпоинт.
+  // checkpointInterval=1: artificial game corruption is not reproduced by replay from
+  // a checkpoint (a sparse rollback would erase it), so a per-frame checkpoint is needed here.
   const { sessA, sessB } = runMatch({ delayA: 6, delayB: 6, frames: 60, checkpointInterval: 1 });
   assert.strictEqual(sessA.desyncCount, 0);
   assert.strictEqual(sessB.desyncCount, 0);
 
-  // Искусственно портим состояние B — хэши разойдутся.
+  // Artificially corrupt B's state — the hashes will diverge.
   sessB.game.stepFrame([{ port: 0, buttons: 0xff }]);
 
   const eventsB: SessionEvent[] = [];
   const origOnEvent = sessB.onEvent;
   sessB.onEvent = (e) => { eventsB.push(e); origOnEvent(e); };
 
-  // Играем дальше; периодические hash-check должны зафиксировать расхождение.
+  // Keep playing; the periodic hash-checks must record the divergence.
   for (let f = 0; f < 90; f++) {
     sessA.advanceFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
     sessB.advanceFrame([{ port: 2, buttons: 0 }, { port: 3, buttons: 0 }]);

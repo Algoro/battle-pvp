@@ -1,6 +1,6 @@
-// field-driver.test.js — tank-driver на РЕАЛЬНОМ runtime-поле из игры (RAM $0400).
-// Проверяет: проходимость, движение/блокировку структур на реальном поле.
-// Запуск: node --test tests/field-driver.test.js
+// field-driver.test.js — tank-driver on the REAL runtime field from the game (RAM $0400).
+// Verifies: passability, movement/blocking of structures on the real field.
+// Run: node --test tests/field-driver.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import { canPlace, stepTank, runtimePassable, FIELD, TILE, TANK } from "../io/ta
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = join(__dirname, "..", "..", "rom", "disasm", "_battle_city.nes");
 
-// Получает runtime-поле 32x32 (байты $0400-$07FF) во время игры.
+// Gets the 32x32 runtime field (bytes $0400-$07FF) during the game.
 function getField() {
   const emu = new PvPNes();
   emu.loadROM(readFileSync(ROM));
@@ -37,13 +37,13 @@ test("runtime-поле: есть и проходимые, и блокирующ�
 
 test("проходимая клетка: танк может стоять и двигаться", () => {
   const field = getField();
-  // найдём проходимую клетку (8px), где танк 13px целиком встаёт
+  // find a passable cell (8px) where the 13px tank fully fits
   let start = null;
   for (let y = TILE; y < FIELD * TILE - TANK && !start; y += TILE)
     for (let x = TILE; x < FIELD * TILE - TANK; x += TILE)
       if (canPlace(x, y, field, runtimePassable)) { start = { x, y }; break; }
   assert.ok(start, "не найдена проходимая клетка для танка");
-  // сделает шаг хотя бы в одном направлении
+  // makes a step in at least one direction
   let moved = null;
   for (let d = 0; d < 4; d++) if (stepTank(start, d, field, runtimePassable)) { moved = d; break; }
   assert.ok(moved !== null, `танк не смог шагнуть ни в одну сторону на (${start.x},${start.y})`);

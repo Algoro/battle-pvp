@@ -1,14 +1,14 @@
-// types.ts — контракты СЛОЯ РЕНДЕРА: драйверы, расширения, хост и авторитетный срез.
+// types.ts — RENDER LAYER contracts: drivers, extensions, host and authoritative slice.
 //
-// Инварианты:
-//   * всё, что получает драйвер/расширение, — это ТОЛЬКО read-only SceneState;
-//   * слой рендера не вызывает методы ядра, меняющие состояние (stepFrame/saveState/…);
-//   * драйвер ровно один, расширений — сколько угодно (упорядочены).
+// Invariants:
+//   * everything a driver/extension receives is ONLY a read-only SceneState;
+//   * the render layer does not call core methods that change state (stepFrame/saveState/…);
+//   * there is exactly one driver, any number of extensions (ordered).
 //
-// Относительный путь: ./frontend/src/render/types.ts
+// Relative path: ./frontend/src/render/types.ts
 import type { CameraRig } from "./camera-rig.ts";
 
-// --- Авторитетный срез для отрисовки (из RAM; без записи) -------------------
+// --- Authoritative slice for drawing (from RAM; without writes) -------------------
 
 export interface RenderBounds {
   col0: number;
@@ -22,7 +22,7 @@ export type TankVisualState = "dead" | "spawning" | "exploding" | "alive";
 export interface SceneTank {
   index: number;
   team: "DEF" | "ATT";
-  /** RAM-пиксели (8 px на клетку поля). */
+  /** RAM pixels (8 px per field cell). */
   x: number;
   y: number;
   dir: 0 | 1 | 2 | 3;
@@ -53,17 +53,17 @@ export interface ScenePrize {
   y: number;
 }
 
-/** Неподвижная башня tower defence (из JS-рантайма, не из RAM). */
+/** Stationary tower defence tower (from the JS runtime, not from RAM). */
 export interface SceneTower {
-  /** Клетка поля r*13+c (блок 16×16 px). */
+  /** Field cell r*13+c (block 16×16 px). */
   cell: number;
-  /** id типа башни (см. shared/tower-defence). */
+  /** Tower type id (see shared/tower-defence). */
   type: string;
-  /** Уровень апгрейда 0..2. */
+  /** Upgrade level 0..2. */
   level: number;
   hp: number;
   maxHp: number;
-  /** Направление ствола 0..3. */
+  /** Barrel direction 0..3. */
   dir: 0 | 1 | 2 | 3;
 }
 
@@ -81,24 +81,24 @@ export interface SceneEffects {
 
 export interface SceneState {
   frame: number;
-  /** Копия буфера коллизий 32×32 (значения тайлов из domain.TILE). */
+  /** Copy of the 32×32 collision buffer (tile values from domain.TILE). */
   field: Uint8Array;
   bounds: RenderBounds;
   tanks: SceneTank[];
   bullets: SceneBullet[];
   prize: ScenePrize | null;
-  /** Башни tower defence (пусто в обычных режимах). */
+  /** Tower defence towers (empty in normal modes). */
   towers: SceneTower[];
   eagle: SceneEagle;
   effects: SceneEffects;
-  /** Ссылка на пиксельный буфер PPU (для драйвера pixel-2d; не копия). */
+  /** Reference to the PPU pixel buffer (for the pixel-2d driver; not a copy). */
   pixels: Uint32Array | null;
 }
 
-// --- Хост и сущности ---------------------------------------------------------
+// --- Host and entities ---------------------------------------------------------
 
 export interface RenderHost {
-  /** Точка монтирования: драйвер сам создаёт canvas/DOM. */
+  /** Mount point: the driver creates the canvas/DOM itself. */
   container: HTMLElement;
   width: number;
   height: number;
@@ -106,9 +106,9 @@ export interface RenderHost {
   camera: CameraRig;
   scene: SceneState;
   dtMs: number;
-  /** Произвольный обмен между драйвером и расширениями (например, three-контекст). */
+  /** Arbitrary exchange between the driver and extensions (for example, the three context). */
   shared: Record<string, unknown>;
-  /** Локальный игрок (для камеры «из глаз»): порт танка. */
+  /** Local player (for the first-person camera): tank port. */
   viewer: { port: number };
 }
 
@@ -119,7 +119,7 @@ export interface RenderDriver {
   resize(width: number, height: number): void;
   render(dtMs: number): void;
   dispose(): void;
-  /** Необязательные настройки драйвера (локальные, display-only). */
+  /** Optional driver settings (local, display-only). */
   setOptions?(options: unknown): void;
 }
 

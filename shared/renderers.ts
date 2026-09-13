@@ -1,14 +1,14 @@
-// renderers.ts — единый манифест СЛОЯ РЕНДЕРА (метаданные драйверов и расширений).
+// renderers.ts — unified manifest of the RENDER LAYER (metadata of drivers and extensions).
 //
-// Это НЕ игровые патчи (см. shared/features.ts): драйверы/расширения меняют только
-// изображение, полностью локальны, не входят в fingerprint и не влияют на детерминизм.
+// These are NOT game patches (see shared/features.ts): drivers/extensions change only
+// the image, are fully local, do not participate in the fingerprint and do not affect determinism.
 //
-// Источник истины по `id/kind/provides/requires/order`. Из него выводятся:
-//   * реестр рендера (frontend/src/render/registry.ts) — сверяется assertRenderersConsistent;
-//   * UI выбора драйвера/расширений (RenderSettings).
-// Добавление сущности: строка здесь + registerRenderer в реестре (+ модуль драйвера).
+// Source of truth for `id/kind/provides/requires/order`. From it are derived:
+//   * the render registry (frontend/src/render/registry.ts) — checked by assertRenderersConsistent;
+//   * UI for choosing driver/extensions (RenderSettings).
+// Adding an entity: a line here + registerRenderer in the registry (+ driver module).
 //
-// Модуль намеренно без импортов.
+// The module intentionally has no imports.
 
 export type RenderKind = "driver" | "extension";
 
@@ -19,7 +19,7 @@ export interface RenderSettingOption {
   label: string;
 }
 
-/** Декларативное описание одной настройки драйвера/расширения (для авто-UI). */
+/** Declarative description of a single driver/extension setting (for auto-UI). */
 export interface RenderSettingSpec {
   id: string;
   label: string;
@@ -33,7 +33,7 @@ export interface RenderSettingSpec {
   hint?: string;
 }
 
-/** Готовый пресет значений по id настроек. */
+/** Ready-made preset of values by setting id. */
 export interface RenderPresetSpec {
   id: string;
   label: string;
@@ -50,13 +50,13 @@ export interface RendererInfo {
   kind: RenderKind;
   title: string;
   description: string;
-  /** capabilities, которые предоставляет драйвер (для kind="driver"). */
+  /** capabilities provided by the driver (for kind="driver"). */
   provides?: string[];
-  /** capabilities, которые требует расширение (для kind="extension"). */
+  /** capabilities required by the extension (for kind="extension"). */
   requires?: string[];
-  /** Порядок наложения расширений (меньше — раньше). По умолчанию 1000. */
+  /** Order of applying extensions (lower — earlier). Defaults to 1000. */
   order?: number;
-  /** Настройки плагина (генерируют UI автоматически). */
+  /** Plugin settings (generate UI automatically). */
   settings?: RenderSettingsSpec;
 }
 

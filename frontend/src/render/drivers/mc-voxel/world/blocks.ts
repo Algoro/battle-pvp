@@ -1,13 +1,13 @@
-// blocks.ts — отображение тайлов поля Battle City в воксельные блоки (стиль sandbox).
+// blocks.ts — mapping Battle City field tiles to voxel blocks (sandbox style).
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/world/blocks.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/world/blocks.ts
 import { isBrick, isSteel, isWater, isIce, isTree, isRoad, isEagleTile } from "@core/domain.ts";
 
 export type BlockPass = "opaque" | "cutout" | "water";
 
 export interface BlockDef {
   pass: BlockPass;
-  /** Низ/высота блока в юнитах (1 юнит = клетка поля). */
+  /** Bottom/height of a block in units (1 unit = field cell). */
   y0: number;
   h: number;
   solid: boolean;
@@ -34,7 +34,7 @@ function popcount(v: number): number {
   return n;
 }
 
-/** Блок для значения тайла (или null = «воздух»/рисуется отдельной моделью). */
+/** Block for a tile value (or null = "air"/drawn by a separate model). */
 export function blockForTile(v: number): BlockDef | null {
   if (v === 0) return null;
   if (isBrick(v)) {
@@ -48,12 +48,12 @@ export function blockForTile(v: number): BlockDef | null {
   if (isWater(v)) return BLOCK.water;
   if (isIce(v)) return BLOCK.ice;
   if (isTree(v)) return BLOCK.leaves;
-  if (isEagleTile(v)) return null; // орёл — отдельная модель
+  if (isEagleTile(v)) return null; // eagle — a separate model
   if (isRoad(v)) return BLOCK.path;
   return null;
 }
 
-/** Занятость блока на уровне y (для отсечения граней и AO). */
+/** Block occupancy at level y (for face culling and AO). */
 export function solidAt(def: BlockDef | null, y: number): boolean {
   return !!def && def.solid && y >= def.y0 - 1e-6 && y <= def.y0 + def.h + 1e-6;
 }

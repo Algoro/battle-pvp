@@ -1,7 +1,7 @@
-// atlas.ts — процедурный пиксель-арт атлас блоков (16×16 в сетке, опц. 32×32).
-// Никаких внешних/ROM-ассетов: всё рисуется на canvas. Стиль воксельный, «sandbox».
+// atlas.ts — procedural pixel-art block atlas (16×16 in a grid, optionally 32×32).
+// No external/ROM assets: everything is drawn on canvas. Voxel style, "sandbox".
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/atlas.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/atlas.ts
 import * as THREE from "three";
 
 export interface TileUV {
@@ -16,9 +16,9 @@ export interface TextureAtlas {
   cols: number;
   rows: number;
   uv: Record<string, TileUV>;
-  /** Текстура одного тайла (clone с offset/repeat) — для материалов моделей. */
+  /** Texture of a single tile (clone with offset/repeat) — for model materials. */
   tile(name: string): THREE.Texture;
-  /** Отдельная тайлящаяся текстура тайла (для земли/пола). */
+  /** Separate tiling tile texture (for ground/floor). */
   standalone(name: string): THREE.Texture;
 }
 
@@ -130,7 +130,7 @@ const DRAW: Record<string, Draw> = {
     c.clearRect(0, 0, 16, 16);
     for (let y = 0; y < 16; y++) {
       for (let x = 0; x < 16; x++) {
-        if (rnd() < 0.12) continue; // дырки (cutout)
+        if (rnd() < 0.12) continue; // holes (cutout)
         px(c, x, y, rnd() > 0.5 ? "#2f7d32" : "#276b2b");
       }
     }

@@ -1,7 +1,7 @@
-// ppu-ext.test.js — проверка расширения PPU (без правок jsnes):
-//  1) исправление индекса верхнего тайла 8x16-спрайтов;
-//  2) headless-режим noRender не рисует пиксели, но сохраняет side-effects.
-// Запуск: node --test tests/ppu-ext.test.js
+// ppu-ext.test.js — verification of the PPU extension (without modifying jsnes):
+//  1) fixing the top-tile index of 8x16 sprites;
+//  2) the headless noRender mode does not draw pixels but preserves side-effects.
+// Run: node --test tests/ppu-ext.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -31,7 +31,7 @@ function setupSprite16() {
 
   ppu.f_spVisibility = 1;
   ppu.f_spriteSize = 1; // 8x16
-  // один спрайт: tile $B1 (нечётный -> pattern table $1000, top = $1B0), scan 10, sprY=2
+  // one sprite: tile $B1 (odd -> pattern table $1000, top = $1B0), scan 10, sprY=2
   ppu.scanlineSpriteCount[10] = 1;
   const base = 10 * 32;
   ppu.scanlineSecondaryOAM[base + 0] = 2; // sprY
@@ -43,19 +43,19 @@ function setupSprite16() {
 
 test("PPU-расширение: 8x16 спрайт использует top=$1B0, а не $1AF", () => {
   const { ppu, spies } = setupSprite16();
-  ppu.renderSpritesPartially(10, 1, 0); // fineY=7 -> верхняя половина
+  ppu.renderSpritesPartially(10, 1, 0); // fineY=7 -> top half
   assert.strictEqual(spies[0x1b0].calls, 1, "верхний тайл должен быть $B0");
   assert.strictEqual(spies[0x1af].calls, 0, "баг: использован $AF");
 
   spies[0x1b0].calls = 0;
-  // та же OAM-запись для скана 12 (нижняя половина, fineY=9)
+  // the same OAM entry for scan 12 (bottom half, fineY=9)
   ppu.scanlineSpriteCount[12] = 1;
   const b2 = 12 * 32;
   ppu.scanlineSecondaryOAM[b2 + 0] = 2;
   ppu.scanlineSecondaryOAM[b2 + 1] = 0xb1;
   ppu.scanlineSecondaryOAM[b2 + 2] = 0;
   ppu.scanlineSecondaryOAM[b2 + 3] = 10;
-  ppu.renderSpritesPartially(12, 1, 0); // fineY=9 -> нижняя половина (+1)
+  ppu.renderSpritesPartially(12, 1, 0); // fineY=9 -> bottom half (+1)
   assert.strictEqual(spies[0x1b1].calls, 1, "нижний тайл должен быть $B1");
 });
 

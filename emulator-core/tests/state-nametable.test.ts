@@ -1,6 +1,6 @@
-// state-nametable.test.js — регресс: бинарный saveState/loadState обязан восстанавливать
-// РЕНДЕР-кэш PPU (nameTable[].tile/attrib), а не только vramMem/$0400. Иначе после
-// rollback разрушенные кирпичи «висят» на экране (баг онлайна).
+// state-nametable.test.js — regression: binary saveState/loadState must restore the
+// PPU RENDER cache (nameTable[].tile/attrib), not just vramMem/$0400. Otherwise after
+// rollback destroyed bricks "hang" on screen (an online bug).
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -27,7 +27,7 @@ test("saveState/loadState восстанавливает nameTable (рендер
   const snap = a.saveState();
   const before = a.ppu.nameTable.map((nt) => Array.from(nt.tile));
 
-  // «Портим» рендер-кэш (как это делают кадры симуляции), затем откатываемся.
+  // "Corrupt" the render cache (as simulation frames do), then roll back.
   const g2 = started(ROM);
   g2.loadState(snap);
   for (let i = 0; i < 64; i++) g2.stepFrame([{ port: 0, buttons: 0 }]);
@@ -52,7 +52,7 @@ test("saveState/loadState побайтово сохраняет Uint16Array (PPU
   const a = started(ROM);
   const before = Uint16Array.from(a.ppu.vramMirrorTable);
   const snap = a.saveState();
-  // портим и восстанавливаем
+  // corrupt and restore
   a.ppu.vramMirrorTable[0x225d] = 0xffff;
   a.ppu.vramMirrorTable[0x2000] = 0x1234;
   a.loadState(snap);

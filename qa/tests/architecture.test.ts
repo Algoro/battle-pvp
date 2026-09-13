@@ -1,5 +1,5 @@
-// architecture.test.js — ПРАВИЛО ЗАВИСИМОСТЕЙ чистой архитектуры.
-// Внутренние слои не должны знать о внешних: нарушения ломают CI.
+// architecture.test.js — DEPENDENCY RULE of the clean architecture.
+// Inner layers must not know about outer ones: violations break CI.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -66,7 +66,7 @@ test("architecture: RollbackSession использует порт Clock, а не
   assert.ok(!/Date\.now\(\)|performance\.now/.test(src), "время должно браться из порта Clock");
 });
 
-// --- Backend: правило зависимостей слоёв (domain <- application <- adapters) ---
+// --- Backend: layer dependency rule (domain <- application <- adapters) ---
 
 test("architecture: backend/domain чист — только внутренние относительные импорты", () => {
   const files = walk(join(ROOT, "backend", "domain"), (p) => p.endsWith(".ts"));
@@ -134,7 +134,7 @@ test("architecture: JS-рантаймы фич не зависят от ядра
   assert.deepStrictEqual(bad, [], bad.join("\n"));
 });
 
-// --- Слой рендера: драйверы/расширения (display-only, изолированы от ядра/сети) ---
+// --- Render layer: drivers/extensions (display-only, isolated from the core/network) ---
 
 test("architecture: ядро/сеть/бэкенд не зависят от слоя рендера", () => {
   const bad = [];
@@ -163,7 +163,7 @@ test("architecture: ядро feature-agnostic (нет имён фич в pvp/run
     const src = readFileSync(f, "utf8");
     for (const re of banned) assert.ok(!re.test(src), `${relative(ROOT, f)} содержит имя фичи: ${re}`);
   }
-  // Обобщённый канал присутствует.
+  // The generalized channel is present.
   const pvp = readFileSync(files[0], "utf8");
   assert.match(pvp, /featureCommand\s*\(/);
   assert.match(pvp, /getFeatureState\s*\(/);

@@ -1,7 +1,7 @@
-// pistol.ts — JS-рантайм фичи `pistol`: супер-выстрел лучом от нажатия A.
-// ROM-часть (выпадение/подбор/4-я звезда/сброс) — patching/patches/pistol.ts.
+// pistol.ts — JS runtime of the `pistol` feature: a super-shot beam from pressing A.
+// The ROM part (drop/pickup/4th star/reset) is patching/patches/pistol.ts.
 //
-// Относительный путь: ./emulator-core/features/pistol.ts
+// Relative path: ./emulator-core/features/pistol.ts
 import { RAM } from "../rom-contract.ts";
 import { DEF_PORTS } from "../domain.ts";
 import type { FeatureRuntime } from "../patching/runtime.ts";
@@ -13,23 +13,23 @@ export const pistolRuntime: FeatureRuntime = {
     ctx.state.bulletBefore = [0, 0];
   },
 
-  // Запомнить состояние пуль DEF-слотов до ROM-кадра (для подавления обычного выстрела).
+  // Remember the bullet state of the DEF slots before the ROM frame (to suppress the normal shot).
   preFrame(ctx) {
     const mem = ctx.kernel.mem;
     ctx.state.bulletBefore = [mem[RAM.BULLET_STATUS], mem[RAM.BULLET_STATUS + 1]];
   },
 
-  // После кадра: если DEF с супер-оружием нажал огонь — исполнить луч.
+  // After the frame: if a DEF with a super-weapon pressed fire — execute the beam.
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
-    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
+    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // battle not started
     const stage = mem[RAM.STAGE];
     if (stage < 1 || stage > 35) return;
     const before = ctx.state.bulletBefore as number[];
     for (let t = 0; t < DEF_PORTS; t++) {
-      if (mem[RAM.PISTOL + t] !== 1) continue; // ровно 1 (RAM инициализируется 0xFF)
+      if (mem[RAM.PISTOL + t] !== 1) continue; // exactly 1 (RAM is initialized to 0xFF)
       if (!ctx.kernel.playerFire[t]) continue;
-      // Подавить обычную пулю, созданную ROM в этот кадр.
+      // Suppress the normal bullet created by the ROM this frame.
       if (before[t] === 0 && mem[RAM.BULLET_STATUS + t] !== 0) {
         mem[RAM.BULLET_STATUS + t] = 0;
       }

@@ -1,6 +1,6 @@
-// coords.test.ts — перевод RAM-пикселей в мировые юниты: непрерывность и центрирование.
-// RAM (x,y) танка — ЦЕНТР танка (emulator-core/io/tank-driver.ts), поэтому округление
-// до 8 px и лишнее смещение недопустимы (иначе рывки и наезд на препятствия).
+// coords.test.ts — conversion of RAM pixels to world units: continuity and centering.
+// RAM (x,y) of the tank is the tank CENTER (emulator-core/io/tank-driver.ts), so rounding
+// to 8 px and extra offset are unacceptable (otherwise jolts and running into obstacles).
 import { test } from "node:test";
 import assert from "node:assert";
 import { PLAY_BOUNDS } from "../src/render/scene-state.ts";
@@ -28,15 +28,15 @@ test("coords: центр клетки и точки объектов согла�
 });
 
 test("coords: центр спрайта приза/пули (RAM хранит top-left)", () => {
-  // Приз 16×16: центр = pos/8 - col0 + 1.
+  // Bonus 16×16: center = pos/8 - col0 + 1.
   assert.deepStrictEqual(spriteCenter(PLAY_BOUNDS, 96, 96, 16), { x: 11, z: 11 });
-  // Пуля 8×8: центр = pos/8 - col0 + 0.5.
+  // Bullet 8×8: center = pos/8 - col0 + 0.5.
   assert.deepStrictEqual(spriteCenter(PLAY_BOUNDS, 88, 216, 8), { x: 9.5, z: 25.5 });
 });
 
 test("coords: followYaw — камера за танком", () => {
-  assert.ok(Math.abs(followYaw(0)) < 1e-9); // вверх -> камера снизу
-  assert.strictEqual(followYaw(1), Math.PI / 2); // влево -> камера справа
-  assert.ok(Math.abs(Math.abs(followYaw(2)) - Math.PI) < 1e-9); // вниз -> камера сверху (±π)
-  assert.strictEqual(followYaw(3), -Math.PI / 2); // вправо -> камера слева
+  assert.ok(Math.abs(followYaw(0)) < 1e-9); // up -> camera below
+  assert.strictEqual(followYaw(1), Math.PI / 2); // left -> camera on the right
+  assert.ok(Math.abs(Math.abs(followYaw(2)) - Math.PI) < 1e-9); // down -> camera above (±π)
+  assert.strictEqual(followYaw(3), -Math.PI / 2); // right -> camera on the left
 });

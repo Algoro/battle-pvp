@@ -1,13 +1,13 @@
-// rom-image.js — доступ к PRG-ROM как к редактируемому образу.
+// rom-image.js — access to PRG-ROM as an editable image.
 //
-// Патчи применяются к nes.rom.rom[bank] ДО createMapper()/mmap.loadROM(), поэтому
-// CPU получает уже пропатченные байты (mapper копирует PRG в cpu.mem).
+// Patches are applied to nes.rom.rom[bank] BEFORE createMapper()/mmap.loadROM(), so
+// the CPU receives already patched bytes (the mapper copies PRG into cpu.mem).
 //
-// Отображение CPU-адрес <-> (банк, offset):
-//   NROM-128 (1 банк): $8000-$FFFF -> банк 0, offset = addr & 0x3FFF
-//   NROM-256 (2 банка): $8000-$BFFF -> банк 0, $C000-$FFFF -> банк 1
+// CPU address <-> (bank, offset) mapping:
+//   NROM-128 (1 bank): $8000-$FFFF -> bank 0, offset = addr & 0x3FFF
+//   NROM-256 (2 banks): $8000-$BFFF -> bank 0, $C000-$FFFF -> bank 1
 //
-// Относительный путь: ./emulator-core/patching/rom-image.js
+// Relative path: ./emulator-core/patching/rom-image.js
 
 export function fnv1a32(bytes: any, seed = 0x811c9dc5): number {
   let h = seed >>> 0;
@@ -25,7 +25,7 @@ export function toHex32(n: number): string {
 export class RomImage {
   rom: any;
 
-  /** @param {object} rom — загруженный экземпляр ROM (emulator-core/src/rom.js) */
+  /** @param {object} rom — the loaded ROM instance (emulator-core/src/rom.js) */
   constructor(rom: any) {
     if (!rom || !rom.valid) throw new Error("RomImage: ROM не загружен");
     this.rom = rom;
@@ -43,7 +43,7 @@ export class RomImage {
     return this.rom.romCount * 16384;
   }
 
-  /** CPU-адрес ($8000-$FFFF) -> { bank, offset } */
+  /** CPU address ($8000-$FFFF) -> { bank, offset } */
   map(addr: number): { bank: number; offset: number } {
     if (addr < 0x8000 || addr > 0xffff) {
       throw new RangeError(`RomImage: адрес вне PRG: $${addr.toString(16)}`);
@@ -65,7 +65,7 @@ export class RomImage {
     return out;
   }
 
-  /** Записать байты по CPU-адресу (с проверкой границ банка). */
+  /** Write bytes at a CPU address (with bank-boundary checking). */
   writeBytes(addr: number, bytes: any): void {
     const { bank, offset } = this.map(addr);
     const prg = this.rom.rom[bank];
@@ -75,7 +75,7 @@ export class RomImage {
     prg.set(bytes, offset);
   }
 
-  /** Совпадают ли байты образа с ожидаемыми. */
+  /** Do the image bytes match the expected ones. */
   verify(addr: number, expect: any): boolean {
     for (let i = 0; i < expect.length; i++) {
       if (this.read(addr + i) !== expect[i]) return false;
@@ -83,13 +83,13 @@ export class RomImage {
     return true;
   }
 
-  /** Заполнен ли диапазон заданным байтом (обычно 0xFF — «свободная» зона). */
+  /** Is the range filled with the given byte (usually 0xFF — a "free" area). */
   isFill(addr: number, len: number, value = 0xff): boolean {
     for (let i = 0; i < len; i++) if (this.read(addr + i) !== value) return false;
     return true;
   }
 
-  /** Отпечаток всего PRG-ROM (для golden-тестов и handshake). */
+  /** Fingerprint of the whole PRG-ROM (for golden tests and handshake). */
   fingerprint(): string {
     let seed = 0x811c9dc5;
     for (let b = 0; b < this.rom.romCount; b++) seed = fnv1a32(this.rom.rom[b], seed);

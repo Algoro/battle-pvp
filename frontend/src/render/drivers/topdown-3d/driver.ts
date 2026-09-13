@@ -1,7 +1,7 @@
-// driver.ts — драйвер рендера `topdown-3d`: объёмное поле сверху с масштабом и
-// вращением по разным плоскостям. Читает только SceneState; игру не меняет.
+// driver.ts — `topdown-3d` render driver: volumetric top-down field with scale and
+// rotation in different planes. Reads only SceneState; it does not change the game.
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/driver.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/driver.ts
 import * as THREE from "three";
 import { attachCameraControls } from "../../camera-controls.ts";
 import { createTank } from "./models/tank.ts";
@@ -11,7 +11,7 @@ import { createProps } from "./models/props.ts";
 import { tankCenter, fieldCenter } from "../../coords.ts";
 import { towerCellCenter, towerToSceneTank } from "../../tower-visual.ts";
 
-// Пул моделей башен tower defence (совпадает с shared TD_MAX_TOWERS).
+// Tower defence tower model pool (matches shared TD_MAX_TOWERS).
 const MAX_TOWERS = 16;
 import { PLAY_BOUNDS } from "../../scene-state.ts";
 import type { RenderDriver, RenderHost, SceneState } from "../../types.ts";
@@ -65,7 +65,7 @@ export function createTopdown3DDriver(): RenderDriver {
       sun.target.position.set(center.x, 0, center.z);
       scene.add(sun, sun.target);
 
-      // Корень вращения — вокруг центра поля (fieldEuler).
+      // Rotation root — around the field center (fieldEuler).
       root = new THREE.Group();
       root.position.set(center.x, 0, center.z);
       scene.add(root);
@@ -116,7 +116,7 @@ export function createTopdown3DDriver(): RenderDriver {
         model.update(t, dtMs, time);
       }
 
-      // Башни TD: неподвижные DEF-танки (модель танка, звёзды = уровень).
+      // TD towers: stationary DEF tanks (tank model, stars = level).
       for (let i = 0; i < towerModels.length; i++) {
         const tw = state.towers[i];
         const model = towerModels[i];
@@ -160,7 +160,7 @@ export function createTopdown3DDriver(): RenderDriver {
         try {
           renderer.forceContextLoss();
         } catch {
-          /* контекст уже потерян */
+          /* context is already lost */
         }
         renderer.dispose();
       }

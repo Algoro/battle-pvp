@@ -1,13 +1,13 @@
-// AIControls.tsx — переключение ИИ атакующих/защитников ПРЯМО в игре (на лету).
-// Читает доступные режимы у ядра (pvp.js), переключает выбранный мозг через
-// emulator.setAttAI/setDefAI. Состояние мозга сбрасывается ядром при смене режима.
+// AIControls.tsx — toggling attacker/defender AI DIRECTLY in the game (on the fly).
+// Reads available modes from the core (pvp.js), switches the selected brain via
+// emulator.setAttAI/setDefAI. The brain state is reset by the core when the mode changes.
 import { useState } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { useT } from "../i18n/index.tsx";
 
 interface Props {
   emulator: EmulatorDriver;
-  defHumanTank?: boolean; // играет ли человек за защитников (тогда ИИ рулит только союзником)
+  defHumanTank?: boolean; // whether a human plays as defenders (then the AI controls only the ally)
   onModeChange?: () => void;
 }
 

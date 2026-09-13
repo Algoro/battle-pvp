@@ -1,9 +1,9 @@
-// registry.ts — реестр драйверов и расширений рендерера (по образцу патч-реестра).
+// registry.ts — registry of renderer drivers and extensions (modeled on the patch registry).
 //
-// Метаданные — в shared/renderers.ts; здесь только проводка id -> ленивая загрузка.
-// Ленивость важна: тяжёлый `three` подгружается лишь при выборе 3D-драйвера.
+// Metadata is in shared/renderers.ts; here only the id -> lazy load wiring.
+// Laziness matters: the heavy `three` is loaded only when a 3D driver is selected.
 //
-// Относительный путь: ./frontend/src/render/registry.ts
+// Relative path: ./frontend/src/render/registry.ts
 import { RENDER_MANIFEST, rendererById, type RendererInfo } from "../../../shared/renderers.ts";
 import type { RenderDriver, RenderExtension } from "./types.ts";
 
@@ -29,7 +29,7 @@ export function listRenderers(): RendererInfo[] {
   return RENDER_MANIFEST.map((r) => ({ ...r }));
 }
 
-/** Канонический список id расширений: уникальные, отсортированные. */
+/** Canonical list of extension ids: unique, sorted. */
 export function canonicalRenderExtensions(ids: unknown): string[] {
   if (!ids) return [];
   const arr = Array.isArray(ids) ? ids : [ids];
@@ -46,7 +46,7 @@ async function create(id: string): Promise<RenderDriver | RenderExtension> {
   return inst;
 }
 
-/** Загрузить драйвер по id (kind обязан быть "driver"). */
+/** Load a driver by id (kind must be "driver"). */
 export async function resolveDriver(id: string): Promise<RenderDriver> {
   const info = rendererById(id);
   if (!info) throw new Error(`неизвестный драйвер рендера: ${id}`);
@@ -54,7 +54,7 @@ export async function resolveDriver(id: string): Promise<RenderDriver> {
   return (await create(id)) as RenderDriver;
 }
 
-/** Загрузить активные расширения в каноническом порядке. */
+/** Load active extensions in canonical order. */
 export async function resolveExtensions(ids: unknown): Promise<{ id: string; ext: RenderExtension }[]> {
   const out: { id: string; ext: RenderExtension }[] = [];
   for (const id of canonicalRenderExtensions(ids)) {
@@ -72,12 +72,12 @@ function extOrder(ext: RenderExtension): number {
   return ext.order ?? info?.order ?? 1000;
 }
 
-/** Capabilities, которые предоставляет драйвер. */
+/** Capabilities provided by the driver. */
 export function driverCapabilities(id: string): Set<string> {
   return new Set(rendererById(id)?.provides ?? []);
 }
 
-/** Сверка манифеста и реестра: одно без другого — ошибка конфигурации. */
+/** Check the manifest against the registry: one without the other is a configuration error. */
 export function assertRenderersConsistent(): void {
   const manifest = new Set(RENDER_MANIFEST.map((r) => r.id));
   for (const id of manifest) {
@@ -88,7 +88,7 @@ export function assertRenderersConsistent(): void {
   }
 }
 
-// --- Встроенные сущности -----------------------------------------------------
+// --- Built-in entities -----------------------------------------------------
 
 registerRenderer("pixel-2d", async () => (await import("./drivers/pixel-2d.ts")).createPixelDriver());
 registerRenderer("topdown-3d", async () => (await import("./drivers/topdown-3d/driver.ts")).createTopdown3DDriver());

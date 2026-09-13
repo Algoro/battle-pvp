@@ -1,6 +1,6 @@
-// props.ts — воксельные объекты: пули и призы-«итемы».
+// props.ts — voxel objects: bullets and bonus "items".
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/models/props.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/models/props.ts
 import * as THREE from "three";
 import type { TextureAtlas } from "../atlas.ts";
 import { DIR_ROT, spriteCenter } from "../../../coords.ts";

@@ -1,4 +1,4 @@
-// ports.test.js — домен/application работают через порты: fake-репозитории, без SQLite/WS.
+// ports.test.js — domain/application work through ports: fake repositories, no SQLite/WS.
 import { test } from "node:test";
 import assert from "node:assert";
 import { ChatManager } from "../domain/chat.ts";
@@ -8,7 +8,7 @@ import { TEAM_DEF, TEAM_ATT } from "../domain/teams.ts";
 import { startMatch, finishMatch } from "../application/match-lifecycle.ts";
 import { sendChat, chatHistory } from "../application/chat.ts";
 
-// In-memory реализация порта ChatRepository (без node:sqlite).
+// In-memory implementation of the ChatRepository port (no node:sqlite).
 function fakeChatRepository() {
   const rows = [];
   return {
@@ -26,7 +26,7 @@ test("ChatManager: работает через порт ChatRepository (без S
   cm.send("global", null, { playerId: "p1", name: "P1", text: "привет", ts: 1 });
   assert.strictEqual(repository.rows.length, 1);
 
-  // новый менеджер (пустая память) читает историю из порта
+  // a new manager (empty memory) reads history from the port
   const cm2 = new ChatManager({ repository });
   const history = chatHistory(cm2, "global", null);
   assert.deepStrictEqual(history.map((m) => m.text), ["привет"]);

@@ -1,6 +1,6 @@
-// solo-att.test.js — комплексный тест соло-режима «за противника» (ATT).
-// Использует РЕАЛЬНУЮ buildSoloInputs из фронтенда (единый источник с GameCanvas).
-// Запуск: node --test tests/solo-att.test.js
+// solo-att.test.js — comprehensive test of the solo mode "as the enemy" (ATT).
+// Uses the REAL buildSoloInputs from the frontend (single source with GameCanvas).
+// Run: node --test tests/solo-att.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { fileURLToPath } from "node:url";
@@ -14,7 +14,7 @@ const ROM = join(__dirname, "..", "..", "rom", "disasm", "_battle_city.nes");
 
 const dirOf = (flag) => flag & 3;
 
-// Соло-ATT цикл фронтенда через buildSoloInputs.
+// The frontend solo-ATT loop through buildSoloInputs.
 function runFrontendSoloAtt(emu, { respawnEvery = 30 } = {}) {
   let frame = 0;
   let started = false;
@@ -50,7 +50,7 @@ test("соло-ATT: танк игрока управляется (влево -> 
   const emu = loadAndStart(ROM);
   const step = runFrontendSoloAtt(emu);
   for (let f = 0; f < 400; f++) { const s = step(0); if (s.attAlive) break; }
-  // жив -> удерживаем влево достаточно, чтобы танк повернул на перекрёстке
+  // alive -> hold left long enough for the tank to turn at an intersection
   const x0 = emu.cpu.mem[ADDR.tankX(2)];
   let movedLeft = false;
   for (let f = 0; f < 250; f++) {
@@ -66,7 +66,7 @@ test("соло-ATT: танк игрока стреляет по кнопке A (
   const emu = loadAndStart(ROM);
   const step = runFrontendSoloAtt(emu);
   for (let f = 0; f < 400; f++) { const s = step(0); if (s.attAlive) break; }
-  // ждём очистки пули танка 2, затем жмём A
+  // wait for tank 2's bullet to clear, then press A
   for (let f = 0; f < 300 && emu.cpu.mem[0xce] !== 0; f++) step(0);
   assert.strictEqual(emu.cpu.mem[0xce], 0, "пуля танка 2 не очистилась (стреляет без кнопки?)");
   emu.stepFrame([
@@ -80,7 +80,7 @@ test("соло-ATT: без ввода игрок не движется по се
   const emu = loadAndStart(ROM);
   const step = runFrontendSoloAtt(emu);
   for (let f = 0; f < 400; f++) { const s = step(0); if (s.attAlive) break; }
-  // без нажатий направление в сетевой зоне = FF (нет ввода)
+  // with no presses the direction in the network zone = FF (no input)
   runFrames(emu, 5, [{ port: 2, buttons: 0 }]);
   assert.strictEqual(emu.cpu.mem[ADDR.netDir], 0xff, "без ввода сетевой dir должен быть FF");
 });

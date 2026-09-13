@@ -1,5 +1,5 @@
-// TowerDefenceView.tsx — игровой экран tower defence: цикл кадров, редактор расстановки,
-// HUD (очки/волна), результат. Соло-режим, рендер — через общий RenderSystem.
+// TowerDefenceView.tsx — tower defence game screen: frame loop, placement editor,
+// HUD (score/wave), result. Solo mode, rendering via the shared RenderSystem.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { EmulatorDriver } from "../engine/emulator";
 import type { KeyboardInput } from "../engine/input";
@@ -47,7 +47,7 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
   const inWave = phase === TD_PHASE.WAVE || phase === TD_PHASE.INTERMISSION;
   const finished = phase === TD_PHASE.VICTORY || phase === TD_PHASE.DEFEAT;
 
-  // Цикл ядра: автостарт матча, затем кадры с вводом мобильного танка.
+  // Core loop: auto-start the match, then frames with the mobile tank input.
   useEffect(() => {
     let raf = 0;
     let frame = 0;
@@ -64,7 +64,7 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [emulator, config.mobileTank]);
 
-  // Рендер боевого вида (монтируется только в фазе волны).
+  // Render the battle view (mounted only during the wave phase).
   useEffect(() => {
     const el = gameRef.current;
     if (!el || !inWave) return;

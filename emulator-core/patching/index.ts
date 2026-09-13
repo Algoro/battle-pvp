@@ -1,5 +1,5 @@
-// index.js — публичный API модуля in-memory патчинга ROM.
-// Относительный путь: ./emulator-core/patching/index.js
+// index.js — public API of the in-memory ROM patching module.
+// Relative path: ./emulator-core/patching/index.js
 export { RomImage, fnv1a32, toHex32 } from "./rom-image.ts";
 export { Linker } from "./linker.ts";
 export { applyPatchSet } from "./apply.ts";

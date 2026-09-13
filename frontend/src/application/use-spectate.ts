@@ -1,5 +1,5 @@
-// use-spectate.ts — контроллер режима наблюдателя: снапшоты матча -> ядро.
-// React-хук хранит кадр/итог, а сеть дёргает через переданный шлюз (LobbyClient).
+// use-spectate.ts — spectator mode controller: match snapshots -> core.
+// The React hook stores the frame/result, while the network is driven through the passed gateway (LobbyClient).
 import { useRef, useState, type MutableRefObject } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import { base64ToBytes } from "../engine/b64";
@@ -31,7 +31,7 @@ export function useSpectate(opts: UseSpectateOptions): UseSpectateResult {
   const optsRef = useRef(opts);
   optsRef.current = opts;
 
-  // Ждём загрузки ROM/ядра, затем сообщаем серверу о наблюдении.
+  // Wait for the ROM/core to load, then notify the server about spectating.
   const enter = (gateway: MatchGateway, matchId: string): void => {
     const go = () => {
       if (!optsRef.current.emuRef.current) {
@@ -54,7 +54,7 @@ export function useSpectate(opts: UseSpectateOptions): UseSpectateResult {
       emu.draw();
       setFrame(m.frame);
     } catch {
-      /* битый снапшот */
+      /* corrupted snapshot */
     }
   };
 

@@ -1,6 +1,6 @@
-// features.test.js — контракт опциональных фич между слоями:
-// backend (валидация лобби), emulator-core (реестр патчей), frontend (UI).
-// Все три списка id обязаны совпадать.
+// features.test.js — contract of optional features between the layers:
+// backend (lobby validation), emulator-core (patch registry), frontend (UI).
+// All three id lists must match.
 import { test } from "node:test";
 import assert from "node:assert";
 import { SUPPORTED_FEATURES } from "../../backend/domain/features.ts";

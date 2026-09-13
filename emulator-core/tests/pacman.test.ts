@@ -1,5 +1,5 @@
-// pacman.test.ts — режим «Pac-Man»: ROM-лабиринт (стадия 1 + замуровка базы),
-// точки, сбор DEF-танками, счётчик, победа, бомбы.
+// pacman.test.ts — "Pac-Man" mode: ROM maze (stage 1 + base walling),
+// dots, collection by DEF tanks, counter, victory, bombs.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -44,14 +44,14 @@ test("pacman: ROM-патч меняет fingerprint фичи, база не тр
 
 test("pacman: лабиринт из бетона, база замурована, точки расставлены", () => {
   const emu = boot();
-  // стена лабиринта: берём любой блок-стену и проверяем FIELD
+  // maze wall: take any wall block and check FIELD
   let wr = -1, wc = -1;
   for (let r = 0; r < 13 && wr < 0; r++) for (let c = 0; c < 13; c++) if (isWallBlock(r, c)) { wr = r; wc = c; break; }
   const woff = (2 + 2 * wr) * 32 + (2 + 2 * wc);
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + woff], 0x10, "нет бетонной стены лабиринта");
-  // база замурована: field row25 col13 (кирпич -> бетон)
+  // base walled off: field row25 col13 (brick -> concrete)
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + (25 * 32 + 13)], 0x10, "база не замурована");
-  // точки: счётчик и хотя бы одна точка в nametable
+  // dots: counter and at least one dot in the nametable
   const left = emu.readMem(RAM.DOTS_LEFT) | (emu.readMem(RAM.DOTS_LEFT + 1) << 8);
   assert.ok(left > 0, "точки не расставлены");
   assert.strictEqual(emu.readMem(RAM.PACMAN_WIN), 0, "win не должен быть выставлен сразу");
@@ -103,7 +103,7 @@ test("pacman: хитбокс точки — целый блок (сбор со �
   const before = emu.readMem(RAM.DOTS_LEFT) | (emu.readMem(RAM.DOTS_LEFT + 1) << 8);
   emu.cpu.mem[RAM.SFX_SHOT] = 0;
   emu.cpu.mem[RAM.SFX_BULLET_HIT_TANK] = 0;
-  // танк смещён на соседнюю половину блока — всё равно должен собрать
+  // the tank is shifted to the adjacent half of the block — it must still collect
   emu.cpu.mem[RAM.TANK_X] = ((off % 32) + 1) * 8;
   emu.cpu.mem[RAM.TANK_Y] = ((off / 32) | 0) * 8;
   emu.cpu.mem[RAM.TANK_FLAG] = 0x90;
@@ -137,7 +137,7 @@ test("pacman: DEF-танк собирает точку, счётчик умен�
 test("pacman: зачистка всех точек даёт победу DEF", () => {
   const emu = boot();
   for (const off of dotCells()) emu.ppu.nameTable[0].tile[off] = 0;
-  emu.loadState(emu.saveState()); // снапшот уже без точек -> onLoadState пересоберёт множество
+  emu.loadState(emu.saveState()); // the snapshot is already without dots -> onLoadState will rebuild the set
   emu.stepFrame([]);
   assert.strictEqual(emu.readMem(RAM.PACMAN_WIN), 1, "победа DEF не выставлена");
 });

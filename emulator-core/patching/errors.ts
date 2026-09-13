@@ -1,5 +1,5 @@
-// errors.js — типизированные ошибки патчинга.
-// Относительный путь: ./emulator-core/patching/errors.js
+// errors.js — typed patching errors.
+// Relative path: ./emulator-core/patching/errors.js
 
 export class PatchError extends Error {
   code: string;

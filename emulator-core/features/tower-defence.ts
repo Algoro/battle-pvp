@@ -1,16 +1,16 @@
-// tower-defence.ts — JS-рантайм режима tower defence.
+// tower-defence.ts — JS runtime of the tower defence mode.
 //
-// Соло-режим: игрок DEF в фазе BUILD покупает и расставляет неподвижные танки-башни,
-// затем запускает волну ИИ-атакующих. Башни сами целятся/стреляют, враги идут к базе
-// и расстреливают башни. Экономика — очки за убийства. Победа — пережить все волны,
-// поражение — уничтожена база (или кончились жизни мобильного танка).
+// Solo mode: the DEF player in the BUILD phase buys and places stationary turret tanks,
+// then starts a wave of AI attackers. The turrets aim/fire on their own, enemies go to the base
+// and shoot the turrets. The economy — points for kills. Victory — survive all waves,
+// defeat — the base is destroyed (or the mobile tank runs out of lives).
 //
-// Авторитетное состояние — ctx.state (соло, rollback не нужен). В RAM — только фаза
-// TD_STATE (её читает ROM-хук завершения стадии) и штатные счётчики спавна/врагов.
-// Управление приходит через ctx.orders (PvPNes.featureCommand), статус для UI —
-// через ctx.status (PvPNes.getFeatureState). Ядро о TD ничего не знает.
+// The authoritative state is ctx.state (solo, rollback not needed). In RAM — only the TD
+// phase TD_STATE (read by the ROM stage-end hook) and the standard spawn/enemy counters.
+// Control comes via ctx.orders (PvPNes.featureCommand), status for the UI —
+// via ctx.status (PvPNes.getFeatureState). The core knows nothing about TD.
 //
-// Относительный путь: ./emulator-core/features/tower-defence.ts
+// Relative path: ./emulator-core/features/tower-defence.ts
 import { RAM } from "../rom-contract.ts";
 import { DEF_PORTS, blocksBullet, isTankActive } from "../domain.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
@@ -31,10 +31,10 @@ import {
 const ENEMY_FIRST = DEF_PORTS; // 2
 const ENEMY_LAST = 7;
 const HIT_RADIUS = 0x0a;
-// Допуск совпадения оси при наведении (px): центры башен и танков расходятся на 8.
+// Axis alignment tolerance when aiming (px): turret and tank centers are offset by 8.
 const AIM_TOLERANCE = 0x0a;
 const PROJ_TTL = 180;
-// Направления (0=Up,1=Left,2=Down,3=Right) — без аллокаций в горячем пути.
+// Directions (0=Up,1=Left,2=Down,3=Right) — no allocations in the hot path.
 const DIR_DX = [0, -1, 0, 1];
 const DIR_DY = [-1, 0, 1, 0];
 
@@ -86,7 +86,7 @@ function cellR(cell: number): number {
 function cellC(cell: number): number {
   return cell % 13;
 }
-// Верхний-левый пиксель блока; центр блока = +8,+8.
+// Top-left pixel of the block; block center = +8,+8.
 function cellTopLeft(cell: number): { x: number; y: number } {
   return { x: 16 + 16 * cellC(cell), y: 16 + 16 * cellR(cell) };
 }
@@ -121,7 +121,7 @@ function aliveEnemiesForKill(mem: Uint8Array | number[]): number[] {
 function startWave(ctx: FeatureContext): void {
   const s = st(ctx);
   const mem = ctx.kernel.mem;
-  // Матч должен реально начаться: иначе ROM при старте стадии перезапишет счётчики волны.
+  // The match must actually start: otherwise the ROM overwrites the wave counters at stage start.
   if (!s.gameStarted) return;
   if (s.phase !== TD_PHASE.BUILD && s.phase !== TD_PHASE.INTERMISSION) return;
   if (s.wave >= s.config.waves) return;
@@ -209,7 +209,7 @@ function processOrders(ctx: FeatureContext): void {
   }
 }
 
-// Линия огня свободна: все тайлы между башней и целью не блокируют пулю.
+// Line of fire is clear: all tiles between the turret and the target do not block the bullet.
 function losClear(mem: Uint8Array | number[], col: number, row: number, dir: number, steps: number): boolean {
   const dx = DIR_DX[dir];
   const dy = DIR_DY[dir];
@@ -234,7 +234,7 @@ function tickTowers(ctx: FeatureContext): void {
     const stats = towerStats(type, tw.level);
     if (tw.cd > 0) tw.cd -= 1;
 
-    // Наводим ствол каждый кадр (даже на перезарядке), затем при готовности стреляем.
+    // Aim the barrel every frame (even while reloading), then fire when ready.
     const c = cellTopLeft(tw.cell);
     const tcx = c.x + 8;
     const tcy = c.y + 8;
@@ -249,9 +249,9 @@ function tickTowers(ctx: FeatureContext): void {
       const dy = ey - tcy;
       const d = Math.abs(dx) + Math.abs(dy);
       if (d > rangePx) continue;
-      // Центры башен (24+16c) и танков на дорожках расходятся на 8 px, поэтому допуск
-      // по поперечной оси — 10 px (примерно клетка). Направление — по доминирующей оси,
-      // иначе для врага строго по горизонтали «вертикаль» давала бы нулевую дистанцию.
+      // Turret centers (24+16c) and tanks on the lanes are offset by 8 px, so the tolerance
+      // along the cross axis is 10 px (about a cell). The direction is along the dominant axis,
+      // otherwise for an enemy strictly horizontal the "vertical" would give zero distance.
       const ec = ex >> 3;
       const er = ey >> 3;
       let dir = -1;
@@ -268,10 +268,10 @@ function tickTowers(ctx: FeatureContext): void {
       if (!best || d < best.d) best = { t, dir, d };
     }
     if (!best) continue;
-    tw.dir = best.dir; // поворот ствола к цели
-    if (tw.cd > 0) continue; // ещё перезаряжается — только навелись
+    tw.dir = best.dir; // rotate the barrel toward the target
+    if (tw.cd > 0) continue; // still reloading — only aimed
     tw.cd = stats.fireInterval;
-    // Из центра башни: при цели вплотную смещённый вперёд снаряд «перелетал» бы её.
+    // From the turret center: with a target at point-blank, a projectile shifted forward would "overshoot" it.
     s.projs.push({
       x: tcx,
       y: tcy,
@@ -315,7 +315,7 @@ function tickProjectiles(ctx: FeatureContext): void {
   s.projs = next;
 }
 
-// Вражеские пули бьют башни: башня теряет 1 hp, пуля гаснет.
+// Enemy bullets hit the turrets: a turret loses 1 hp, the bullet is extinguished.
 function tickEnemyFire(ctx: FeatureContext): void {
   const s = st(ctx);
   const mem = ctx.kernel.mem;
@@ -347,32 +347,32 @@ function awardKills(ctx: FeatureContext): void {
     const wasAlive = (prev & 0x80) !== 0 && prev < 0xe0;
     const nowAlive = (now & 0x80) !== 0 && now < 0xe0;
     if (wasAlive && !nowAlive) s.points += pointsForTankType(s.prevTypes[t] ?? 0x80);
-    // Новый спавн волны: выдаём тип врага из очереди волны.
+    // New wave spawn: issue the enemy type from the wave queue.
     if (!wasAlive && nowAlive && s.typeQueue.length) mem[RAM.TANK_TYPE + t] = s.typeQueue.shift()!;
     s.prevFlags[t] = now;
     s.prevTypes[t] = mem[RAM.TANK_TYPE + t];
   }
 }
 
-// 2D-оверлей: блитим пиксели спрайтов танка/пули прямо в кадровый буфер PPU.
+// 2D overlay: blit tank/bullet sprite pixels directly into the PPU frame buffer.
 //
-// BG не подходит (фоновая таблица указывает на PT1, танки — в PT0), а запись в OAM
-// до/после frame() до видимого кадра не доживает. Зато пиксельный буфер 2D-драйвер
-// забирает сразу после stepFrame, поэтому рисуем в render-хуке. Только пиксели, без
-// записи в cpu.mem — hash/сеть не затрагиваются.
+// BG is not suitable (the background table points to PT1, the tanks are in PT0), and writing to OAM
+// before/after frame() does not survive to the visible frame. But the 2D driver takes the pixel buffer
+// right after stepFrame, so we draw in the render hook. Pixels only, without
+// writing to cpu.mem — hash/network are not affected.
 //
-// Живой DEF-танк (проверено по OAM): 8×16 на dir*8 и dir*8+2, палитра 0.
+// Living DEF tank (verified against OAM): 8×16 at dir*8 and dir*8+2, palette 0.
 const TOWER_TILE_BASE = 0x00;
-const BULLET_TILE_BASE = 0xb1; // sub_E0FB, палитра 2
+const BULLET_TILE_BASE = 0xb1; // sub_E0FB, palette 2
 const FRAME_W = 256;
 
-// 8×16 спрайт: tileTop и tileTop+1 (верх/низ), пиксель = pal[palIdx*4+v].
+// 8×16 sprite: tileTop and tileTop+1 (top/bottom), pixel = pal[palIdx*4+v].
 function blitSprite(ctx: FeatureContext, tileTop: number, dstX: number, dstY: number, palIdx: number): void {
   const vram = ctx.kernel.ppuVram;
   const buf = ctx.kernel.ppuBuffer;
   const pal = ctx.kernel.ppuSpritePalette;
   if (!buf || !pal) return;
-  // 8×16: бит0 номера тайла выбирает pattern table (0 — PT0, 1 — PT1).
+  // 8×16: bit0 of the tile number selects the pattern table (0 — PT0, 1 — PT1).
   const ptBase = tileTop & 1 ? 0x1000 : 0x0000;
   const base = tileTop & 0xfe;
   for (let half = 0; half < 2; half++) {
@@ -402,8 +402,8 @@ function renderOverlay(ctx: FeatureContext): void {
     const base = (TOWER_TILE_BASE + (tw.dir & 3) * 8) & 0xff;
     const x = 16 + 16 * cellC(tw.cell);
     const y = 16 + 16 * cellR(tw.cell);
-    blitSprite(ctx, base, x, y, 0); // левая половина
-    blitSprite(ctx, base + 2, x + 8, y, 0); // правая половина
+    blitSprite(ctx, base, x, y, 0); // left half
+    blitSprite(ctx, base + 2, x + 8, y, 0); // right half
   }
 
   for (const p of s.projs) {
@@ -464,8 +464,8 @@ export const towerDefenceRuntime: FeatureRuntime = {
     processOrders(ctx);
     const mem = ctx.kernel.mem;
     if (mem[RAM.GAME_OVER] === 0x80) s.gameStarted = true;
-    // В BUILD враги не спавнятся (ROM-хук при этом не даёт стадии завершиться).
-    // До старта матча RAM не трогаем — иначе ломается детект старта игры.
+    // In BUILD enemies don't spawn (the ROM hook also prevents the stage from ending).
+    // Before the match starts we don't touch RAM — otherwise game-start detection breaks.
     if (s.gameStarted && s.phase === TD_PHASE.BUILD) {
       mem[RAM.SPAWN_CNT] = 0;
       mem[RAM.ENEMIES_LEFT] = 0;
@@ -476,7 +476,7 @@ export const towerDefenceRuntime: FeatureRuntime = {
     const s = st(ctx);
     const mem = ctx.kernel.mem;
 
-    // Поражение: уничтожена база (game over) или, при мобильном танке, кончились жизни.
+    // Defeat: the base is destroyed (game over) or, with a mobile tank, the lives ran out.
     const baseDestroyed = mem[RAM.GAME_OVER] !== 0x80;
     const commanderDead = s.config.mobileTank && mem[RAM.LIVES] === 0;
     if (s.gameStarted && (baseDestroyed || commanderDead)) {
@@ -515,7 +515,7 @@ export const towerDefenceRuntime: FeatureRuntime = {
   },
 
   render(ctx) {
-    renderOverlay(ctx); // после frame(), но до отрисовки драйвером (2D-буфер)
+    renderOverlay(ctx); // after frame(), but before the driver draws (2D buffer)
   },
 
   onLoadState(ctx) {

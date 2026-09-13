@@ -1,5 +1,5 @@
-// perception-role.test.js — ролевой высокоуровневый слой: perceive для атакующего,
-// общий steering (steerTo/fineSteer) и опасность от пуль противника.
+// perception-role.test.js — role-based high-level layer: perceive for the attacker,
+// shared steering (steerTo/fineSteer) and danger from opponent bullets.
 import { test } from "node:test";
 import assert from "node:assert";
 import { buildState } from "../model/game-view.ts";
@@ -23,12 +23,12 @@ test("perceive(role=att) — противники = DEF-танки, союзни
   const p = perceive(s, { role: "att" });
   assert.strictEqual(p.selfTeam, "ATT");
   assert.strictEqual(p.oppTeam, "DEF");
-  // opponents = DEF-танки (цели атакующего), allies = ATT
+  // opponents = DEF tanks (attacker targets), allies = ATT
   assert.strictEqual(p.opponents.length, 2);
   assert.ok(p.opponents.every((o) => o.tank.team === "DEF"), "противники — защитники");
   assert.strictEqual(p.allies.length, 2);
   assert.ok(p.allies.every((a) => a.tank.team === "ATT"), "союзники — атакующие");
-  // DEF-цели несут полезную для атакующего инфу (уровень/жизни/каска)
+  // DEF targets carry info useful to the attacker (level/lives/helmet)
   assert.ok(p.opponents[0].level !== undefined);
   assert.ok(p.opponents[0].lives !== undefined);
 });
@@ -53,17 +53,17 @@ test("danger(cell) — пули ПРОТИВНИКА, угрожающие кл�
   const s = buildState({
     field: field32(),
     tanks: [
-      { i: 0, x: 40, y: 40, team: "DEF" },       // защитник, владелец пули
+      { i: 0, x: 40, y: 40, team: "DEF" },       // defender, bullet owner
       { i: 2, x: 200, y: 200, team: "ATT" },
     ],
-    // пуля защитника летит вниз по колонке, владелец DEF (i=0)
+    // the defender's bullet flies down the column, owner DEF (i=0)
     bullets: [{ i: 0, x: 40, y: 40, dir: 2 }],
   });
   const p = perceive(s, { role: "att" });
-  // клетка ниже по колонке защитника — под угрозой DEF-пули
+  // the cell below in the defender's column — under DEF bullet threat
   const threatened = p.danger({ col: 5, row: 6 });
   assert.ok(threatened.length >= 1, "атакующий видит пулю защитника как опасность");
-  // опасность НЕ считает свои (ATT) пули
+  // danger does NOT count our own (ATT) bullets
   const p2 = perceive(buildState({
     field: field32(),
     tanks: [{ i: 2, x: 40, y: 40, team: "ATT" }],
@@ -77,7 +77,7 @@ test("steerTo/fineSteer — навигация атакующего танка �
     field: field32(),
     tanks: [{ i: 2, x: 16, y: 16, team: "ATT" }], // (2,2)
   });
-  const goal = { col: 15, row: 26 }; // орёл
+  const goal = { col: 15, row: 26 }; // eagle
   const d = steerTo(s.field, 16, 16, goal, { allowBreak: true });
   assert.ok(d !== null, "steerTo даёт направление");
   assert.ok(d >= 0 && d <= 3, `направление 0..3, получено ${d}`);
@@ -87,7 +87,7 @@ test("steerTo/fineSteer — навигация атакующего танка �
 
 test("nearestCover/isCover — общий поиск укрытия", () => {
   const field = field32();
-  field[10] = field[10].slice(0, 10) + "#" + field[10].slice(11); // сталь на (10,10)
+  field[10] = field[10].slice(0, 10) + "#" + field[10].slice(11); // steel at (10,10)
   const s = buildState({ field, tanks: [] });
   const cover = nearestCover(s.field, { col: 5, row: 10 }, null);
   assert.ok(cover, "укрытие найдено рядом со сталью");

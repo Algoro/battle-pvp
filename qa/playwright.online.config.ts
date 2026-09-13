@@ -1,5 +1,5 @@
-// playwright.online.config.ts — e2e онлайн-матча: backend (SPA + WS) на :4180.
-// Запуск: (frontend собран) npx playwright test -c playwright.online.config.ts
+// playwright.online.config.ts — e2e of an online match: backend (SPA + WS) on :4180.
+// Run: (frontend built) npx playwright test -c playwright.online.config.ts
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({

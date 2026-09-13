@@ -1,7 +1,7 @@
-// tank-driver.test.js — тесты JS-слоя управления танками (движение/коллизии/ИИ).
-// Модель: поле 32x32 ячейки по 8px, танк 13x13px, RAM (x,y) — центр танка.
-// Движение проверяет переднюю кромку (canLead); корпус-бокс — canPlace.
-// Запуск: node --test.
+// tank-driver.test.js — tests for the JS tank control layer (movement/collisions/AI).
+// Model: field 32x32 cells of 8px, tank 13x13px, RAM (x,y) — tank center.
+// Movement checks the front edge (canLead); the body box — canPlace.
+// Run: node --test.
 import { test } from "node:test";
 import assert from "node:assert";
 import {
@@ -17,29 +17,29 @@ import {
   HALF,
 } from "../io/tank-driver.ts";
 
-// пустое поле 32x32
-const empty = new Uint8Array(FIELD * FIELD); // все 0x00 -> проходимы
+// empty field 32x32
+const empty = new Uint8Array(FIELD * FIELD); // all 0x00 -> passable
 
-// поле с вертикальной стеной в колонке 16 (x=128..135)
+// field with a vertical wall in column 16 (x=128..135)
 const walled = empty.slice();
-for (let r = 0; r < FIELD; r++) walled[r * FIELD + 16] = 0x11; // стена
+for (let r = 0; r < FIELD; r++) walled[r * FIELD + 16] = 0x11; // wall
 
-// поле с вертикальной «водной» стеной (0x0f) — по ASM блокирует танк
+// field with a vertical "water" wall (0x0f) — per ASM it blocks the tank
 const waterWalled = empty.slice();
-for (let r = 0; r < FIELD; r++) waterWalled[r * FIELD + 16] = 0x0f; // вода/стена
+for (let r = 0; r < FIELD; r++) waterWalled[r * FIELD + 16] = 0x0f; // water/wall
 
 test("runtimePassable: зеркалит ASM — проходимы 0x00 и 0x20..0x7F, всё прочее блокирует", () => {
   assert.strictEqual(runtimePassable(0x00), true);
-  assert.strictEqual(runtimePassable(0x20), true); // дорога (нижняя граница проходимых)
-  assert.strictEqual(runtimePassable(0x7f), true); // дорога (верхняя граница проходимых)
-  assert.strictEqual(runtimePassable(0x0f), false); // вода — танк НЕ проходит (ASM блокирует)
-  assert.strictEqual(runtimePassable(0x15), false); // вода (вариант) — блокирует
-  assert.strictEqual(runtimePassable(0x11), false); // стена
-  assert.strictEqual(runtimePassable(0x16), false); // сталь
-  assert.strictEqual(runtimePassable(0x01), false); // нижняя граница блокирующих
-  assert.strictEqual(runtimePassable(0x1f), false); // верхняя граница блокирующих
-  assert.strictEqual(runtimePassable(0x80), false); // бит7 установлен -> блокирует
-  assert.strictEqual(runtimePassable(0xff), false); // бит7 установлен -> блокирует
+  assert.strictEqual(runtimePassable(0x20), true); // road (lower bound of passable)
+  assert.strictEqual(runtimePassable(0x7f), true); // road (upper bound of passable)
+  assert.strictEqual(runtimePassable(0x0f), false); // water — the tank does NOT pass (ASM blocks)
+  assert.strictEqual(runtimePassable(0x15), false); // water (variant) — blocks
+  assert.strictEqual(runtimePassable(0x11), false); // wall
+  assert.strictEqual(runtimePassable(0x16), false); // steel
+  assert.strictEqual(runtimePassable(0x01), false); // lower bound of blocking
+  assert.strictEqual(runtimePassable(0x1f), false); // upper bound of blocking
+  assert.strictEqual(runtimePassable(0x80), false); // bit7 set -> blocks
+  assert.strictEqual(runtimePassable(0xff), false); // bit7 set -> blocks
 });
 
 test("runtimePassable согласован с правилом ASM для всех 256 значений", () => {
@@ -58,22 +58,22 @@ test("stepTank движется в 4 направлениях на пустом 
 });
 
 test("коллизия: стена блокирует переднюю кромку, край поля тоже", () => {
-  // стена в колонке 16 (x=128..135). Тело танка [x-6, x+6]; передняя кромка x+6.
+  // wall in column 16 (x=128..135). Tank body [x-6, x+6]; front edge x+6.
   const y = 16 * TILE;
-  const atWall = { x: 121, y }; // тело [115,127] — у самой стены (x=128)
+  const atWall = { x: 121, y }; // body [115,127] — right at the wall (x=128)
   assert.strictEqual(canPlace(atWall.x, atWall.y, walled, runtimePassable), true);
-  // двинуться вправо нельзя: целевой центр x=122 даёт переднюю кромку на стене
+  // cannot move right: the target center x=122 gives a front edge on the wall
   assert.strictEqual(canLead(atWall.x, atWall.y, 3, walled, runtimePassable), false);
-  // шаг вправо: передняя кромка заденет колонку 16 -> blocked
+  // step right: the front edge will touch column 16 -> blocked
   assert.strictEqual(stepTank(atWall, 3, walled, runtimePassable), null);
-  // чуть левее — передняя кромка (x+8) ещё не достигла стены, можно шагнуть вправо
+  // a bit to the left — the front edge (x+8) has not yet reached the wall, so we can step right
   assert.deepStrictEqual(stepTank({ x: 119, y }, 3, walled, runtimePassable), { x: 120, y });
-  // вверх/вниз внутри колонки 15 — ок (не впритык к стене)
+  // up/down inside column 15 — ok (not right at the wall)
   assert.notStrictEqual(stepTank({ x: 112, y }, 0, walled, runtimePassable), null);
   assert.notStrictEqual(stepTank({ x: 112, y }, 2, walled, runtimePassable), null);
-  // вплотную к стене (x=121) вверх/вниз нельзя: ASM-бокс ±8 вылезает в колонку 16
+  // right at the wall (x=121) up/down is not allowed: the ASM box ±8 sticks into column 16
   assert.strictEqual(stepTank(atWall, 0, walled, runtimePassable), null);
-  // край поля: у левого края влево нельзя
+  // field edge: at the left edge, left is not allowed
   assert.strictEqual(stepTank({ x: 0, y }, 1, empty, runtimePassable), null);
 });
 
@@ -86,9 +86,9 @@ test("коллизия: водная стена 0x0f блокирует пере
 });
 
 test("canPlace: центрированный корпус не встаёт на стену и в пределах поля", () => {
-  assert.strictEqual(canPlace(0, 0, empty, runtimePassable), false); // корпус вылезает за поле
+  assert.strictEqual(canPlace(0, 0, empty, runtimePassable), false); // body sticks out of the field
   assert.strictEqual(canPlace(8, 8, empty, runtimePassable), true);
-  assert.strictEqual(canPlace(128, 8, walled, runtimePassable), false); // на стене (колонка 16)
+  assert.strictEqual(canPlace(128, 8, walled, runtimePassable), false); // on the wall (column 16)
   assert.strictEqual(canPlace(FIELD * TILE - HALF - 1, 8, empty, runtimePassable), true); // x=249
   assert.strictEqual(canPlace(FIELD * TILE - HALF, 8, empty, runtimePassable), false); // x=250
 });
@@ -96,14 +96,14 @@ test("canPlace: центрированный корпус не встаёт на
 test("aiDirection: идёт к цели", () => {
   const from = { x: 16 * TILE, y: 16 * TILE };
   const targetDown = { x: 16 * TILE, y: 24 * TILE };
-  assert.strictEqual(aiDirection(from, targetDown, empty, runtimePassable), 2); // вниз
+  assert.strictEqual(aiDirection(from, targetDown, empty, runtimePassable), 2); // down
   const targetUp = { x: 16 * TILE, y: 8 * TILE };
-  assert.strictEqual(aiDirection(from, targetUp, empty, runtimePassable), 0); // вверх
+  assert.strictEqual(aiDirection(from, targetUp, empty, runtimePassable), 0); // up
 });
 
 test("tickTank: двигается по направлению или остаётся при блокировке", () => {
   const pos = { x: 16 * TILE, y: 16 * TILE };
   assert.deepStrictEqual(tickTank(pos, 2, empty, runtimePassable), { x: pos.x, y: pos.y + 1 });
-  const atRight = { x: FIELD * TILE - HALF - 1, y: 16 * TILE }; // x=249, тело [243,255]
+  const atRight = { x: FIELD * TILE - HALF - 1, y: 16 * TILE }; // x=249, body [243,255]
   assert.deepStrictEqual(tickTank(atRight, 3, empty, runtimePassable), atRight);
 });

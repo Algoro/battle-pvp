@@ -1,8 +1,8 @@
-// no-magic-addresses.test.js — защита от возврата «магических» адресов RAM/ROM.
+// no-magic-addresses.test.js — protection against the return of "magic" RAM/ROM addresses.
 //
-// Вне rom-contract.js / domain.js / startup.js (и вне test-only sim/tables) код не должен
-// обращаться к известным адресам RAM/ROM напрямую — только через RAM.*/ROM.*/domain-хелперы.
-// Тест сканирует исходники ядра/модели/ИИ и падает при появлении сырых адресов.
+// Outside rom-contract.js / domain.js / startup.js (and the test-only sim/tables), the code must not
+// access known RAM/ROM addresses directly — only via RAM.*/ROM.*/domain helpers.
+// The test scans the core/model/AI sources and fails when raw addresses appear.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readdirSync, readFileSync, statSync } from "node:fs";
@@ -15,7 +15,7 @@ const ROOT = join(__dirname, ".."); // emulator-core
 const SKIP_DIRS = ["src", "tests", "sim", `patching${sep}patches`];
 const SKIP_FILES = new Set(["rom-contract.ts", "domain.ts", "startup.ts", "fine-grid.ts"]);
 
-// Известные адреса-базы из rom-contract.js: запрещены как `mem[0x..]` и как сырые значения.
+// Known base addresses from rom-contract.js: forbidden as `mem[0x..]` and as raw values.
 const ADDR = "(?:0?1db|0?1e1|0?1e7|0?1ed|101|102|85|80|a0|a8|cc|51|b8|c2|88|86|87|400|90|98|6f|89|0a|0b|0f|68|82|84|6d|62|d44d|d466|f000|f07a|dabb|dacb)";
 const MEM_RE = new RegExp(`mem\\[0x${ADDR}\\b`);
 const RAW_RE = new RegExp(`\\b0x(?:d44d|d466|f000|f07a|dabb|dacb|1db|1e1|1e7|1ed)\\b`);

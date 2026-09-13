@@ -1,5 +1,5 @@
-// SpectateView.tsx — экран наблюдателя: рендер снапшотов, полученных от игроков,
-// и чат матча. Ввод не отправляется (наблюдатель не управляет танками).
+// SpectateView.tsx — spectator screen: rendering snapshots received from the players,
+// and match chat. Input is not sent (the spectator does not control tanks).
 import { useEffect, useRef, useState } from "react";
 import { EmulatorDriver } from "../engine/emulator";
 import ChatPanel from "./ChatPanel";

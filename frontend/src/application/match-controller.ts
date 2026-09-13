@@ -1,7 +1,7 @@
-// match-controller.ts — контроллер матча (application-слой фронтенда).
-// Инкапсулирует оркестрацию боя: детерминированный старт, negotiation, RollbackSession,
-// шаг кадра, реконнект, результат. Не знает о React/DOM: наружу отдаёт события через
-// колбэки, а конкретные адаптеры (EmulatorDriver, LobbyClient/NetClient) подаются извне.
+// match-controller.ts — match controller (frontend application layer).
+// Encapsulates battle orchestration: deterministic start, negotiation, RollbackSession,
+// frame step, reconnect, result. It knows nothing about React/DOM: it exposes events via
+// callbacks, while concrete adapters (EmulatorDriver, LobbyClient/NetClient) are supplied externally.
 import type { EmulatorDriver } from "../engine/emulator";
 import type { MatchStart } from "../engine/lobby-client";
 import { buildSoloInputs, isGameplayStarted, isTankAlive, BTN_START } from "../engine/game-state";
@@ -48,7 +48,7 @@ export interface MatchControllerDeps {
   backend: string;
   emu: () => EmulatorDriver | null;
   quickMatch: (backend: string) => QuickMatchGateway;
-  // Постоянное WS-соединение лобби: реконнект, пауза, spectator, финиш.
+  // Persistent lobby WS connection: reconnect, pause, spectator, finish.
   lobby: () => MatchGateway | null;
   onNet: (net: NetStats) => void;
   onPaused: (paused: boolean) => void;
@@ -63,7 +63,7 @@ interface OnlineOpponent {
   playerId: string;
 }
 
-// Минимальное представление RollbackSession, нужное контроллеру (порт-уровень).
+// Minimal representation of RollbackSession needed by the controller (port level).
 interface SessionPort {
   currentFrame: number;
   advanceFrame(inputs: FrameInput[]): void;
@@ -93,12 +93,12 @@ export class MatchController {
     this.deps.onNet(this.net);
   }
 
-  // Постоянный лобби-шлюз (WS): приоритетнее транспорта конкретного матча.
+  // Persistent lobby gateway (WS): takes priority over a specific match transport.
   private lobbyGateway(): MatchGateway | null {
     return this.deps.lobby() ?? this.gateway;
   }
 
-  // --- локальная игра ---
+  // --- local game ---
   startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = [], names: Record<number, string> = {}, featureOptions: Record<string, Record<string, string | number | boolean>> = {}): void {
     const emu = this.deps.emu();
     if (!emu) return;
@@ -106,7 +106,7 @@ export class MatchController {
     emu.setPatchFeatures?.(feats);
     emu.setFeatureOptions?.(featureOptions);
     emu.setPlayerNames?.(names);
-    const forcedStage = feats.includes("pacman") ? 1 : stage; // режим pacman играет только лабиринт (stage 1)
+    const forcedStage = feats.includes("pacman") ? 1 : stage; // pacman mode plays only the maze (stage 1)
     emu.setStartStage(forcedStage);
     emu.setStartStars(stars);
     emu.setStartPistol?.(pistol && feats.includes("pistol"));
@@ -119,7 +119,7 @@ export class MatchController {
     this.deps.onReady({ mode: "solo", team, port: team === "DEF" ? 0 : 2 });
   }
 
-  // --- соло tower defence ---
+  // --- solo tower defence ---
   startTowerDefence(opts: TdConfig): void {
     const emu = this.deps.emu();
     if (!emu) return;
@@ -144,7 +144,7 @@ export class MatchController {
     this.deps.onReady({ mode: "td", team: "DEF", port: 0 });
   }
 
-  // --- онлайн-матч из лобби ---
+  // --- online match from the lobby ---
   async startOnline(gateway: MatchGateway, start: MatchStart): Promise<void> {
     const meId = this.deps.meId;
     const myPorts = start.peers.filter((p) => p.playerId === meId).map((p) => p.port);
@@ -176,7 +176,7 @@ export class MatchController {
     });
   }
 
-  // --- быстрый матч (matchmaking + WS negotiation) ---
+  // --- quick match (matchmaking + WS negotiation) ---
   async startQuickMatch(team: Team, name = ""): Promise<void> {
     const nc = this.deps.quickMatch(this.deps.backend);
     nc.setCartridgeFingerprint(this.deps.emu()?.cartridgeFingerprint() ?? null);
@@ -229,7 +229,7 @@ export class MatchController {
     for (const p of opts.myPorts) mark(opts.myTeam, p);
     for (const o of opts.opps) mark(o.team, o.port);
 
-    // Синхронный автостарт: доводим ядро до начала геймплея детерминированно.
+    // Synchronous auto-start: bring the core to the start of gameplay deterministically.
     let started = false;
     for (let f = 1; f <= 1200 && !started; f++) {
       emu.stepFrame(
@@ -257,7 +257,7 @@ export class MatchController {
     try {
       (window as unknown as { __matchId?: string }).__matchId = opts.matchId;
     } catch {
-      /* не критично */
+      /* not critical */
     }
 
     const allIds = [this.deps.meId, ...opts.opps.map((o) => o.playerId)];
@@ -280,7 +280,7 @@ export class MatchController {
     this.deps.onReady({ mode: "online", team: opts.myTeam, port: primary, matchId: opts.matchId });
   }
 
-  // Один игровой кадр онлайна: только мои порты (+ авто-респавн Start для ATT).
+  // One online game frame: only my ports (+ auto-respawn Start for ATT).
   advance(buttons: number): void {
     if (this.paused) return;
     const sess = this.session;
@@ -300,7 +300,7 @@ export class MatchController {
         const bytes = emu.saveState();
         this.lobbyGateway()?.sendSpectateData?.(this.matchId, sess.currentFrame, bytesToBase64(bytes));
       } catch {
-        /* наблюдатели не критичны */
+        /* spectators are not critical */
       }
     }
   }
@@ -356,7 +356,7 @@ export class MatchController {
     this.deps.onPaused(paused);
   }
 
-  // Пауза/возобновление по видимости вкладки: обе стороны останавливают симуляцию.
+  // Pause/resume by tab visibility: both sides stop the simulation.
   onVisibilityChange(hidden: boolean): void {
     const gateway = this.lobbyGateway();
     if (!gateway || !this.matchId) return;
@@ -377,18 +377,18 @@ export class MatchController {
     this.deps.onWinner(winner);
   }
 
-  // Локально определённый результат онлайн-матча: сообщаем серверу (один раз).
+  // Locally determined result of the online match: report it to the server (once).
   reportResult(winner: Team | null): void {
     if (!this.session || !this.matchId || this.resultSent) return;
     this.resultSent = true;
     this.lobbyGateway()?.finishMatch?.(this.matchId, winner);
   }
 
-  // Возврат в лобби без перезагрузки страницы.
+  // Return to the lobby without reloading the page.
   clear(): void {
     this.deps.emu()?.setFeatureOptions?.({});
     this.lobbyGateway()?.clearMatchContext?.();
-    // Вернуть базовый набор патчей (сеть/fingerprint) и пересоздать ядро.
+    // Restore the base set of patches (network/fingerprint) and recreate the core.
     const emu = this.deps.emu();
     if (emu) {
       emu.setPatchFeatures?.([]);

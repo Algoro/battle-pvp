@@ -1,15 +1,15 @@
-// ppu-ext.js — РАСШИРЕНИЕ PPU без правок jsnes.
+// ppu-ext.js — PPU EXTENSION without modifying jsnes.
 //
-// jsnes (vendor/jsnes, pinned upstream) остаётся неизменным. Здесь — подкласс PPU,
-// который переопределяет два поведения:
-//   1. renderFramePartially: при opts.noRender пропускает дорогую пиксельную
-//      композицию (headless/AI-тесты), сохраняя side-effects маппера и тайминг.
-//   2. renderSpritesPartially: исправляет апстрим-баг индексации верхнего тайла
-//      8x16-спрайтов. Метод скопирован ВЕРБАТИМ из upstream-коммита за исключением
-//      одной строки (top = topTileNum - 1 + 256  ->  top = topTileNum + 256).
-//      При обновлении jsnes этот override надо сверить с новой версией метода.
+// jsnes (vendor/jsnes, pinned upstream) stays unchanged. Here — a PPU subclass
+// that overrides two behaviors:
+//   1. renderFramePartially: with opts.noRender skips the expensive pixel
+//      composition (headless/AI tests), preserving mapper side-effects and timing.
+//   2. renderSpritesPartially: fixes the upstream top-tile indexing bug
+//      for 8x16 sprites. The method is copied VERBATIM from the upstream commit except for
+//      one line (top = topTileNum - 1 + 256  ->  top = topTileNum + 256).
+//      When updating jsnes, this override must be checked against the new version of the method.
 //
-// Относительный путь: ./emulator-core/ppu-ext.js
+// Relative path: ./emulator-core/ppu-ext.js
 import PPU from "./src/ppu/index.js";
 
 const PPUBase: any = PPU;
@@ -19,7 +19,7 @@ export class BattleCityPPU extends PPUBase {
     super(nes);
   }
 
-  // Headless-режим: не рисуем пиксели, но сохраняем latch/onSpriteRender/onBgRender.
+  // Headless mode: don't draw pixels, but keep latch/onSpriteRender/onBgRender.
   renderFramePartially(startScan: number, scanCount: number): any {
     if (!this.nes.opts || !this.nes.opts.noRender) {
       return super.renderFramePartially(startScan, scanCount);
@@ -31,7 +31,7 @@ export class BattleCityPPU extends PPUBase {
     this.validTileData = false;
   }
 
-  // Исправленная версия upstream renderSpritesPartially (см. комментарий выше).
+  // Fixed version of upstream renderSpritesPartially (see comment above).
   renderSpritesPartially(startscan: number, scancount: number, bgPri: number): void {
     if (this.f_spVisibility !== 1) return;
 
@@ -92,7 +92,7 @@ export class BattleCityPPU extends PPUBase {
           // top tile is (index & $FE), bottom tile is (index & $FE) + 1.
           const sprBaseAddr = (sprTile & 1) !== 0 ? 0x1000 : 0x0000;
           const topTileNum = sprTile & 0xfe;
-          // FIX (было `topTileNum - 1 + 256`): верхний тайл = (index & $FE).
+          // FIX (was `topTileNum - 1 + 256`): top tile = (index & $FE).
           const top = (sprTile & 1) !== 0 ? topTileNum + 256 : topTileNum;
 
           const dy = sprY + 1;

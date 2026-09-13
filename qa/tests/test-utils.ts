@@ -1,21 +1,21 @@
-// test-utils.js — общие утилиты headless-эмуляции для QA-тестов.
-// Навигация: титул -> выбор стадии -> игровой экран (en_left=20); ожидание врага.
+// test-utils.js — shared headless emulation utilities for QA tests.
+// Navigation: title -> stage selection -> game screen (en_left=20); wait for the enemy.
 import { readFileSync } from "node:fs";
 import PvPNes, { BTN } from "../../emulator-core/pvp.ts";
 
-// RAM-адреса (см. reports/agent-reversing.md, bank_ram.inc)
+// RAM addresses (see reports/agent-reversing.md, bank_ram.inc)
 export const ADDR = {
   enLeft: 0x80,
   stage: 0x85,
   pause: 0x6d,
   gameOver: 0x68,
-  tankFlag: (t) => 0xa0 + t, // танк t
+  tankFlag: (t) => 0xa0 + t, // tank t
   tankX: (t) => 0x90 + t,
   tankY: (t) => 0x98 + t,
   netDir: 0x01db, // ram_net_enemy_dir
 };
 
-// Загружает патченый ROM и начинает игру (титул -> игра, en_left=20).
+// Loads the patched ROM and starts the game (title -> game, en_left=20).
 export function loadAndStart(romPath, maxStart = 12) {
   const emu = new PvPNes();
   emu.loadROM(readFileSync(romPath));
@@ -28,9 +28,9 @@ export function loadAndStart(romPath, maxStart = 12) {
   throw new Error("не удалось начать игру (en_left != 20)");
 }
 
-// Ждёт появления вражеского танка 2 в «живом/движущемся» состоянии И в поле
-// (Y>48, т.е. минуя верхние спавн-ворота, где танк игнорирует направление).
-// Флаги: 0x90-0xD0 активные; 0xE0/F0 респавн-мигание; 0x70/0x80 взрыв.
+// Waits for enemy tank 2 to appear in an "alive/moving" state AND in the field
+// (Y>48, i.e. past the top spawn gates, where the tank ignores direction).
+// Flags: 0x90-0xD0 active; 0xE0/F0 respawn-blinking; 0x70/0x80 explosion.
 export function waitTank2InField(emu, maxFrames = 2500) {
   for (let f = 0; f < maxFrames; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
@@ -40,7 +40,7 @@ export function waitTank2InField(emu, maxFrames = 2500) {
   return false;
 }
 
-// Прогон кадров с заданными входами всех 8 портов (остальные 0).
+// Run frames with the given inputs on all 8 ports (the rest 0).
 export function runFrames(emu, frames, inputs = []) {
   const all = [];
   for (let p = 0; p < 8; p++) all.push({ port: p, buttons: 0 });

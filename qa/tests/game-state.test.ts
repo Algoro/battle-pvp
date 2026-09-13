@@ -1,8 +1,8 @@
-// game-state.test.js — контрактные тесты чистой JS-логики игры (game-state.ts).
+// game-state.test.js — contract tests of the pure JS game logic (game-state.ts).
 // 1) unit: buildSoloInputs / determineWinner / isTankAlive / isGameplayStarted.
-// 2) headless-интеграция: соло-цикл фронтенда гоняет эмулятор ЧЕРЕЗ реальную
-//    buildSoloInputs (единый источник с GameCanvas) и проверяет поведение.
-// Запуск: node --test tests/game-state.test.js
+// 2) headless integration: the frontend solo loop drives the emulator THROUGH the real
+//    buildSoloInputs (single source with GameCanvas) and checks the behavior.
+// Run: node --test tests/game-state.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -24,46 +24,46 @@ const ROM = join(__dirname, "..", "..", "rom", "disasm", "_battle_city.nes");
 test("buildSoloInputs: DEF — автостарт Start на порту 0 и ввод игрока", () => {
   const r = buildSoloInputs({ port: 0, team: "DEF", frame: 30, started: false, userButtons: BTN.Up, attTankAlive: true });
   assert.deepStrictEqual(r, [{ port: 0, buttons: BTN.Up | BTN_START }]);
-  // после старта — Start не добавляется
+  // after start — Start is not added
   const r2 = buildSoloInputs({ port: 0, team: "DEF", frame: 30, started: true, userButtons: BTN.Up, attTankAlive: true });
   assert.deepStrictEqual(r2, [{ port: 0, buttons: BTN.Up }]);
 });
 
 test("buildSoloInputs: ATT — ввод игрока на порту 2 + авто-респавн, порт 0 на автостарте", () => {
-  // до старта боя: порт 0 Start, порт 2 — ввод игрока (без респавна, т.к. !started)
+  // before the battle starts: port 0 Start, port 2 — player input (no respawn, since !started)
   const r1 = buildSoloInputs({ port: 2, team: "ATT", frame: 30, started: false, userButtons: BTN.Left, attTankAlive: false });
   assert.deepStrictEqual(r1, [{ port: 0, buttons: BTN_START }, { port: 2, buttons: BTN.Left }]);
-  // бой начался, танк не жив -> авто-респавн (Start на порту 2)
+  // battle started, tank not alive -> auto-respawn (Start on port 2)
   const r2 = buildSoloInputs({ port: 2, team: "ATT", frame: 30, started: true, userButtons: 0, attTankAlive: false });
   assert.deepStrictEqual(r2, [{ port: 0, buttons: 0 }, { port: 2, buttons: BTN_START }]);
-  // танк жив -> только ввод игрока
+  // tank alive -> only player input
   const r3 = buildSoloInputs({ port: 2, team: "ATT", frame: 30, started: true, userButtons: BTN.Up, attTankAlive: true });
   assert.deepStrictEqual(r3, [{ port: 0, buttons: 0 }, { port: 2, buttons: BTN.Up }]);
 });
 
 test("determineWinner: корректная атрибуция", () => {
-  assert.strictEqual(determineWinner(1, 0, 20), "ATT"); // штаб уничтожен
-  assert.strictEqual(determineWinner(1, 0x80, 0), "DEF"); // все ATT-танки уничтожены
-  assert.strictEqual(determineWinner(1, 0x80, 20), null); // идёт бой
-  assert.strictEqual(determineWinner(0xff, 0, 20), null); // не в игре (титул)
+  assert.strictEqual(determineWinner(1, 0, 20), "ATT"); // HQ destroyed
+  assert.strictEqual(determineWinner(1, 0x80, 0), "DEF"); // all ATT tanks destroyed
+  assert.strictEqual(determineWinner(1, 0x80, 20), null); // battle in progress
+  assert.strictEqual(determineWinner(0xff, 0, 20), null); // not in game (title)
 });
 
 test("isTankAlive / isGameplayStarted", () => {
-  assert.strictEqual(isTankAlive(0xa2), true); // базовый враг, жив
-  assert.strictEqual(isTankAlive(0xd1), true); // follow_p1, жив
-  assert.strictEqual(isTankAlive(0xf0), false); // респавн-мигание
-  assert.strictEqual(isTankAlive(0x70), false); // взрыв
+  assert.strictEqual(isTankAlive(0xa2), true); // basic enemy, alive
+  assert.strictEqual(isTankAlive(0xd1), true); // follow_p1, alive
+  assert.strictEqual(isTankAlive(0xf0), false); // respawn-blinking
+  assert.strictEqual(isTankAlive(0x70), false); // explosion
   assert.strictEqual(isTankAlive(0), false);
   assert.strictEqual(isGameplayStarted(0xff), false);
   assert.strictEqual(isGameplayStarted(20), true);
 });
 
-// ---- headless-интеграция через реальную buildSoloInputs ----
+// ---- headless integration through the real buildSoloInputs ----
 function makeDriver() {
   const emu = new PvPNes();
   emu.loadROM(readFileSync(ROM));
-  // В реальной игре (App.tsx) танк игрока помечается человеческим — иначе он
-  // управляется AI-врагом (порт 2) и его могут подбить другие враги.
+  // In the real game (App.tsx) the player tank is marked human — otherwise it
+  // is controlled by the AI enemy (port 2) and can be hit by other enemies.
   emu.setHumanTank(2);
   let frame = 0;
   let started = false;
@@ -82,17 +82,17 @@ function makeDriver() {
 
 test("интеграция: реальный buildSoloInputs доводит до боя и даёт управление", () => {
   const { emu, step } = makeDriver();
-  // автостарт до боя
+  // auto-start until the battle
   let battle = false;
   for (let f = 0; f < 600; f++) { step(); if (isGameplayStarted(emu.cpu.mem[0x80])) { battle = true; break; } }
   assert.ok(battle, "бой не начался через buildSoloInputs");
 
-  // авто-респавн до живого танка
+  // auto-respawn until a live tank
   for (let f = 0; f < 400 && !isTankAlive(emu.cpu.mem[0xa2]); f++) step();
   assert.ok(isTankAlive(emu.cpu.mem[0xa2]), "танк игрока не стал живым (авто-респавн)");
 
-  // управление влево: контракт — направление танка следует за вводом.
-  // (Движение X может быть заблокировано стеной в зависимости от спавна.)
+  // control left: the contract is that the tank direction follows the input.
+  // (X movement may be blocked by a wall depending on the spawn.)
   let turnedLeft = false;
   for (let f = 0; f < 250; f++) {
     step(BTN.Left);
@@ -108,7 +108,7 @@ test("интеграция: удержание Left задаёт направл�
   let turned = false;
   for (let f = 0; f < 150; f++) {
     step(BTN.Left);
-    if ((emu.cpu.mem[0xa2] & 3) === 1) { turned = true; break; } // направление Left
+    if ((emu.cpu.mem[0xa2] & 3) === 1) { turned = true; break; } // Left direction
   }
   assert.ok(turned, "удержание Left не задало направление влево (управление не реагирует)");
 });
@@ -117,7 +117,7 @@ test("интеграция: огонь по кнопке A (через buildSolo
   const { emu, step } = makeDriver();
   for (let f = 0; f < 600; f++) { step(); if (isGameplayStarted(emu.cpu.mem[0x80])) break; }
   for (let f = 0; f < 400 && !isTankAlive(emu.cpu.mem[0xa2]); f++) step();
-  for (let f = 0; f < 300 && emu.cpu.mem[0xce] !== 0; f++) step(); // ждём очистки пули
-  step(BTN.A); // выстрел
+  for (let f = 0; f < 300 && emu.cpu.mem[0xce] !== 0; f++) step(); // wait for the bullet to clear
+  step(BTN.A); // fire
   assert.notStrictEqual(emu.cpu.mem[0xce], 0, "по A танк не выстрелил");
 });

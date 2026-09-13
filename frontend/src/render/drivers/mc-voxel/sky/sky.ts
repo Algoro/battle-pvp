@@ -1,7 +1,7 @@
-// sky.ts — небо и атмосфера: купол-градиент, квадратное солнце/луна, звёзды, плоские
-// облака; расчёт палитры дня/ночи (визуально, без влияния на игру).
+// sky.ts — sky and atmosphere: gradient dome, square sun/moon, stars, flat
+// clouds; day/night palette computation (visual only, no effect on the game).
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/sky/sky.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/sky/sky.ts
 import * as THREE from "three";
 import type { McTime } from "../options.ts";
 
@@ -46,7 +46,7 @@ const KEYS: Key[] = [
   { frac: 1.0, top: 0x070c1c, horizon: 0x18233f, sun: 0xcdd8ff, sunI: 0.45, amb: 0x26304d, ambI: 0.4, fog: 0x0c1428, star: 1 },
 ];
 
-// Фиксированные «времена»: frac 0=полночь, 0.25=восход, 0.5=полдень, 0.75=закат.
+// Fixed "times": frac 0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset.
 const FIXED_FRAC: Record<Exclude<McTime, "cycle">, number> = { noon: 0.5, day: 0.5, sunset: 0.78, night: 0.05 };
 const CYCLE_SECONDS = 120;
 
@@ -81,7 +81,7 @@ function sample(frac: number): DayState {
   };
 }
 
-/** Палитра неба для доли суток (0=полночь, 0.5=полдень) — для тестов и отладки. */
+/** Sky palette for a time fraction (0=midnight, 0.5=noon) — for tests and debugging. */
 export function dayStateForFraction(frac: number): DayState {
   return sample(frac);
 }
@@ -139,7 +139,7 @@ export function createSky(): Sky {
   moon.position.set(-120, -180, -140);
   group.add(moon);
 
-  // звёзды
+  // stars
   const starCount = 300;
   const pos = new Float32Array(starCount * 3);
   for (let i = 0; i < starCount; i++) {
@@ -154,7 +154,7 @@ export function createSky(): Sky {
   const stars = new THREE.Points(starGeo, starMat);
   group.add(stars);
 
-  // облака
+  // clouds
   const cloudTex = cloudTexture();
   cloudTex.repeat.set(3, 3);
   const cloudMat = new THREE.MeshLambertMaterial({ map: cloudTex, transparent: true, opacity: 0.75, depthWrite: false });

@@ -1,5 +1,5 @@
-// match-controller.test.js — application-контроллер матча на fake-портах (без jsnes/сети).
-// Доказывает: оркестрация матча тестируема без React/DOM/эмулятора.
+// match-controller.test.js — application match controller on fake ports (no jsnes/network).
+// Proves that match orchestration is testable without React/DOM/emulator.
 import { test } from "node:test";
 import assert from "node:assert";
 import { MatchController } from "../src/application/match-controller.ts";
@@ -13,7 +13,7 @@ function fakeEmu() {
     setHumanTank() {},
     setHumanDefTank() {},
     stepFrame() { this.frames++; return "hash"; },
-    readMem() { return 0; }, // gameplay стартовал
+    readMem() { return 0; }, // gameplay started
     saveState() { return new Uint8Array([1]); },
     draw() {},
     cartridgeFingerprint() { return "fp"; },

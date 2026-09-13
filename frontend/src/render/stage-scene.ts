@@ -1,21 +1,21 @@
-// stage-scene.ts — SceneState для предпросмотра КОНКРЕТНОЙ стадии (13×13 блоков ROM
-// → поле коллизий 26×26). Используется драйверами 3D для предпросмотра уровня.
+// stage-scene.ts — SceneState for previewing a SPECIFIC stage (13×13 ROM blocks
+// → 26×26 collision field). Used by 3D drivers to preview a level.
 //
-// Соответствие блоков стадии домену (выведено из tbl_DACB/DABB ROM):
-//   0..4 — кирпич (квадранты/полный), 5..9 — сталь (квадранты/полный),
-//   a — вода, b — деревья, c — лёд, d — пусто.
+// Stage block mapping to the domain (derived from ROM tbl_DACB/DABB):
+//   0..4 — brick (quadrants/full), 5..9 — steel (quadrants/full),
+//   a — water, b — trees, c — ice, d — empty.
 //
-// Относительный путь: ./frontend/src/render/stage-scene.ts
+// Relative path: ./frontend/src/render/stage-scene.ts
 import { PLAY_BOUNDS } from "./scene-state.ts";
 import type { SceneState } from "./types.ts";
 
 const BLOCK_TILE: Record<number, number> = {
-  0: 0x0f, 1: 0x0f, 2: 0x0f, 3: 0x0f, 4: 0x0f, // кирпич
-  5: 0x10, 6: 0x10, 7: 0x10, 8: 0x10, 9: 0x10, // сталь
-  0xa: 0x12, // вода
-  0xb: 0x22, // деревья
-  0xc: 0x21, // лёд
-  0xd: 0x00, // пусто
+  0: 0x0f, 1: 0x0f, 2: 0x0f, 3: 0x0f, 4: 0x0f, // brick
+  5: 0x10, 6: 0x10, 7: 0x10, 8: 0x10, 9: 0x10, // steel
+  0xa: 0x12, // water
+  0xb: 0x22, // trees
+  0xc: 0x21, // ice
+  0xd: 0x00, // empty
 };
 
 function buildField(stage: any): Uint8Array {
@@ -28,7 +28,7 @@ function buildField(stage: any): Uint8Array {
         const tile = BLOCK_TILE[stage.blocks[bi]] ?? 0;
         if (!tile) continue;
         for (let k = 0; k < 4; k++) {
-          if (stage.tiles[bi * 4 + k] === 0) continue; // пустой тайл квадранта
+          if (stage.tiles[bi * 4 + k] === 0) continue; // empty quadrant tile
           const fc = b.col0 + col * 2 + (k & 1);
           const fr = b.row0 + row * 2 + (k >> 1);
           field[fr * 32 + fc] = tile;
@@ -36,7 +36,7 @@ function buildField(stage: any): Uint8Array {
       }
     }
   }
-  // Освободить место под орла (центр низа), чтобы модель не пересекалась с кирпичом.
+  // Free up space for the eagle (bottom center) so the model does not intersect the brick.
   const ec = b.col0 + 12;
   const er = b.row0 + 24;
   for (let r = er; r < er + 2; r++) for (let c = ec; c < ec + 2; c++) field[r * 32 + c] = 0;
@@ -45,7 +45,7 @@ function buildField(stage: any): Uint8Array {
 
 const cache = new Map<number, SceneState>();
 
-/** Статичная сцена уровня без танков/призов — только рельеф и штаб. */
+/** Static level scene without tanks/bonuses — only terrain and HQ. */
 export function stageScene(emulator: { getStage?: (s: number) => any } | null | undefined, stage: number): SceneState {
   const s = Math.max(1, Math.floor(stage) || 1);
   const hit = cache.get(s);

@@ -1,7 +1,7 @@
-// textures.ts — цвета и процедурные текстуры (canvas). Ассеты ROM не используются,
-// поэтому файл безопасен; текстуры создаются в браузере при монтировании драйвера.
+// textures.ts — colors and procedural textures (canvas). ROM assets are not used,
+// so the file is safe; textures are created in the browser when the driver mounts.
 //
-// Относительный путь: ./frontend/src/render/drivers/topdown-3d/textures.ts
+// Relative path: ./frontend/src/render/drivers/topdown-3d/textures.ts
 import * as THREE from "three";
 
 export const COLORS = {
@@ -35,7 +35,7 @@ function canvas(size: number, draw: (ctx: CanvasRenderingContext2D) => void): HT
   return c;
 }
 
-/** Полосатая текстура гусениц (тайлится). */
+/** Striped track texture (tiled). */
 export function treadTexture(): THREE.Texture {
   const c = canvas(64, (ctx) => {
     ctx.fillStyle = "#1b1e22";
@@ -50,7 +50,7 @@ export function treadTexture(): THREE.Texture {
   return tex;
 }
 
-/** Анимируемая текстура воды. */
+/** Animatable water texture. */
 export function waterTexture(): THREE.Texture {
   const c = canvas(64, (ctx) => {
     ctx.fillStyle = "#1e4fd6";
@@ -71,7 +71,7 @@ export function waterTexture(): THREE.Texture {
   return tex;
 }
 
-/** Земляная подложка с лёгкой сеткой. */
+/** Ground base with a light grid. */
 export function groundTexture(): THREE.Texture {
   const c = canvas(64, (ctx) => {
     ctx.fillStyle = "#10141b";

@@ -1,12 +1,12 @@
-// descriptor.js — валидация дескрипторов патчей и хелперы генерации байт.
+// descriptor.js — validation of patch descriptors and byte-generation helpers.
 //
-// Байты в дескрипторе: Uint8Array | number[] | hex-строка | функция (resolve)=>Uint8Array
-// (функция нужна для релокаций: JMP/JSR на символический адрес).
+// Bytes in a descriptor: Uint8Array | number[] | hex string | function (resolve)=>Uint8Array
+// (the function is needed for relocations: JMP/JSR to a symbolic address).
 //
-// Относительный путь: ./emulator-core/patching/descriptor.js
+// Relative path: ./emulator-core/patching/descriptor.js
 import { PatchError } from "./errors.ts";
 
-/** hex-строка ("4C 75 EF" / "4C75EF") -> Uint8Array */
+/** hex string ("4C 75 EF" / "4C75EF") -> Uint8Array */
 export function hex(s: string): Uint8Array {
   const clean = String(s).replace(/[^0-9a-fA-F]/g, "");
   if (clean.length % 2 !== 0) throw new PatchError("BAD_HEX", `нечётная hex-строка: ${s}`);
@@ -22,7 +22,7 @@ export function toBytes(v: any): Uint8Array {
   throw new PatchError("BAD_BYTES", `неподдерживаемый тип байт: ${typeof v}`);
 }
 
-/** 6502 JMP abs (0x4C) на символ + NOP-пады до длины len. */
+/** 6502 JMP abs (0x4C) to a symbol + NOP pads up to length len. */
 export function jmp(symbol: any, len: number) {
   return (resolve: (s: any) => number) => {
     if (len < 3) throw new PatchError("BAD_JUMP", `jmp(${symbol}): len<3`);
@@ -35,7 +35,7 @@ export function jmp(symbol: any, len: number) {
   };
 }
 
-/** 6502 JSR abs (0x20) на символ + NOP-пады до длины len. */
+/** 6502 JSR abs (0x20) to a symbol + NOP pads up to length len. */
 export function jsr(symbol: any, len: number) {
   return (resolve: (s: any) => number) => {
     if (len < 3) throw new PatchError("BAD_JUMP", `jsr(${symbol}): len<3`);
@@ -48,17 +48,17 @@ export function jsr(symbol: any, len: number) {
   };
 }
 
-/** Байты заданной длины (value заполнение). */
+/** Bytes of the given length (value fill). */
 export function fill(len: number, value = 0xea): Uint8Array {
   return new Uint8Array(len).fill(value);
 }
 
-// --- Токены для релоцируемых рутин ---
-// Массив токенов: number (литерал) | {op:...}. Позволяет операндам-адресам
-// резолвиться линкером (символы/RAM/собственная рутина), а не быть зашитыми.
+// --- Tokens for relocatable routines ---
+// Array of tokens: number (literal) | {op:...}. Allows address operands
+// to be resolved by the linker (symbols/RAM/own routine) instead of being hardcoded.
 export function jmpT(symbol: any, delta = 0) { return { op: "jmp", symbol, delta }; }
 export function jsrT(symbol: any, delta = 0) { return { op: "jsr", symbol, delta }; }
-export function absT(symbol: any, delta = 0) { return { op: "abs", symbol, delta }; } // 2-байтный abs-операнд
+export function absT(symbol: any, delta = 0) { return { op: "abs", symbol, delta }; } // 2-byte abs operand
 export function selfJmpT(delta = 0) { return { op: "jmp", self: true, delta }; }
 export function selfAbsT(delta = 0) { return { op: "abs", self: true, delta }; }
 
@@ -70,12 +70,12 @@ function tokenSize(t: any): number {
   throw new PatchError("BAD_BYTES", `неизвестный токен: ${JSON.stringify(t)}`);
 }
 
-/** Длина байтов (Uint8Array | number[] | hex | токены) без резолва символов. */
+/** Byte length (Uint8Array | number[] | hex | tokens) without resolving symbols. */
 export function byteLength(v: any): number {
   if (v instanceof Uint8Array) return v.length;
   if (typeof v === "string") return hex(v).length;
   if (Array.isArray(v)) {
-    // массив чисел -> байты; массив токенов -> сумма размеров
+    // array of numbers -> bytes; array of tokens -> sum of sizes
     if (v.every((x) => typeof x === "number")) return v.length;
     let n = 0;
     for (const t of v) n += tokenSize(t);
@@ -84,7 +84,7 @@ export function byteLength(v: any): number {
   throw new PatchError("BAD_BYTES", `неподдерживаемый тип байт: ${typeof v}`);
 }
 
-/** Скомпилировать токены в байты, резолвя символы линкером. */
+/** Compile tokens into bytes, resolving symbols with the linker. */
 export function compileTokens(tokens: any[], resolve: (s: any) => number, selfAddr = 0): Uint8Array {
   const out = [];
   for (const t of tokens) {
@@ -122,7 +122,7 @@ export function validateSet(set: any): any {
   return set;
 }
 
-/** Объединить наборы (base + модули) в один. Порядок routines/writes сохраняется. */
+/** Merge sets (base + modules) into one. The order of routines/writes is preserved. */
 export function composeSets(...sets: any[]): any {
   const out: any = { id: "composed", version: 1, symbols: {}, free: [], routines: [], writes: [] };
   for (const s of sets) {
@@ -134,7 +134,7 @@ export function composeSets(...sets: any[]): any {
     if (s.writes) out.writes = out.writes.concat(s.writes);
     if (s.description) out.description = [out.description, s.description].filter(Boolean).join("; ");
   }
-  // уникальные free-регионы
+  // unique free regions
   out.free = out.free.filter((r: any, i: number) => out.free.findIndex((x: any) => x.start === r.start && x.end === r.end) === i);
   out.id = sets.map((s) => s && s.id).filter(Boolean).join("+") || "composed";
   return out;

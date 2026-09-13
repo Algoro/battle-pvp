@@ -1,11 +1,11 @@
-// rollforward.js — предсказание будущего НА РЕАЛЬНОМ эмуляторе (не на JS-модели).
+// rollforward.js — predicting the future ON THE REAL EMULATOR (not on the JS model).
 //
-// Идея «B» из плана: вместо второго источника истины (sim/*) для lookahead-прогноза
-// использовать сам эмулятор — сохранить состояние, прокрутить N кадров с заданными
-// входами и прочитать результат/хэши. Это гарантирует, что прогноз совпадает с игрой.
+// Idea "B" from the plan: instead of a second source of truth (sim/*) for the lookahead prediction,
+// use the emulator itself — save the state, roll forward N frames with the given
+// inputs, and read the result/hashes. This guarantees the prediction matches the game.
 //
-// Клон создаётся через saveState/loadState, поэтому детерминизм сохраняется.
-// Относительный путь: ./emulator-core/ai/rollforward.js
+// The clone is created via saveState/loadState, so determinism is preserved.
+// Relative path: ./emulator-core/ai/rollforward.js
 import PvPNes from "../pvp.ts";
 
 export class EmulatorPredictor {
@@ -13,8 +13,8 @@ export class EmulatorPredictor {
   opts: any;
   emu: any;
   /**
-   * @param {Uint8Array} romBytes — оригинальный ROM (патч применяется внутри PvPNes)
-   * @param {object} opts — опции PvPNes (patchSet и т.п.)
+   * @param {Uint8Array} romBytes — the original ROM (the patch is applied inside PvPNes)
+   * @param {object} opts — PvPNes options (patchSet, etc.)
    */
   constructor(romBytes: any, opts: any = { patchSet: "pvp", attAI: "off", defAI: "off", sampleRate: 0 }) {
     this.romBytes = romBytes;
@@ -24,7 +24,7 @@ export class EmulatorPredictor {
   }
 
   /**
-   * Прокрутить `steps` кадров от состояния `stateBytes` с входами `inputsAt(i)`.
+   * Roll forward `steps` frames from the `stateBytes` state with inputs `inputsAt(i)`.
    * @returns {{hashes: string[], finalHash: string}}
    */
   predict(stateBytes: any, steps: any, inputsAt: (i: any) => any = () => []) {

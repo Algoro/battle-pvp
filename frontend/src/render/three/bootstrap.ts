@@ -1,6 +1,6 @@
-// bootstrap.ts — общий каркас three-сцены для 3D-драйверов: renderer/scene/camera/resize.
+// bootstrap.ts — common three-scene scaffolding for 3D drivers: renderer/scene/camera/resize.
 //
-// Относительный путь: ./frontend/src/render/three/bootstrap.ts
+// Relative path: ./frontend/src/render/three/bootstrap.ts
 import * as THREE from "three";
 import type { RenderHost } from "../types.ts";
 

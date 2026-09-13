@@ -1,5 +1,5 @@
-// playwright.config.js — e2e-конфиг для клиента (frontend/dist).
-// Запуск: npx playwright install chromium && npm run build (в frontend) && npm run e2e
+// playwright.config.js — e2e config for the client (frontend/dist).
+// Run: npx playwright install chromium && npm run build (in frontend) && npm run e2e
 import { defineConfig } from "@playwright/test";
 
 export default defineConfig({

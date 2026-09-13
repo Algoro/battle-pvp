@@ -1,7 +1,7 @@
-// particles.ts — пул частиц (Points) для разрушения блоков, взрывов, искр и пыли.
-// Additive-блендинг: затухание в чёрный = исчезновение.
+// particles.ts — particle pool (Points) for block destruction, explosions, sparks and dust.
+// Additive blending: fading to black = disappearing.
 //
-// Относительный путь: ./frontend/src/render/drivers/mc-voxel/fx/particles.ts
+// Relative path: ./frontend/src/render/drivers/mc-voxel/fx/particles.ts
 import * as THREE from "three";
 
 export interface VoxelParticles {

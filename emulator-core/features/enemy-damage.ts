@@ -1,10 +1,10 @@
-// enemy-damage.ts — общий JS-урон по вражескому танку (броня, носитель приза, смерть).
+// enemy-damage.ts — shared JS damage to an enemy tank (armor, prize carrier, death).
 //
-// Вынесено из `friendly-fire-att.ts`, чтобы правила урона совпадали у friendly fire и
-// башен tower defence (единый источник). Для совместимости поведение при
-// damage=1/pierce=false в точности повторяет оригинальный friendly-fire.
+// Extracted from `friendly-fire-att.ts` so the damage rules match friendly fire and
+// tower defence turrets (single source). For compatibility the behavior with
+// damage=1/pierce=false exactly repeats the original friendly-fire.
 //
-// Относительный путь: ./emulator-core/features/enemy-damage.ts
+// Relative path: ./emulator-core/features/enemy-damage.ts
 import { RAM } from "../rom-contract.ts";
 import type { FeatureContext } from "../patching/runtime.ts";
 
@@ -12,7 +12,7 @@ export const POSITIONS = [0x30, 0x60, 0x90, 0xc0]; // sub_E902_convert_random_nu
 export const BONUS_TABLE = [0, 1, 2, 3, 4, 5, 4, 3]; // tbl_E8FA_bonus
 const TANK_EXPLODE = 0x73;
 
-/** Детерминированное выпадение приза (не трогаем, если приз активен). */
+/** Deterministic prize drop (don't touch it if a prize is active). */
 export function spawnPrize(ctx: FeatureContext): void {
   const mem = ctx.kernel.mem;
   if (mem[RAM.PRIZE_X] !== 0) return;
@@ -25,15 +25,15 @@ export function spawnPrize(ctx: FeatureContext): void {
 }
 
 /**
- * Урон врагу: снять броню/носителя приза, при обнулении — взорвать.
- *  - pierce  — «бронебойный» выстрел: снимает всю броню за попадание;
- *  - damage  — сколько уровней брони снимает обычное попадание (>=1).
- * Возвращает true, если танк уничтожен.
+ * Damage to an enemy: remove armor/prize carrier, and on reaching zero — blow it up.
+ *  - pierce  — "armor-piercing" shot: removes all armor in one hit;
+ *  - damage  — how many armor levels a normal hit removes (>=1).
+ * Returns true if the tank is destroyed.
  */
 export function damageEnemy(ctx: FeatureContext, t: number, damage = 1, pierce = false): boolean {
   const mem = ctx.kernel.mem;
   let type = mem[RAM.TANK_TYPE + t];
-  // Носитель приза (бит 0x04): теряет бонус и выпускает приз.
+  // Prize carrier (bit 0x04): loses the bonus and releases the prize.
   if (type & 0x04) {
     spawnPrize(ctx);
     if (type === 0xe4) {

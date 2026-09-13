@@ -1,7 +1,7 @@
-// prefs.ts — локальные (не сетевые) настройки слоя рендера: выбранный драйвер и
-// расширения. Хранятся в localStorage; матч/детерминизм они не затрагивают.
+// prefs.ts — local (non-network) render layer settings: the selected driver and
+// extensions. Stored in localStorage; they do not affect the match/determinism.
 //
-// Относительный путь: ./frontend/src/render/prefs.ts
+// Relative path: ./frontend/src/render/prefs.ts
 
 export interface RenderPrefs {
   driver: string;
@@ -29,11 +29,11 @@ export function saveRenderPrefs(p: RenderPrefs): void {
     localStorage.setItem(DRIVER_KEY, p.driver);
     localStorage.setItem(EXT_KEY, JSON.stringify(p.extensions ?? []));
   } catch {
-    /* localStorage недоступен */
+    /* localStorage is unavailable */
   }
 }
 
-/** Настройки конкретного драйвера (например, mc-voxel). Карта driverId -> options. */
+/** Settings of a specific driver (for example, mc-voxel). Map driverId -> options. */
 export function loadRenderOptions<T>(driver: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(OPTIONS_KEY);
@@ -53,6 +53,6 @@ export function saveRenderOptions(driver: string, options: unknown): void {
     next[driver] = options;
     localStorage.setItem(OPTIONS_KEY, JSON.stringify(next));
   } catch {
-    /* localStorage недоступен */
+    /* localStorage is unavailable */
   }
 }

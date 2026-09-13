@@ -1,23 +1,23 @@
-// pathfind.js — стратегический слой навигации: взвешенный A* с модификаторами
-// стоимости по типу тайла (дизайн защитного ИИ, §2.1/§7).
+// pathfind.js — strategic navigation layer: weighted A* with cost modifiers
+// by tile type (defender AI design, §2.1/§7).
 //
-// Отличие от разрозненных BFS (`costToGoal`/`bestStep` в scan/lookahead): единый
-// A* с весами из game-view (tileCost: empty/road=1, brick=3, tree=1.2, ice=1.5,
-// steel/water=∞), поддержкой «прострела» кирпичей (allowBreak) и зон избегания
-// (avoid — например, клетки под вражескими пулями).
+// Difference from the scattered BFS (`costToGoal`/`bestStep` in scan/lookahead): a single
+// A* with weights from game-view (tileCost: empty/road=1, brick=3, tree=1.2, ice=1.5,
+// steel/water=∞), support for brick "punch-through" (allowBreak) and avoidance zones
+// (avoid — e.g., cells under enemy bullets).
 //
-// Все функции чистые: принимают поле (Uint8Array 1024) и клетки {col,row}.
+// All functions are pure: they take the field (Uint8Array 1024) and cells {col,row}.
 
 import { FIELD, DX, DY, inBounds, cellIdx, tankPassable, isBrick, tileCost, brickHealth } from "./game-view.ts";
 
-// Узлы 32x32; вместимость контейнера — до конца поля (независимо от эвристики).
+// Nodes 32x32; container capacity — to the end of the field (independent of the heuristic).
 const CAP = FIELD * FIELD;
 
-// «Недостижимо» для BFS-поля стоимости (общий маркер для ИИ).
+// "Unreachable" for the BFS cost field (a shared AI marker).
 export const UNREACHABLE = 0x7fff;
 
-// BFS: направление первого шага к проходимой цели (без прострела кирпичей).
-// Общий примитив (перенесён из tactical-ai; точная копия семантики BFS с порядком d=0..3).
+// BFS: direction of the first step toward a passable goal (without brick punch-through).
+// Shared primitive (moved from tactical-ai; an exact copy of the BFS semantics with order d=0..3).
 export function bfsDirection(field: any, from: any, to: any) {
   if (from.col === to.col && from.row === to.row) return null;
   if (!inBounds(to.col, to.row) || !tankPassable(field[cellIdx(to.col, to.row)])) return null;
@@ -47,9 +47,9 @@ export function bfsDirection(field: any, from: any, to: any) {
   return d;
 }
 
-// BFS-поле стоимости достижения цели (для локального выбора шага). Движение = 1,
-// «прострел» кирпича = brickCost(v) (по умолчанию max(1, прочность кирпича)).
-// Перенесено из scan-ai (идентичная семантика).
+// BFS cost field for reaching the goal (for local step choice). Movement = 1,
+// brick "punch-through" = brickCost(v) (by default max(1, brick durability)).
+// Moved from scan-ai (identical semantics).
 export function costField(field: any, goal: any, brickCost: any = (v: number) => Math.max(1, brickHealth(v))) {
   const cost = new Int32Array(FIELD * FIELD).fill(UNREACHABLE);
   if (!inBounds(goal.col, goal.row)) return cost;
@@ -74,7 +74,7 @@ export function costField(field: any, goal: any, brickCost: any = (v: number) =>
   return cost;
 }
 
-// Минимальная бинарная куча (приоритет = f = g + h).
+// Min binary heap (priority = f = g + h).
 class MinHeap {
   a: any[];
   constructor() { this.a = []; }
@@ -111,9 +111,9 @@ class MinHeap {
   }
 }
 
-// Стоимость входа в клетку для навигации танка. По умолчанию проходимые тайлы
-// (empty/road/tree/ice) стоят tileCost; при allowBreak кирпич проходим за tileCost
-// (простреливается). Сталь/вода и вне поля — Infinity.
+// Cost of entering a cell for tank navigation. By default passable tiles
+// (empty/road/tree/ice) cost tileCost; with allowBreak a brick is passable at tileCost
+// (shot through). Steel/water and outside the field — Infinity.
 function defaultCost(field: any, c: number, r: number, allowBreak: boolean) {
   if (!inBounds(c, r)) return Infinity;
   const v = field[cellIdx(c, r)];
@@ -123,25 +123,25 @@ function defaultCost(field: any, c: number, r: number, allowBreak: boolean) {
 }
 
 function heuristic(a: any, b: any) {
-  // допустимая эвристика: мах-компонента <= евклидово <= Manhattan; берём Manhattan
-  // (A* с допустимой эвристикой — кратчайший путь по весам >=1).
+  // admissible heuristic: max-component <= Euclidean <= Manhattan; we take Manhattan
+  // (A* with an admissible heuristic — shortest path by weights >=1).
   return Math.abs(a.col - b.col) + Math.abs(a.row - b.row);
 }
 
-// Найти путь от `from` к `to` взвешенным A*. Возвращает массив клеток {col,row}
-// (без старта, включая цель) или null, если цель недостижима/непроходима.
+// Find a path from `from` to `to` with weighted A*. Returns an array of cells {col,row}
+// (without the start, including the goal) or null if the goal is unreachable/impassable.
 // opts: { cost, allowBreak, avoid (Set idx), maxCost, startFromNeighbor }
-//   - cost: пользовательская функция (field,c,r)=>число (по умолчанию defaultCost).
-//   - avoid: клетки, которые запрещено посещать (idx = r*32+c).
-//   - maxCost: обрезка — не исследовать клетки дороже maxCost.
+//   - cost: user function (field,c,r)=>number (default defaultCost).
+//   - avoid: cells that must not be visited (idx = r*32+c).
+//   - maxCost: pruning — don't explore cells more expensive than maxCost.
 export function aStar(field: any, from: any, to: any, opts: any = {}) {
   if (!from || !to || from.col === to.col && from.row === to.row) return null;
   if (!inBounds(from.col, from.row) || !inBounds(to.col, to.row)) return null;
   const costFn = opts.cost || ((f: any, c: number, r: number) => defaultCost(f, c, r, opts.allowBreak));
-  if (!isFinite(costFn(field, to.col, to.row))) return null; // цель непроходима
+  if (!isFinite(costFn(field, to.col, to.row))) return null; // goal impassable
 
   const g = new Float64Array(CAP).fill(Infinity);
-  const came = new Int32Array(CAP).fill(-1); // направление d, по которому пришли
+  const came = new Int32Array(CAP).fill(-1); // direction d from which we came
   const start = cellIdx(from.col, from.row);
   const goal = cellIdx(to.col, to.row);
   const h = heuristic(from, to);
@@ -153,7 +153,7 @@ export function aStar(field: any, from: any, to: any, opts: any = {}) {
     const cur = open.pop();
     const c = cur.idx % FIELD, r = (cur.idx / FIELD) | 0;
     if (cur.idx === goal) {
-      // восстановить путь
+      // reconstruct the path
       const path = [];
       let i = goal;
       while (i !== start) {
@@ -165,7 +165,7 @@ export function aStar(field: any, from: any, to: any, opts: any = {}) {
       path.reverse();
       return path;
     }
-    if (cur.f !== g[cur.idx] + heuristic({ col: c, row: r }, to)) continue; // устаревшая запись
+    if (cur.f !== g[cur.idx] + heuristic({ col: c, row: r }, to)) continue; // stale entry
     for (let d = 0; d < 4; d++) {
       const nc = c + DX[d], nr = r + DY[d];
       const nidx = cellIdx(nc, nr);
@@ -184,7 +184,7 @@ export function aStar(field: any, from: any, to: any, opts: any = {}) {
   return null;
 }
 
-// Направление первого шага к цели по A*, либо null.
+// Direction of the first step toward the goal via A*, or null.
 export function pathDirection(field: any, from: any, to: any, opts: any = {}) {
   const path = aStar(field, from, to, opts);
   if (!path || !path.length) return null;
@@ -194,12 +194,12 @@ export function pathDirection(field: any, from: any, to: any, opts: any = {}) {
   return null;
 }
 
-// Достижима ли цель (без учёта avoid/стоимости — только топология).
+// Is the goal reachable (without avoid/cost — topology only).
 export function isReachable(field: any, from: any, to: any, opts: any = {}) {
   return aStar(field, from, to, { ...opts, maxCost: undefined }) !== null;
 }
 
-// Суммарная стоимость кратчайшего пути (или Infinity, если недостижимо).
+// Total cost of the shortest path (or Infinity if unreachable).
 export function pathCost(field: any, from: any, to: any, opts: any = {}) {
   const g = new Float64Array(CAP).fill(Infinity);
   const start = cellIdx(from.col, from.row);

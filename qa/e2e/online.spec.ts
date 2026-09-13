@@ -1,9 +1,9 @@
-// online.spec.js — e2e онлайн-матча: лобби → старт → синхронизация → чат матча →
-// режим наблюдателя (spectator) по ?spectate=MATCHID.
-// Требует: frontend/dist собран, backend запускается webServer-ом (playwright.online.config.js).
+// online.spec.js — e2e of an online match: lobby → start → synchronization → match chat →
+// spectator mode via ?spectate=MATCHID.
+// Requires: frontend/dist built, backend started by the webServer (playwright.online.config.js).
 import { test, expect } from "@playwright/test";
 
-// Создаёт онлайн 1v1 и доводит до боя. Возвращает контексты/страницы и matchId.
+// Creates an online 1v1 and drives it to battle. Returns the contexts/pages and matchId.
 async function setupMatch(browser) {
   const ctxA = await browser.newContext();
   const ctxB = await browser.newContext();
@@ -14,9 +14,9 @@ async function setupMatch(browser) {
   await bob.goto("/?player=bob&name=Боб");
 
   await alice.getByRole("button", { name: /Создать игру/ }).click();
-  await alice.locator(".modal__box .stage-select__range").fill("7"); // выбрать стадию 7
-  await alice.locator(".modal__box .stars-select__btn").last().click(); // 3 звезды защитникам
-  // предпросмотр стадии отрисован из ROM (не пустой)
+  await alice.locator(".modal__box .stage-select__range").fill("7"); // choose stage 7
+  await alice.locator(".modal__box .stars-select__btn").last().click(); // 3 stars to the defenders
+  // the stage preview is rendered from ROM (not empty)
   const previewInk = await alice.locator(".modal__box .stage-preview").evaluate((c) => {
     const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
     for (let i = 0; i < d.length; i += 4) if (d[i] !== 10 || d[i + 1] !== 14 || d[i + 2] !== 20) return true;
@@ -58,7 +58,7 @@ test("онлайн 1v1: лобби, старт, синхронные хэши, �
   }
   expect(converged, "хэши клиентов не сошлись (desync)").toBe(true);
 
-  // выбранная стадия и стартовые звёзды применены детерминированно у обоих
+  // the selected stage and starting stars are applied deterministically on both
   const [stages, upgrades] = await Promise.all([
     Promise.all([alice.evaluate(() => window.__bc.readMem(0x85)), bob.evaluate(() => window.__bc.readMem(0x85))]),
     Promise.all([alice.evaluate(() => window.__bc.readMem(0x101)), bob.evaluate(() => window.__bc.readMem(0x101))]),
@@ -71,7 +71,7 @@ test("онлайн 1v1: лобби, старт, синхронные хэши, �
   await bob.locator(".chat__form button").click();
   await expect(alice.getByText(text)).toBeVisible({ timeout: 10_000 });
 
-  // звук: AudioContext поднят жестом, обе группы (музыка/эффекты) уходят в вывод
+  // sound: AudioContext is resumed by a gesture, both groups (music/effects) reach the output
   const audio = await alice.evaluate(() => window.__bcAudio.stats());
   expect(audio.ready, "AudioContext не поднялся").toBe(true);
   expect(audio.music.posted, "нет сэмплов музыки").toBeGreaterThan(0);
@@ -90,10 +90,10 @@ test("наблюдатель: ?spectate=MATCHID показывает матч", 
   await expect(spec.locator("canvas.screen")).toBeVisible({ timeout: 15_000 });
   await expect(spec.getByText(/Режим: наблюдатель/)).toBeVisible();
 
-  // ждём первый снапшот: счётчик кадра становится > 0
+  // wait for the first snapshot: the frame counter becomes > 0
   await expect(spec.getByText(/кадр: [1-9]/)).toBeVisible({ timeout: 20_000 });
 
-  // рисуется не пустой кадр
+  // a non-empty frame is drawn
   const drawn = await spec.locator("canvas.screen").evaluate((c) => {
     const ctx = c.getContext("2d");
     return ctx.getImageData(0, 0, 1, 1).data[3] === 255;

@@ -1,5 +1,5 @@
-// human-tank.test.js — человеческий танк: AI отключён, управление через JS.
-// Запуск: node --test tests/human-tank.test.js
+// human-tank.test.js — human tank: AI disabled, control via JS.
+// Run: node --test tests/human-tank.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -20,7 +20,7 @@ function start() {
     for (let i = 0; i < 30; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
     if (emu.cpu.mem[0x80] === 20) break;
   }
-  // ждём танк 2 живым в поле (Y>48, минуя спавн-ворота)
+  // wait for tank 2 to be alive in the field (Y>48, past the spawn gates)
   for (let f = 0; f < 2000; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
     const hi = emu.cpu.mem[0xa2] & 0xf0;
@@ -43,14 +43,14 @@ test("человеческий танк движется по вводу (вни
   const emu = start();
   emu.setHumanTank(2);
   const p0 = pos(emu);
-  // вниз
+  // down
   for (let f = 0; f < 40; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: BTN.Down }]);
   }
   const p1 = pos(emu);
   assert.ok(p1[1] > p0[1], `вниз не двигает (${p0}->${p1})`);
-  // вверх (обратный ход — гарантированно чисто, в отличие от влево, где у края
-  // воды ASM-бокс ±8 упирается раньше корпуса)
+  // up (reverse motion — guaranteed clean, unlike left, where near the edge
+  // of the water the ASM box ±8 stops earlier than the hull)
   for (let f = 0; f < 40; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: BTN.Up }]);
   }
@@ -60,8 +60,8 @@ test("человеческий танк движется по вводу (вни
 
 test("другие (AI) танки продолжают двигаться — AI не сломан", () => {
   const emu = start();
-  // НЕ помечаем танк игрока как человеческий — проверяем, что AI-враги (3..7)
-  // спавнятся, живы и двигаются (не стоят на месте после фикса ИИ).
+  // We do NOT mark the player tank as human — we check that AI enemies (3..7)
+  // spawn, are alive and move (do not stand still after the AI fix).
   let anyAiMoved = false;
   for (let f = 0; f < 600; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
@@ -69,7 +69,7 @@ test("другие (AI) танки продолжают двигаться — A
       const flag = emu.cpu.mem[0xa0 + t];
       const hi = flag & 0xf0;
       if (hi >= 0x90 && hi <= 0xd0 && emu.cpu.mem[0x90 + t] < 255) {
-        // живой AI-враг в поле — двигается/жив
+        // live AI enemy in the field — moves/is alive
         anyAiMoved = true;
       }
     }
@@ -79,28 +79,28 @@ test("другие (AI) танки продолжают двигаться — A
 });
 
 test("после setHumanTank AI-танк стоит, но другие танки не затронуты (золото не меняется)", () => {
-  // базовый прогон без setHumanTank
+  // baseline run without setHumanTank
   const emu1 = start();
   for (let f = 0; f < 30; f++) emu1.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
   const h1 = emu1.getFrameHash();
-  // прогон с setHumanTank(2) на ПУСТОМ враге? — нельзя, но проверяем детерминизм без него
+  // a run with setHumanTank(2) on an EMPTY enemy? — not allowed, but we check determinism without it
   assert.ok(h1.length === 8, "hash не вычислен");
 });
 
 test("setHumanTank ДО спавна не ломает респавн (танк входит в поле)", () => {
-  // Как в App.tsx: setHumanTank(2) вызывается сразу при старте, ещё до респавна.
-  // JS-оверрайд не должен трогать танк в состоянии респавна/взрыва, иначе он
-  // застревает вне поля (255,255) и никогда не становится управляемым.
+  // As in App.tsx: setHumanTank(2) is called right at start, before the respawn.
+  // The JS override must not touch a tank in the respawn/explosion state, otherwise it
+  // gets stuck outside the field (255,255) and never becomes controllable.
   const emu = new PvPNes();
   emu.loadROM(readFileSync(ROM));
-  emu.setHumanTank(2); // до спавна
+  emu.setHumanTank(2); // before the spawn
   for (let i = 0; i < 60; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
   for (let a = 0; a < 12; a++) {
     emu.stepFrame([{ port: 0, buttons: BTN.Start }]);
     for (let i = 0; i < 30; i++) emu.stepFrame([{ port: 0, buttons: 0 }]);
     if (emu.cpu.mem[0x80] === 20) break;
   }
-  // двигаем вниз, пока танк не окажется жив в поле
+  // move down until the tank is alive in the field
   let inField = false;
   for (let f = 0; f < 4000; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: BTN.Down }]);
@@ -115,7 +115,7 @@ test("человеческий танк не проходит сквозь ст�
   const emu = start();
   emu.setHumanTank(2);
   const field = () => emu.cpu.mem.subarray(0x0400, 0x0400 + FIELD * FIELD);
-  // упираемся вниз до остановки
+  // press down until it stops
   let prev = pos(emu), stable = 0;
   for (let f = 0; f < 400; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }, { port: 2, buttons: BTN.Down }]);
@@ -124,7 +124,7 @@ test("человеческий танк не проходит сквозь ст�
     prev = cur;
   }
   const [x, y] = pos(emu);
-  // танк не должен стоять на непроходимой клетке (корпус-бокс полностью проходим)
+  // the tank must not stand on an impassable cell (the hull box is fully passable)
   assert.strictEqual(
     canPlace(x, y, field(), runtimePassable),
     true,

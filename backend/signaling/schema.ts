@@ -1,10 +1,10 @@
-// schema.ts — декларативная валидация входящих WS-сообщений (без внешних зависимостей).
+// schema.ts — declarative validation of incoming WS messages (no external dependencies).
 //
-// Защищает обработчики relay от неполных/некорректных сообщений и делает контракт
-// протокола явным. Валидация — минимально необходимая (обязательные поля), лишние
-// поля допускаются для обратной совместимости.
+// Protects the relay handlers from incomplete/invalid messages and makes the protocol
+// contract explicit. Validation is the minimum necessary (required fields); extra
+// fields are allowed for backward compatibility.
 //
-// Относительный путь: ./backend/signaling/schema.ts
+// Relative path: ./backend/signaling/schema.ts
 
 interface Rule {
   name: string;

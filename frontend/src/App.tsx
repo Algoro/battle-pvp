@@ -1,6 +1,6 @@
-// App.tsx — композиция экранов (presenter): лобби -> игра/наблюдение.
-// Вся сетевая и игровая оркестрация вынесена в application-контроллеры
-// (useMatch / useSpectate / useLobbyClient); здесь — маршрутизация и компоновка.
+// App.tsx — screen composition (presenter): lobby -> game/spectate.
+// All network and game orchestration is moved into application controllers
+// (useMatch / useSpectate / useLobbyClient); here — routing and composition.
 import { useEffect, useRef, useState } from "react";
 import LobbyBrowser from "./components/LobbyBrowser";
 import LobbyRoom from "./components/LobbyRoom";
@@ -20,7 +20,7 @@ import { useMatch } from "./application/use-match";
 import { useSpectate } from "./application/use-spectate";
 import { I18nProvider, LanguageSwitcher, useT } from "./i18n/index.tsx";
 
-// Пустой VITE_BACKEND_URL => same-origin (SPA и API в одном контейнере/хосте).
+// Empty VITE_BACKEND_URL => same-origin (SPA and API in one container/host).
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "";
 const ROM_URL = import.meta.env.BASE_URL + "rom/battle_city.nes";
 
@@ -32,7 +32,7 @@ type Screen =
   | { name: "spectate"; matchId: string };
 
 function loadId(): string {
-  // URL-override: ?player=alice — удобно открывать несколько вкладок под разными игроками
+  // URL override: ?player=alice — handy for opening several tabs as different players
   try {
     const p = new URLSearchParams(location.search).get("player");
     if (p) return p;
@@ -69,7 +69,7 @@ function AppInner() {
     (window as unknown as { __bcAudio?: AudioOutput }).__bcAudio = audioRef.current;
   }
 
-  // Лобби-хук объявляется ниже, но его сеттеры нужны контроллерам — доступ через ref.
+  // The lobby hook is declared below, but its setters are needed by controllers — access via ref.
   const lRef = useRef<ReturnType<typeof useLobbyClient> | null>(null);
 
   const match = useMatch({
@@ -101,7 +101,7 @@ function AppInner() {
     },
   });
 
-  // Лобби-логика и состояние (хук); внешние события отдаются через getHandlers.
+  // Lobby logic and state (hook); external events are exposed via getHandlers.
   const L = useLobbyClient(meId, loadName() || t("Игрок"), () => ({
     onMatchStart: (lc, m) => {
       match.controller.startOnline(lc, m).catch((e) => lRef.current?.setError(String(e?.message || e)));
@@ -135,12 +135,12 @@ function AppInner() {
   lRef.current = L;
   const lcRef = L.lcRef;
 
-  // грузим ROM один раз
+  // load the ROM once
   useEffect(() => {
     if (!rom) fetch(ROM_URL).then((r) => r.arrayBuffer()).then(setRom);
   }, [rom]);
 
-  // netcode-инвариант: сообщаем отпечаток пропатченного картриджа лобби-клиенту.
+  // netcode invariant: report the patched cartridge fingerprint to the lobby client.
   useEffect(() => {
     const fp = emuRef.current?.cartridgeFingerprint?.() ?? null;
     lcRef.current?.setCartridgeFingerprint?.(fp);
@@ -167,7 +167,7 @@ function AppInner() {
       });
   };
 
-  // Возврат в лобби без перезагрузки страницы (WS-соединение сохраняется).
+  // Return to the lobby without reloading the page (the WS connection is preserved).
   const returnToLobby = () => {
     setCurrentMatchId(null);
     match.controller.clear();
@@ -175,7 +175,7 @@ function AppInner() {
     setScreen({ name: "lobby" });
   };
 
-  // Скрытие вкладки останавливает rAF → без паузы соперник «убежит» и rollback разъедется.
+  // Hiding the tab stops rAF → without pausing, the opponent "runs away" and rollback desyncs.
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) { audioRef.current?.suspend(); } else { audioRef.current?.resume(); }

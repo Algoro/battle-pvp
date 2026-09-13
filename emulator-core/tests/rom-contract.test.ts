@@ -1,6 +1,6 @@
-// rom-contract.test.js — единый контракт адресов RAM/ROM: контрольные байты ROM и
-// согласованность модели ИИ (game-view) с контрактом.
-// Запуск: node --test tests/rom-contract.test.js
+// rom-contract.test.js — the single RAM/ROM address contract: ROM reference bytes and
+// consistency of the AI model (game-view) with the contract.
+// Run: node --test tests/rom-contract.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -26,7 +26,7 @@ test("rom-contract: адреса из AI_READ_RANGES лежат в RAM и сог
   }
   assert.strictEqual(RAM.FIELD, 0x0400);
   assert.strictEqual(ROM.STAGE_STRIDE, 91);
-  // ключевые адреса не должны «уехать»
+  // key addresses must not "drift"
   assert.strictEqual(RAM.NET_DIR, 0x01db);
   assert.strictEqual(RAM.TANK_UPGRADE, 0x0101);
   assert.strictEqual(RAM.STAGE, 0x85);
@@ -38,12 +38,12 @@ test("rom-contract: game-view читает те же адреса, что и к�
   mem[RAM.SPAWN_TIMER] = 7;
   mem[RAM.FORTIFIED] = 1;
   mem[RAM.CLOCK_TIMER] = 9;
-  mem[RAM.TANK_FLAG] = 0xa1; // танк 0: движение влево (dir=1)
+  mem[RAM.TANK_FLAG] = 0xa1; // tank 0: moving left (dir=1)
   mem[RAM.TANK_X] = 0x58;
   mem[RAM.TANK_Y] = 0xd8;
   mem[RAM.TANK_TYPE] = 0x80;
   mem[RAM.HELMET] = 3;
-  mem[RAM.BULLET_STATUS + 2] = 0x43; // пуля танка 2 летит вправо
+  mem[RAM.BULLET_STATUS + 2] = 0x43; // tank 2 bullet flying right
   mem[RAM.BULLET_X + 2] = 0x40;
   mem[RAM.BULLET_Y + 2] = 0x40;
   mem[RAM.PRIZE_ID] = 5;

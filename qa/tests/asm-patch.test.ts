@@ -1,7 +1,7 @@
-// asm-patch.test.js — функциональная проверка ASM-патчей P2 (headless-эмуляция).
-// Цель: направление вражеского танка (слот 2) берётся из ram_net_enemy_dir,
-// а не из AI/RNG. Проверяем по флагу направления и перемещению.
-// Запуск: node --test tests/asm-patch.test.js
+// asm-patch.test.js — functional check of the ASM patches P2 (headless emulation).
+// Goal: the enemy tank's direction (slot 2) is taken from ram_net_enemy_dir,
+// not from AI/RNG. We check by the direction flag and movement.
+// Run: node --test tests/asm-patch.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { fileURLToPath } from "node:url";
@@ -12,11 +12,11 @@ import { loadAndStart, waitTank2InField, runFrames, ADDR } from "./test-utils.ts
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = join(__dirname, "..", "..", "rom", "disasm", "_battle_city.nes");
 
-// направление из флага танка (биты 0-1): 0=Up 1=Left 2=Down 3=Right
+// direction from the tank flag (bits 0-1): 0=Up 1=Left 2=Down 3=Right
 const dirOf = (flag) => flag & 3;
 
-// Проверяет, что за время удержания направления танк 2 либо принимает нужный
-// флаг направления, либо (fallback) реально смещается в эту сторону.
+// Checks that while the direction is held, tank 2 either accepts the required
+// direction flag or (fallback) actually shifts in that direction.
 function holdAndCheck(emu, buttons, expectDir, axis) {
   const all = [];
   for (let p = 0; p < 8; p++) all.push({ port: p, buttons: 0 });
@@ -29,7 +29,7 @@ function holdAndCheck(emu, buttons, expectDir, axis) {
   }
   if (flagHit) return true;
   const end = axis === "x" ? emu.cpu.mem[ADDR.tankX(2)] : emu.cpu.mem[ADDR.tankY(2)];
-  return expectDir === 1 ? end < start : end > start; // Left: убывает, Right: растёт
+  return expectDir === 1 ? end < start : end > start; // Left: decreases, Right: increases
 }
 
 test("патч P2: влево -> направление врага = Left (флаг биты 0-1)", () => {
@@ -47,7 +47,7 @@ test("патч P2: вправо -> направление врага = Right (ф
 test("патч P2: влево реально двигает танк влево (X уменьшается)", () => {
   const emu = loadAndStart(ROM);
   assert.ok(waitTank2InField(emu), "вражеский танк 2 не оказался в поле");
-  // удерживаем Left, пока танк не развернётся влево
+  // hold Left until the tank turns left
   const all = [];
   for (let p = 0; p < 8; p++) all.push({ port: p, buttons: 0 });
   all[2] = { port: 2, buttons: BTN.Left };
@@ -61,14 +61,14 @@ test("патч P2: влево реально двигает танк влево 
 test("патч P4: per-player respawn — запрос респавна оживляет слот врага", () => {
   const emu = loadAndStart(ROM);
   assert.ok(waitTank2InField(emu), "вражеский танк 2 не оказался в поле");
-  // "убиваем" танк 2 (флаг 0) и запрашиваем респавн через ввод порта 2 (Start edge)
+  // "kill" tank 2 (flag 0) and request a respawn via port 2 input (Start edge)
   emu.cpu.mem[0xa2] = 0;
   const all = [];
   for (let p = 0; p < 8; p++) all.push({ port: p, buttons: 0 });
   all[2] = { port: 2, buttons: BTN.Start }; // edge -> ram_net_enemy_respawn[0]=1
   for (let f = 0; f < 30; f++) {
     emu.stepFrame(all);
-    all[2] = { port: 2, buttons: 0 }; // удержание -> edge только 1 кадр
+    all[2] = { port: 2, buttons: 0 }; // holding -> edge for only 1 frame
     if (emu.cpu.mem[0xa2] !== 0) break;
   }
   const flag = emu.cpu.mem[0xa2];
@@ -78,8 +78,8 @@ test("патч P4: per-player respawn — запрос респавна ожив
 test("патч P2+E171: враг стреляет по кнопке (ram_net_enemy_fire), не без кнопки", () => {
   const emu = loadAndStart(ROM);
   assert.ok(waitTank2InField(emu), "вражеский танк 2 не оказался в поле");
-  // ждём, пока танк 2 ЖИВ и его пуля улетит (станет 0) — защитники могут убить его,
-  // поэтому ждём подходящий момент (живой танк с очищенной пулей)
+  // wait until tank 2 is ALIVE and its bullet flies away (becomes 0) — the defenders may kill it,
+  // so we wait for a suitable moment (live tank with a cleared bullet)
   let alive2 = false;
   for (let f = 0; f < 2000; f++) {
     emu.stepFrame([{ port: 0, buttons: 0 }, { port: 1, buttons: 0 }]);
@@ -89,7 +89,7 @@ test("патч P2+E171: враг стреляет по кнопке (ram_net_ene
   }
   assert.ok(alive2, "танк 2 не оказался жив для проверки стрельбы");
   assert.strictEqual(emu.cpu.mem[0xce], 0, "пуля танка 2 не очистилась (враг стреляет без кнопки)");
-  // жмём A на порту 2 -> танк 2 стреляет
+  // press A on port 2 -> tank 2 fires
   emu.stepFrame([{ port: 0, buttons: 0 }].concat([{ port: 2, buttons: BTN.A }]));
   assert.notStrictEqual(emu.cpu.mem[0xce], 0, "по кнопке A танк 2 не выстрелил");
 });

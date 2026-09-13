@@ -1,7 +1,7 @@
-// store.ts — персистентность матчей/игроков на SQLite (node:sqlite).
-// Без Docker/root — прямой Node-процесс + файл БД. Относительный путь к БД.
+// store.ts — match/player persistence on SQLite (node:sqlite).
+// No Docker/root — a direct Node process + a DB file. Relative path to the DB.
 //
-// Относительный путь: ./backend/persistence/store.ts
+// Relative path: ./backend/persistence/store.ts
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,7 +16,7 @@ export class Store {
   db: DatabaseSync;
 
   /**
-   * @param dbPath  путь к файлу БД (относительный от ./backend)
+   * @param dbPath  path to the DB file (relative to ./backend)
    */
   constructor(dbPath: string = join(DB_DIR, "battlecity.sqlite")) {
     this.db = new DatabaseSync(dbPath);
@@ -76,8 +76,8 @@ export class Store {
     for (const p of players) ins.run(matchId, p.playerId, p.team);
   }
 
-  // Создать запись матча, если её ещё нет (INSERT OR IGNORE). Используется
-  // в relay: комната могла стартовать через matchmaker без записи в БД.
+  // Create a match record if it does not exist yet (INSERT OR IGNORE). Used
+  // in relay: a room might have started via the matchmaker without a DB record.
   ensureMatch(matchId: string, players: MatchPlayer[]): void {
     this.db
       .prepare(`INSERT OR IGNORE INTO matches (id, created_at, state) VALUES (?, ?, 'lobby')`)
@@ -94,7 +94,7 @@ export class Store {
       .run(Date.now(), winnerTeam, matchId);
   }
 
-  // --- чат (история переписки, SQLite) ---
+  // --- chat (message history, SQLite) ---
   insertChat(m: ChatMessage): void {
     this.db
       .prepare(
@@ -104,7 +104,7 @@ export class Store {
       .run(m.scope, m.id ?? null, m.from, m.name, m.text, m.ts);
   }
 
-  // Последние сообщения канала в хронологическом порядке.
+  // The latest channel messages in chronological order.
   listChat(scope: string, id: string | null, limit = 100): ChatMessage[] {
     const rows = this.db
       .prepare(

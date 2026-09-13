@@ -1,5 +1,5 @@
-// netcode — экспорт модуля rollback netcode.
-// Относительный путь: ./netcode/index.ts
+// netcode — export of the rollback netcode module.
+// Relative path: ./netcode/index.ts
 export { RollbackSession, HASH_INTERVAL, PING_INTERVAL } from "./rollback/session.ts";
 export type { RollbackSessionOptions, SessionEvent, SessionEventHandler } from "./rollback/session.ts";
 export {

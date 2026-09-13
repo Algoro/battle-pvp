@@ -1,5 +1,5 @@
-// backend.test.js — unit + integration тесты backend (rooms, matchmaker, store, relay).
-// Запуск: node --test tests/backend.test.js
+// backend.test.js — unit + integration tests for the backend (rooms, matchmaker, store, relay).
+// Run: node --test tests/backend.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { RoomManager, TEAM_DEF, TEAM_ATT } from "../domain/room.ts";
@@ -17,15 +17,15 @@ test("RoomManager: join, full team, port assignment, leave, TTL", () => {
   const room = rm.createRoom();
   room.join("p1", TEAM_DEF, "s1", null);
   room.join("p2", TEAM_DEF, "s2", null);
-  // третьему в DEF места нет
+  // there is no room for a third player in DEF
   assert.strictEqual(room.join("p3", TEAM_DEF, "s3", null).ok, false);
   // ATT
   const r4 = room.join("p4", TEAM_ATT, "s4", null);
   assert.strictEqual(r4.ok, true);
-  assert.strictEqual(r4.port, 2); // первый ATT -> порт 2
+  assert.strictEqual(r4.port, 2); // first ATT -> port 2
   assert.strictEqual(room.portFor("p1"), 0);
   assert.strictEqual(room.portFor("p2"), 1);
-  // реконнект
+  // reconnection
   const rc = room.join("p1", TEAM_DEF, "s1", null);
   assert.strictEqual(rc.reconnected, true);
   assert.strictEqual(room.playerCount, 3);
@@ -82,7 +82,7 @@ async function integrationBody() {
   const base = `http://127.0.0.1:${port}`;
   const wsBase = `ws://127.0.0.1:${port}/ws`;
 
-  // матчмейкинг: def1 + att1 -> комната
+  // matchmaking: def1 + att1 -> room
   const rDef = await fetch(`${base}/matchmake`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -96,7 +96,7 @@ async function integrationBody() {
   const matchId = rAtt.room;
   assert.ok(matchId);
 
-  // два ws-клиента входят в комнату (ждём открытие КАЖДОГО)
+  // two ws clients enter the room (wait for EACH to open)
   const c1 = new WebSocket(wsBase);
   const c2 = new WebSocket(wsBase);
   await new Promise((r) => c1.on("open", r));
@@ -120,14 +120,14 @@ async function integrationBody() {
   assert.strictEqual(j1.port, 0);
   assert.strictEqual(j2.port, 2);
 
-  // сигналинг: def1 -> att1 (SDP/ICE relay)
+  // signaling: def1 -> att1 (SDP/ICE relay)
   const gotSignal = waitMsg(c2, "signal");
   c1.send(JSON.stringify({ type: "signal", to: "att1", matchId, data: { type: "offer", sdp: "fake" } }));
   const sig = await gotSignal;
   assert.strictEqual(sig.from, "def1");
   assert.strictEqual(sig.data.sdp, "fake");
 
-  // finish -> персистентность
+  // finish -> persistence
   c1.send(JSON.stringify({ type: "finish", matchId, winner: TEAM_DEF }));
   await new Promise((r) => setTimeout(r, 100));
   const matches = await fetch(`${base}/matches`).then((r) => r.json());

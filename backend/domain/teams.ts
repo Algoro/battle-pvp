@@ -1,28 +1,28 @@
-// teams.ts — команды матча (домен). Ноль внешних зависимостей: чистые значения.
-// Физические границы движка: DEF — танки 0,1; ATT — до 6 танков (порты 2..7).
+// teams.ts — match teams (domain). Zero external dependencies: pure values.
+// Engine physical limits: DEF — tanks 0,1; ATT — up to 6 tanks (ports 2..7).
 //
-// Относительный путь: ./backend/domain/teams.ts
+// Relative path: ./backend/domain/teams.ts
 
 export type Team = "DEF" | "ATT";
 
 export const TEAM_DEF = "DEF";
 export const TEAM_ATT = "ATT";
 
-// Движок: DEF-танки 0,1 (2 слота), ATT — порты 2..7 (до 6 слотов).
+// Engine: DEF tanks 0,1 (2 slots), ATT — ports 2..7 (up to 6 slots).
 export const MAX_TEAM_SIZE: Record<Team, number> = { [TEAM_DEF]: 2, [TEAM_ATT]: 6 };
 
-/** Допустима ли команда (только DEF/ATT). */
+/** Whether the team is valid (only DEF/ATT). */
 export function isTeam(team: unknown): team is Team {
   return team === TEAM_DEF || team === TEAM_ATT;
 }
 
-/** Противоположная команда. */
+/** The opposite team. */
 export function otherTeam(team: Team): Team {
   return team === TEAM_DEF ? TEAM_ATT : TEAM_DEF;
 }
 
-// Нормализует команду лобби. Историческое правило: явный DEF — DEF,
-// всё остальное (в т.ч. пустое значение) — ATT.
+// Normalizes a lobby team. Historical rule: explicit DEF — DEF,
+// everything else (including an empty value) — ATT.
 export function normalizeTeam(team: unknown): Team {
   return team === TEAM_DEF ? TEAM_DEF : TEAM_ATT;
 }

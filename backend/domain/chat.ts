@@ -1,8 +1,8 @@
-// chat.ts — чат лобби: глобальный канал + канал на каждое лобби (домен).
-// Хранение — кольцевой буфер в памяти; долговременная история делегируется порту
-// ChatRepository (см. backend/ports.ts). Rate-limit и санитизация — правила домена.
+// chat.ts — lobby chat: a global channel + one channel per lobby (domain).
+// Storage is an in-memory ring buffer; long-term history is delegated to the
+// ChatRepository port (see backend/ports.ts). Rate limiting and sanitization are domain rules.
 //
-// Относительный путь: ./backend/domain/chat.ts
+// Relative path: ./backend/domain/chat.ts
 import { systemClock, type Clock } from "./clock.ts";
 import type { ChatMessage, ChatRepository } from "../ports.ts";
 
@@ -57,12 +57,12 @@ export class ChatManager {
 
   sanitize(text: unknown): string {
     return String(text ?? "")
-      .replace(/[\u0000-\u001f\u007f]/g, "") // управляющие символы
+      .replace(/[\u0000-\u001f\u007f]/g, "") // control characters
       .slice(0, MAX_TEXT_LEN)
       .trim();
   }
 
-  // Разрешён ли ещё один месседж от игрока (скользящее окно).
+  // Whether another message from the player is allowed (sliding window).
   allow(playerId: string, now: number = this.clock.now()): boolean {
     const arr = (this.rate.get(playerId) || []).filter((t) => now - t < this.rateWindowMs);
     if (arr.length >= this.rateCount) {
@@ -74,7 +74,7 @@ export class ChatManager {
     return true;
   }
 
-  // Отправить сообщение. Возвращает { message } или { error }.
+  // Send a message. Returns { message } or { error }.
   send(
     scope: string,
     id: string | null,
@@ -100,7 +100,7 @@ export class ChatManager {
       try {
         this.repository.insert(message);
       } catch {
-        /* персистентность не критична */
+        /* persistence is not critical */
       }
     }
     return { message };

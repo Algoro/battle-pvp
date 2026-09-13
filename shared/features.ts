@@ -1,14 +1,14 @@
-// features.ts — единый манифест опциональных фич (метаданные + настройки для UI/валидации).
+// features.ts — unified manifest of optional features (metadata + settings for UI/validation).
 //
-// Источник истины по `id/title/description/hidden` и по схеме настроек фичи. Из него
-// выводятся:
-//   * backend SUPPORTED_FEATURES и нормализация featureOptions (валидация лобби),
-//   * frontend OPTIONAL_FEATURES (чекбоксы и авто-UI настроек),
-//   * emulator-core listFeatures()/effectiveFeatureOptions (значения для рантаймов).
-// Добавление фичи: строка здесь + registerFeature в emulator-core (+ patch/runtime).
-// Добавление настройки: поле `settings` здесь; UI и валидация подхватят автоматически.
+// Source of truth for `id/title/description/hidden` and for the feature settings schema. From it
+// are derived:
+//   * backend SUPPORTED_FEATURES and featureOptions normalization (lobby validation),
+//   * frontend OPTIONAL_FEATURES (checkboxes and auto-UI for settings),
+//   * emulator-core listFeatures()/effectiveFeatureOptions (values for the runtimes).
+// Adding a feature: a line here + registerFeature in emulator-core (+ patch/runtime).
+// Adding a setting: a `settings` field here; UI and validation pick it up automatically.
 //
-// Модуль намеренно без импортов (его подключают все слои, включая domain).
+// The module intentionally has no imports (it is included by all layers, including domain).
 
 export type FeatureSettingValue = string | number | boolean;
 
@@ -17,7 +17,7 @@ export interface FeatureSettingOption {
   label: string;
 }
 
-/** Декларативное описание одной настройки фичи (для авто-UI и нормализации). */
+/** Declarative description of a single feature setting (for auto-UI and normalization). */
 export interface FeatureSettingSpec {
   id: string;
   label: string;
@@ -28,7 +28,7 @@ export interface FeatureSettingSpec {
   max?: number;
   step?: number;
   hint?: string;
-  /** Настройка имеет смысл только при включённой другой фиче (напр. enemy-prizes → pistol). */
+  /** The setting only makes sense when another feature is enabled (e.g. enemy-prizes → pistol). */
   requiresFeature?: string;
 }
 
@@ -40,9 +40,9 @@ export interface FeatureInfo {
   id: string;
   title: string;
   description: string;
-  /** true — не показывать в общем выборе патчей (включается отдельным режимом). */
+  /** true — do not show in the general patch selection (enabled by a separate mode). */
   hidden?: boolean;
-  /** Настраиваемые параметры фичи (генерируют UI автоматически). */
+  /** Configurable feature parameters (generate UI automatically). */
   settings?: FeatureSettingsSpec;
 }
 
@@ -79,7 +79,7 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
     description: "Танки 2..7 забирают приз и получают его эффект (каска — нет).",
     settings: {
       fields: [
-        // Какие типы призов враг может забрать (выкл — приз остаётся на поле для DEF).
+        // Which prize types the enemy can pick up (off — the prize stays on the field for DEF).
         { id: "allowHelmet", label: "Доступна каска", type: "toggle", default: true },
         { id: "allowClock", label: "Доступны часы", type: "toggle", default: true },
         { id: "allowShovel", label: "Доступна лопата", type: "toggle", default: true },
@@ -87,7 +87,7 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
         { id: "allowGrenade", label: "Доступна граната", type: "toggle", default: true },
         { id: "allowTank", label: "Доступен танк", type: "toggle", default: true },
         { id: "allowPistol", label: "Доступен пистолет", type: "toggle", default: true },
-        // Действие каждого типа приза.
+        // Effect of each prize type.
         {
           id: "helmetEffect",
           label: "Каска: действие",
@@ -254,8 +254,8 @@ export const FEATURE_MANIFEST: FeatureInfo[] = [
     title: "Tower Defence",
     description: "Соло-режим обороны: покупка и расстановка неподвижных танков-башен, волны врагов.",
     hidden: true,
-    // Настройки режима (карта/сложность/волны) задаются на отдельном экране Tower Defence,
-    // а не через общий список настроек фич.
+    // Mode settings (map/difficulty/waves) are configured on a separate Tower Defence screen,
+    // not through the general feature settings list.
   },
 ];
 
@@ -267,7 +267,7 @@ export function featureInfo(id: string): FeatureInfo | undefined {
   return BY_ID.get(id);
 }
 
-/** Значения по умолчанию для настроек фичи (пустой объект, если настроек нет). */
+/** Default values for feature settings (empty object if there are no settings). */
 export function featureDefaults(id: string): Record<string, FeatureSettingValue> {
   const out: Record<string, FeatureSettingValue> = {};
   const spec = BY_ID.get(id)?.settings;
@@ -299,9 +299,9 @@ function coerce(spec: FeatureSettingSpec, value: unknown): FeatureSettingValue {
 }
 
 /**
- * Нормализовать карту настроек из лобби/соло: только известные фичи и поля,
- * значения приведены к типу и зажаты в диапазон. Отсутствующие поля не добавляются
- * (их подставит `effectiveFeatureOptions`).
+ * Normalize the settings map from lobby/solo: only known features and fields,
+ * values are coerced to type and clamped to range. Missing fields are not added
+ * (they will be filled in by `effectiveFeatureOptions`).
  */
 export function normalizeFeatureOptions(raw: unknown): Record<string, Record<string, FeatureSettingValue>> {
   const out: Record<string, Record<string, FeatureSettingValue>> = {};
@@ -319,7 +319,7 @@ export function normalizeFeatureOptions(raw: unknown): Record<string, Record<str
   return out;
 }
 
-/** Полные настройки фичи: значения по умолчанию + нормализованные переопределения. */
+/** Full feature settings: default values + normalized overrides. */
 export function effectiveFeatureOptions(
   id: string,
   raw?: Record<string, FeatureSettingValue> | null,

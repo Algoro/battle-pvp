@@ -1,21 +1,21 @@
-// sim/cycle.js — АБСТРАГИРОВАННЫЙ ЦИКЛ ВЫПОЛНЕНИЯ ЭМУЛЯТОРА.
+// sim/cycle.js — ABSTRACTED EMULATOR EXECUTION CYCLE.
 //
-// Разбивает кадр на последовательность МИКРО-событий (процедур) в порядке, который
-// в точности повторяет sub_C2E6_main_battle_script. Каждая процедура читает/пишет
-// общее состояние (поле, танки, пули, счётчики, RNG) и эмитит события. Так связи
-// между процедурами и состояниями воспроизводятся абстрактно, а цикл — идентично.
+// Splits the frame into a sequence of MICRO-events (procedures) in an order that
+// exactly repeats sub_C2E6_main_battle_script. Each procedure reads/writes
+// shared state (field, tanks, bullets, counters, RNG) and emits events. Thus the links
+// between procedures and states are reproduced abstractly, and the cycle is identical.
 //
-// Порядок кадра (из sub_C2E6):
+// Frame order (from sub_C2E6):
 //   ice_detection/ice_movement, tank_movement, (e1fa, e02e bullets_status),
 //   HQ, invincibility, (e122,e162), enemy_spawn, bullets_movement,
 //   bullet_vs_bullet, bullet_vs_tank, bonus, game_over, lives, ...
 import { FIELD, isBrick, brickHit, cellPassable, DX, DY } from "../model/game-view.ts";
 import { canLead } from "./sim-model.ts";
 
-export const BULLET_SPEED = 2; // px/кадр (откалибровано)
+export const BULLET_SPEED = 2; // px/frame (calibrated)
 
-// Таблица типов врагов по стадии (tbl_E4EC): 4 типа на стадию.
-// 0x80=basic, 0xA0=power(быстр.пули), 0xC0=fast(быстрый), 0xE0=armor(броня).
+// Enemy type table by stage (tbl_E4EC): 4 types per stage.
+// 0x80=basic, 0xA0=power(fast bullets), 0xC0=fast(fast), 0xE0=armor(armor).
 export const STAGE_ENEMY_TYPES: Record<number, number[]> = {
   1: [0x80, 0xa0, 0xc0, 0xe0],
   2: [0xe0, 0xa0, 0xc0, 0x80],
@@ -24,26 +24,26 @@ export const STAGE_ENEMY_TYPES: Record<number, number[]> = {
   5: [0xc0, 0xe0, 0x80, 0xa0],
 };
 
-// Тайл льда (проходим, вызывает скольжение/нельзя поворачивать).
+// Ice tile (passable, causes sliding/cannot turn).
 export const ICE_TILE = 0x2a;
 
-// Порядок процедур кадра (главный боевой цикл).
+// Frame procedure order (main battle cycle).
 export const FRAME_SCRIPT = [
   "ice_movement",      // sub_DB75
-  "tank_movement",     // sub_DBF1 (движение/статусы танков)
-  "bullets_status",    // sub_E02E (жизненный цикл пуль)
-  "hq",                // sub_E2A9 (проверка базы)
-  "enemy_spawn",       // sub_DB48 (спавн врагов)
-  "bullets_movement",  // sub_E604 (движение пуль 2px/кадр)
-  "bullet_vs_bullet",  // sub_E910 (столкновение пуль)
-  "bullet_vs_tank",    // sub_E70C (попадание пули в танк)
-  "bonus",             // sub_E972 (подбор приза)
-  "enemy_death",       // респавн врага
-  "player_death",      // жизни игрока / респавн
-  "stage",             // победа/поражение
+  "tank_movement",     // sub_DBF1 (tank movement/statuses)
+  "bullets_status",    // sub_E02E (bullet lifecycle)
+  "hq",                // sub_E2A9 (base check)
+  "enemy_spawn",       // sub_DB48 (enemy spawn)
+  "bullets_movement",  // sub_E604 (bullet movement 2px/frame)
+  "bullet_vs_bullet",  // sub_E910 (bullet collision)
+  "bullet_vs_tank",    // sub_E70C (bullet hitting a tank)
+  "bonus",             // sub_E972 (prize pickup)
+  "enemy_death",       // enemy respawn
+  "player_death",      // player lives / respawn
+  "stage",             // victory/defeat
 ];
 
-// Класс-исполнитель цикла: прогоняет FRAME_SCRIPT по общему состоянию.
+// Cycle executor class: runs FRAME_SCRIPT over the shared state.
 export class CycleSim {
   [key: string]: any;
   declare state: any;
@@ -66,7 +66,7 @@ export class CycleSim {
     return this.events;
   }
 
-  // --- tank_movement (sub_DBF1): субпиксельный темп + движение/статусы ---
+  // --- tank_movement (sub_DBF1): subpixel rate + movement/statuses ---
   _moveGate(t: any): boolean {
     if (t.team === "DEF" || t.type < 0x80) return this.frame % 4 !== 2;
     if ((t.type & 0xf0) === 0xa0) return true;
@@ -82,7 +82,7 @@ export class CycleSim {
       else if (t.type >= 0x80 && (this.rng() & 3) === 0) { t.dir = (t.dir + 2) % 4; this._emit({ op: "block_turn", tank: t.index, dir: t.dir }); }
     }
   }
-  // Танк-в-танк: нельзя встать на другого живого танка (корпус 13x13).
+  // Tank-vs-tank: cannot stand on another living tank (13x13 body).
   _tankBlocked(st: any, pos: any, self: any): boolean {
     for (const o of st.tanks) {
       if (o === self || !o.alive) continue;
@@ -91,14 +91,14 @@ export class CycleSim {
     return false;
   }
 
-  // --- enemy death/respawn (sub_DE07): мёртвый враг респавнится через delay ---
+  // --- enemy death/respawn (sub_DE07): a dead enemy respawns after a delay ---
   proc_enemy_death(st: any): void {
     const c = st.counters;
     for (const t of st.tanks) {
       if (t.team !== "ATT") continue;
       if (!t.alive && c.count > 0) {
         t.respawn = (t.respawn || 0) - 1;
-        if (t.respawn <= -20) { // после задержки взрыва
+        if (t.respawn <= -20) { // after the explosion delay
           t.alive = true; t.respawn = 0;
           t.x = [0x18, 0x78, 0xd8][c.posIndex]; t.y = 0x18;
           c.posIndex = (c.posIndex + 1) % 3;
@@ -108,17 +108,17 @@ export class CycleSim {
     }
   }
 
-  // --- Лёд: проходим, но нельзя поворачивать (скольжение) ---
+  // --- Ice: passable, but cannot turn (sliding) ---
   _onIce(st: any, t: any): boolean { return st.field[(t.y >> 3) * FIELD + (t.x >> 3)] === ICE_TILE; }
 
-  // --- 2-я пуля (прокачка): powered-танк может иметь 2 активные пули ---
+  // --- 2nd bullet (upgrade): a powered tank may have 2 active bullets ---
   canFire(t: any): boolean {
     const n = this.state.bullets.filter((b: any) => b.tank === t.index && b.alive).length;
     const max = (t.team === "DEF" && t.powered) ? 2 : 1;
     return n < max;
   }
 
-  // --- Спавн приза из мигающего врага (при его гибели) ---
+  // --- Prize spawn from a flashing enemy (on its death) ---
   _maybeSpawnPrize(st: any, killedIndex: number): void {
     const t = st.tanks.find((x: any) => x.index === killedIndex);
     if (t && (t.type & 0x04) !== 0) { // flashing enemy
@@ -128,7 +128,7 @@ export class CycleSim {
     }
   }
 
-  // --- Смерть игрока: -1 жизнь, респавн при наличии жизней ---
+  // --- Player death: -1 life, respawn if lives remain ---
   proc_player_death(st: any): void {
     for (const t of st.tanks) {
       if (t.team !== "DEF" || t.alive) continue;
@@ -140,15 +140,15 @@ export class CycleSim {
     }
   }
 
-  // --- bonus effects: приз, подобранный игроком ---
+  // --- bonus effects: a prize picked up by the player ---
   applyPrize(id: number): void {
     const st = this.state;
     this._emit({ op: "prize_effect", id });
-    if (id === 4) { // граната: уничтожить всех врагов на экране
+    if (id === 4) { // grenade: destroy all enemies on screen
       for (const t of st.tanks) if (t.team === "ATT" && t.alive) { t.alive = false; this._emit({ op: "tank_destroyed", tank: t.index }); }
-    } else if (id === 1) { // часы: заморозка врагов
+    } else if (id === 1) { // clock: freeze enemies
       st.counters.clock = 60;
-    } else if (id === 0) { // каска: неуязвимость игрока
+    } else if (id === 0) { // helmet: player invulnerability
       st.counters.helmet = 60;
     }
   }
@@ -161,7 +161,7 @@ export class CycleSim {
     if (!alivePlayers && st.counters.lives <= 0) this._emit({ op: "game_over" });
   }
 
-  // --- enemy_spawn (sub_DB48): спавн врагов ---
+  // --- enemy_spawn (sub_DB48): enemy spawning ---
   proc_enemy_spawn(st: any): void {
     const c = st.counters;
     if (c.timer > 0) { c.timer--; return; }
@@ -173,7 +173,7 @@ export class CycleSim {
       const bonus = (c.count === 0x11 || c.count === 0x0a || c.count === 0x03);
       const tank = t || { index: idx, team: "ATT", dir: 2, x: 0, y: 0, alive: false };
       tank.x = SPX[c.posIndex]; tank.y = 0x18; tank.alive = true;
-      // тип врага по стадии (sub_E3CB): из последовательности стадии
+      // enemy type by stage (sub_E3CB): from the stage sequence
       const seq = STAGE_ENEMY_TYPES[c.stage] || [0x80, 0xa0, 0xc0, 0xe0];
       tank.type = (bonus ? 0x04 : 0) | seq[c.typeOffset % seq.length];
       c.typeOffset++;
@@ -185,7 +185,7 @@ export class CycleSim {
     }
   }
 
-  // --- bullets_movement (sub_E604): 2px/кадр, кирпичи через brickHit ---
+  // --- bullets_movement (sub_E604): 2px/frame, bricks via brickHit ---
   proc_bullets_movement(st: any): void {
     for (const b of st.bullets) if (b.alive) this._moveBullet(st, b);
   }
@@ -228,22 +228,22 @@ export class CycleSim {
           b.alive = false; t.alive = false;
           this._emit({ op: "bullet_hit_tank", bullet: b.tank, target: t.index });
           this._emit({ op: "tank_destroyed", tank: t.index });
-          if (t.team === "ATT") this._maybeSpawnPrize(st, t.index); // приз из мигающего врага
+          if (t.team === "ATT") this._maybeSpawnPrize(st, t.index); // prize from a flashing enemy
         }
       }
     }
   }
 
-  // --- hq (sub_E2A9): проверка, жива ли база ---
+  // --- hq (sub_E2A9): check whether the base is alive ---
   proc_hq(st: any): void {
-    // упрощённо: если орёл (0xC8..0xCB) не найден — база уничтожена
+    // simplified: if the eagle (0xC8..0xCB) is not found — the base is destroyed
     for (let i = 0; i < st.field.length; i++) { const v = st.field[i]; if (v >= 0xc8 && v <= 0xcb) return; }
     this._emit({ op: "hq_destroyed" });
   }
 
-  // --- bonus (sub_E972): подбор приза ---
+  // --- bonus (sub_E972): prize pickup ---
   proc_bonus(st: any): void {
-    // приз подбирается игроком при близости (|dx|<0x0C && |dy|<0x0C)
+    // the prize is picked up by the player at proximity (|dx|<0x0C && |dy|<0x0C)
     if (!st.prize) return;
     for (const t of st.tanks) {
       if (t.team !== "DEF" || !t.alive) continue;
@@ -255,9 +255,9 @@ export class CycleSim {
     }
   }
 
-  // --- ice_movement (sub_DB75): заглушка (не влияет на коллизию) ---
+  // --- ice_movement (sub_DB75): stub (does not affect collision) ---
   proc_ice_movement(): void {}
 
-  // --- bullets_status (sub_E02E): заглушка (жизненный цикл пуль) ---
+  // --- bullets_status (sub_E02E): stub (bullet lifecycle) ---
   proc_bullets_status(): void {}
 }

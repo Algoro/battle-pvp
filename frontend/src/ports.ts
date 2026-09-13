@@ -1,6 +1,6 @@
-// ports.ts — порты (интерфейсы) фронтенда. Слой application и компоненты зависят от
-// контрактов, а не от конкретных реализаций (jsnes, WebRTC, WebSocket, React).
-// Реализации-адаптеры живут в ./engine (EmulatorDriver, LobbyClient, NetClient).
+// ports.ts — frontend ports (interfaces). The application layer and components depend on
+// contracts, not on concrete implementations (jsnes, WebRTC, WebSocket, React).
+// Adapter implementations live in ./engine (EmulatorDriver, LobbyClient, NetClient).
 
 export type Team = "DEF" | "ATT";
 
@@ -9,8 +9,8 @@ export interface FrameInput {
   buttons: number;
 }
 
-// Порт игрового ядра: детерминированная симуляция + снимки состояния.
-// Реализуется EmulatorDriver (обёртка PvPNes/jsnes) и fake-ядром в тестах.
+// Game core port: deterministic simulation + state snapshots.
+// Implemented by EmulatorDriver (PvPNes/jsnes wrapper) and the fake core in tests.
 export interface GameCore {
   stepFrame(inputs: FrameInput[]): string;
   saveState(): Uint8Array;
@@ -26,7 +26,7 @@ export interface GameCore {
   draw?(): void;
 }
 
-// Порт транспорта netcode.
+// Netcode transport port.
 export interface Transport {
   send(buf: Uint8Array): void;
   onMessage(cb: (buf: Uint8Array) => void): void;
@@ -34,12 +34,12 @@ export interface Transport {
   isOpen?(): boolean;
 }
 
-// Порт времени (для ping/pong) — инъектируется, в тестах подменяется.
+// Time port (for ping/pong) — injected, replaced in tests.
 export interface Clock {
   now(): number;
 }
 
-// Порт событий (события матча/сессии наружу).
+// Event port (match/session events outward).
 export interface EventSink {
   emit(event: unknown): void;
 }
@@ -54,8 +54,8 @@ export interface NetEvent {
   [key: string]: unknown;
 }
 
-// Шлюз лобби/матча: то, что application-контроллеру нужно от сети.
-// Структурно реализуется LobbyClient и NetClient (см. ./engine).
+// Lobby/match gateway: what the application controller needs from the network.
+// Structurally implemented by LobbyClient and NetClient (see ./engine).
 export interface MatchGateway {
   rejoinMatch?(matchId: string, team: Team): void;
   clearMatchContext?(): void;
@@ -86,7 +86,7 @@ export interface MatchmakeResult {
   opponent: string;
 }
 
-// Шлюз быстрого матча (matchmaking + один пир). Реализуется NetClient (./engine/net).
+// Quick match gateway (matchmaking + one peer). Implemented by NetClient (./engine/net).
 export interface QuickMatchGateway extends MatchGateway {
   peerId: string | null;
   setCartridgeFingerprint(fp: string | null): void;

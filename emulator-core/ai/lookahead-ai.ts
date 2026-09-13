@@ -1,53 +1,53 @@
-// lookahead-ai.js — ИИ варианта A+D: Model-Predictive Control с предсказанием
-// будущего (lookahead) и пространственно-временным планированием.
+// lookahead-ai.js — variant A+D AI: Model-Predictive Control with future
+// prediction (lookahead) and spatio-temporal planning.
 //
-// Для каждого танка перебираем возможные действия (направление движения + огонь)
-// и на горизонте H кадров СИМУЛИРУЕМ будущее: движение танка, траектории всех
-// вражеских пуль (точно, 2px/кадр — откалибровано по игре), свою пулю (перехват,
-// попадание в танк/кирпич). Каждое действие получает численную utility:
-//   - выживание: штраф за попадание вражеской пули в танк,
-//   - прогресс к базе: меньшее расстояние к орлу = лучше,
-//   - эффективность огня: +за перехват пули / убийство / разрушение кирпича.
-// Выбираем действие с МАКСИМАЛЬНОЙ utility — это «самый выгодный шаг из возможных».
+// For each tank we enumerate possible actions (movement direction + fire)
+// and over a horizon of H frames SIMULATE the future: tank movement, trajectories of all
+// enemy bullets (exactly, 2px/frame — calibrated against the game), our own bullet (intercept,
+// hit on a tank/brick). Each action gets a numeric utility:
+//   - survival: penalty for an enemy bullet hitting the tank,
+//   - progress to the base: shorter distance to the eagle = better,
+//   - fire efficiency: + for intercepting a bullet / a kill / breaking a brick.
+// We choose the action with the MAXIMUM utility — the "most advantageous step available".
 //
-// Архитектура (чистые функции):
+// Architecture (pure functions):
 //   lookaheadPlan(mem, prev) -> { decisions, state }
-//     - simulateAction() — лёгкая модель будущего на H кадров;
-//     - utility() — оценка действия;
-//     - decideTank() — выбор лучшего действия.
+//     - simulateAction() — lightweight model of the future over H frames;
+//     - utility() — action evaluation;
+//     - decideTank() — choosing the best action.
 import { readState, DX, DY, inBounds, cellIdx, tankPassable, isBrick, blocksBullet, brickHealth } from "../model/game-view.ts";
 import { costField, UNREACHABLE } from "../model/pathfind.ts";
 import { RAM } from "../rom-contract.ts";
-// --- параметры модели ---
-const BULLET_SPEED = 2;   // px/кадр (откалибровано по игре)
-const HORIZON = 8;        // глубина предсказания (кадров)
-const HIT_RADIUS = 9;     // px — радиус попадания пули в танк
-const HIT_PENALTY = 110;  // штраф за попадание в танк (меньше — агрессивнее)
-const INTERCEPT_REWARD = 80; // + за перехват вражеской пули
-const KILL_REWARD = 200;  // + за убийство защитника (агрессия)
-const BREAK_REWARD = 45;  // + за разрушение кирпича
-const BASE_WEIGHT = 1.5;  // вес прогресса к базе
-const KILL_ZONE = 6;      // перекрёстный огонь: радиус вокруг базы для focus-fire
-// UNREACHABLE — из общего слоя pathfind.js.
+// --- model parameters ---
+const BULLET_SPEED = 2;   // px/frame (calibrated against the game)
+const HORIZON = 8;        // prediction depth (frames)
+const HIT_RADIUS = 9;     // px — radius of a bullet hitting a tank
+const HIT_PENALTY = 110;  // penalty for a bullet hitting the tank (lower — more aggressive)
+const INTERCEPT_REWARD = 80; // + for intercepting an enemy bullet
+const KILL_REWARD = 200;  // + for killing a defender (aggression)
+const BREAK_REWARD = 45;  // + for breaking a brick
+const BASE_WEIGHT = 1.5;  // weight of progress to the base
+const KILL_ZONE = 6;      // crossfire: radius around the base for focus-fire
+// UNREACHABLE — from the shared pathfind.js layer.
 const THREAT_PENALTY = 6;
 const NO_PROGRESS_FRAMES = 20;
 const DETOUR_FRAMES = 24;
 
-// --- примитивы карты ---
+// --- map primitives ---
 function pxPassable(field: any, px: any, py: any) {
   const c = Math.floor(px / 8), r = Math.floor(py / 8);
   return inBounds(c, r) && tankPassable(field[cellIdx(c, r)]);
 }
 function manhattan(a: any, b: any) { return Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]); }
 
-// Стоит ли атакующему стрелять по защитнику (линия огня, кирпич пробивается).
+// Should the attacker fire at a defender (line of fire, brick is punched through).
 function fireTarget(field: any, tank: any, enemy: any) {
   if (tank.y === enemy.y && tank.x !== enemy.x) return enemy.x > tank.x ? 3 : 1;
   if (tank.x === enemy.x && tank.y !== enemy.y) return enemy.y > tank.y ? 2 : 0;
   return null;
 }
 
-// Попадёт ли пуля в клетку (для перехвата), с остановкой на препятствии.
+// Will the bullet hit the cell (for an intercept), stopping at an obstacle.
 function bulletWillPass(field: any, bullet: any, cell: any, steps = 14) {
   let c = bullet.cell.col, r = bullet.cell.row;
   const dx = DX[bullet.dir], dy = DY[bullet.dir];
@@ -60,9 +60,9 @@ function bulletWillPass(field: any, bullet: any, cell: any, steps = 14) {
   return false;
 }
 
-// BFS-поле стоимости к цели — перенесено в общий слой pathfind.js (`costField`).
+// BFS cost field to the goal — moved to the shared pathfind.js layer (`costField`).
 
-// Лучшее направление к цели (минимум стоимость + штраф за пули), с инерцией.
+// Best direction to the goal (minimum cost + bullet penalty), with inertia.
 function bestStep(bf: any, cell: any, goalCell: any, cost: any, threatSet_: any, prevDir: any) {
   const field = bf.field;
   const heur = (nc: any, nr: any) => Math.abs(nc - goalCell.col) + Math.abs(nr - goalCell.row);
@@ -87,65 +87,65 @@ function bestStep(bf: any, cell: any, goalCell: any, cost: any, threatSet_: any,
   return best;
 }
 
-// Вражеская команда для роли.
+// Enemy team for the role.
 function enemyTeamOf(role: any) { return role === "att" ? "DEF" : "ATT"; }
-// Цель прогресса в пикселях: атакующий — орёл; защитник — активная охрана базы:
-// держимся в своей половине поля, охотимся на ближних/мигающих врагов (контакт =
-// убийства), но при угрозе базе немедленно возвращаемся на перехват.
+// Progress goal in pixels: attacker — the eagle; defender — active base guard:
+// we stay in our half of the field, hunt nearby/flashing enemies (contact =
+// kills), but return immediately to intercept when the base is threatened.
 function goalPx(bf: any, tank: any, role: any, subRole: any) {
   if (role === "att") return { x: bf.eagle.col * 8 + 4, y: bf.eagle.row * 8 + 4 };
   const ex = bf.eagle.col * 8 + 4, ey = bf.eagle.row * 8 + 4;
-  const side = tank.index === 0 ? -1 : 1; // танк 0 — левый фланг, танк 1 — правый
+  const side = tank.index === 0 ? -1 : 1; // tank 0 — left flank, tank 1 — right
   let flash = null, nearest = null, nd = Infinity, nearBase = null, nearBaseD = Infinity;
   for (const e of bf.tanks) {
     if (e.team !== "ATT" || !e.inField) continue;
     if (e.flashing && flash === null) flash = e;
-    // враг на своём фланге (свой столбец поля)
+    // enemy on our flank (our field column)
     const onSide = side < 0 ? e.x <= ex : e.x >= ex;
     const d = Math.abs(e.x - tank.x) + Math.abs(e.y - tank.y) + (onSide ? 0 : 60);
     if (d < nd) { nd = d; nearest = e; }
     const db = Math.abs(e.x - ex) + Math.abs(e.y - ey);
     if (db < nearBaseD) { nearBaseD = db; nearBase = e; }
   }
-  // УГРОЗА БАЗЕ: любой враг, подошедший к базе вплотную — перехватываем его.
+  // BASE THREAT: any enemy that has come right up to the base — intercept it.
   if (nearBase && nearBaseD <= 64) return { x: nearBase.x, y: nearBase.y };
   if (flash) return { x: flash.x, y: flash.y };
-  // Активная охота: всегда идём на ближайшего врага своего фланга (контакт = убийства).
+  // Active hunt: always head to the nearest enemy on our flank (contact = kills).
   if (nearest) return { x: nearest.x, y: nearest.y };
-  // Нет врагов на поле — позиция охраны у базы (своя сторона).
+  // No enemies on the field — guard position at the base (our side).
   return { x: ex + side * 2 * 8, y: ey - 2 * 8 };
 }
 
-// Симуляция одного действия на H кадров. Возвращает utility.
-// dir: 0..3 или null (стоять); fire: стреляем ли; fireDir: куда целится пуля.
+// Simulation of one action over H frames. Returns utility.
+// dir: 0..3 or null (stand); fire: whether we shoot; fireDir: where the bullet aims.
 function simulateAction(bf: any, tank: any, field: any, dir: any, fire: any, fireDir: any, ourBusy: any, role: any, subRole: any) {
   const enemy = enemyTeamOf(role);
   let tx = tank.x, ty = tank.y;
-  let own: any = null; // своя пуля {x,y,dir}
+  let own: any = null; // our bullet {x,y,dir}
   if (fire && !ourBusy) own = { x: tx, y: ty, dir: fireDir };
-  // вражеские пули (копии позиций)
+  // enemy bullets (position copies)
   const ebs = bf.bullets.filter((b: any) => b.team === enemy).map((b: any) => ({ x: b.x, y: b.y, dir: b.dir, alive: true }));
   let score = 0;
 
   for (let t = 0; t < HORIZON; t++) {
-    // вражеские пули движутся
+    // enemy bullets move
     for (const b of ebs) if (b.alive) { b.x += DX[b.dir] * BULLET_SPEED; b.y += DY[b.dir] * BULLET_SPEED; }
-    // движение танка (1px/кадр)
+    // tank movement (1px/frame)
     if (dir !== null) {
       const nx = tx + DX[dir], ny = ty + DY[dir];
       if (pxPassable(field, nx, ny)) { tx = nx; ty = ny; }
     }
-    // своя пуля
+    // our bullet
     if (own) {
       own.x += DX[own.dir] * BULLET_SPEED; own.y += DY[own.dir] * BULLET_SPEED;
-      // перехват вражеской пули
+      // intercept an enemy bullet
       for (const b of ebs) {
         if (!b.alive) continue;
         if (Math.abs(own.x - b.x) < 6 && Math.abs(own.y - b.y) < 6) {
           score += INTERCEPT_REWARD; b.alive = false; own = null; break;
         }
       }
-      // попадание во вражеский танк
+      // hit on an enemy tank
       if (own) {
         for (const e of bf.tanks) {
           if (e.team !== enemy || !e.inField) continue;
@@ -155,30 +155,30 @@ function simulateAction(bf: any, tank: any, field: any, dir: any, fire: any, fir
       if (own) {
         const c = Math.floor(own.x / 8), r = Math.floor(own.y / 8);
         if (inBounds(c, r) && isBrick(field[cellIdx(c, r)])) {
-          // кирпич разрушается выстрелом; повреждённый (1 выстрел) — выгоднее, чем целый (2)
+          // brick is destroyed by the shot; a damaged one (1 shot) is more profitable than an intact one (2)
           score += brickHealth(field[cellIdx(c, r)]) === 1 ? BREAK_REWARD : BREAK_REWARD * 0.5;
           own = null;
         }
       }
     }
-    // танк под вражеской пулёй
+    // tank under an enemy bullet
     for (const b of ebs) {
       if (!b.alive) continue;
       if (Math.abs(tx - b.x) < HIT_RADIUS && Math.abs(ty - b.y) < HIT_RADIUS) score -= HIT_PENALTY;
     }
   }
-  // прогресс к цели (меньше — лучше): атакующий к орлу, защитник к позиции у базы
+  // progress to the goal (less — better): attacker to the eagle, defender to the base position
   const goal = goalPx(bf, tank, role, subRole);
   score -= BASE_WEIGHT * manhattan([tx, ty], [goal.x, goal.y]);
   return score;
 }
 
-// Выбор сырого направления/желания стрелять + применение edge-логики к огню.
-// В симуляторе/эмуляторе кнопка A игрока edge-triggered: выстрел происходит ТОЛЬКО
-// в момент нарастания фронта (fire:true после fire:false) и при свободном слоте пули.
-// Непрерывное удержание A = ОДИН выстрел за всё время. Поэтому "хотим стрелять"
-// (wantFire) транслируем в реальный fire: единичный кадр фронта, когда слот свободен
-// и мы не держали кнопку в прошлом кадре; иначе — отпускаем (даёт новый фронт).
+// Choosing the raw direction/fire intent + applying edge logic to fire.
+// In the simulator/emulator the player A button is edge-triggered: a shot happens ONLY
+// on the rising edge (fire:true after fire:false) and when the bullet slot is free.
+// Holding A continuously = ONE shot for the whole time. So "want to shoot"
+// (wantFire) is translated into a real fire: a single rising-edge frame when the slot is free
+// and we did not hold the button on the previous frame; otherwise — release (gives a new edge).
 function resolveFire(st: any, wantFire: any, ourBusy: any) {
   const canFire = wantFire && !ourBusy;
   const fire = canFire && !st.prevFire;
@@ -186,14 +186,14 @@ function resolveFire(st: any, wantFire: any, ourBusy: any) {
   return fire;
 }
 
-// Решение по одному танку: перебираем действия, берём максимум utility.
+// Per-tank decision: enumerate actions, take the maximum utility.
 function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: any) {
   const field = bf.field;
   const enemy = enemyTeamOf(role);
   const ourBusy = (mem[RAM.BULLET_STATUS + tank.index] & 0xf0) === 0x40;
   const cell = { col: tank.cell.col, row: tank.cell.row };
 
-  // 1. ПЕРЕХВАТ: летящая в нас пуля по линии, можем стрелять — стреляем в неё.
+  // 1. INTERCEPT: a bullet flying at us along the line, we can shoot — shoot at it.
   const incoming = bf.bullets.filter((b: any) => b.team === enemy && bulletWillPass(field, b, cell));
   if (incoming.length) {
     const p = incoming.sort((a: any, b: any) => Math.abs(a.x - tank.x) + Math.abs(a.y - tank.y) - (Math.abs(b.x - tank.x) + Math.abs(b.y - tank.y)))[0];
@@ -201,8 +201,8 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: a
     if (fd !== null) return { dir: fd, fire: resolveFire(st, true, ourBusy), goal: "intercept" };
   }
 
-  // 1b. ОГОНЬ ПО ВЫРОВНЕННОМУ ВРАГУ (def): любая цель в строке/колонке с линией
-  //     огня — стреляем, независимо от дистанции (пуля летит сквозь кирпичи).
+  // 1b. FIRE AT AN ALIGNED ENEMY (def): any target in the row/column with a line of
+  //     fire — shoot, regardless of distance (the bullet flies through bricks).
   if (role === "def") {
     let align = null, alignD = Infinity;
     for (const e of bf.tanks) {
@@ -214,7 +214,7 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: a
     }
     if (align) return { dir: align.fd, fire: resolveFire(st, true, ourBusy), goal: "kill" };
 
-    // УВОРОТ: летящая в нас пуля близко и прямо по линии — отходим перпендикулярно.
+    // DODGE: a bullet flying at us is close and straight on the line — step aside perpendicular.
     const nearB = bf.bullets.filter((b: any) => b.team === "ATT" && Math.abs(b.x - tank.x) < 60 && Math.abs(b.y - tank.y) < 60);
     let dodgeTo = null;
     for (const b of nearB) {
@@ -231,7 +231,7 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: a
     }
     if (dodgeTo !== null) return { dir: dodgeTo, fire: false, goal: "dodge" };
 
-    // 1c. ПЕРЕКРЁСТНЫЙ ОГОНЬ (def): самый опасный атакующий у базы — общая цель.
+    // 1c. CROSSFIRE (def): the most dangerous attacker at the base — a shared target.
     let focus = null, focusD = Infinity;
     for (const e of bf.tanks) {
       if (e.team !== "ATT" || !e.inField) continue;
@@ -247,41 +247,41 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: a
     }
   }
 
-  // 2. Кандидаты действий и их utility (lookahead).
+  // 2. Action candidates and their utility (lookahead).
   const candidates = [];
   const dirs = [0, 1, 2, 3];
   for (const d of dirs) {
     const nc = tank.cell.col + DX[d], nr = tank.cell.row + DY[d];
     if (!inBounds(nc, nr)) continue;
     const pass = tankPassable(field[cellIdx(nc, nr)]);
-    if (!pass && !isBrick(field[cellIdx(nc, nr)])) continue; // ни движение, ни прострел
-    // движение + огонь/без
+    if (!pass && !isBrick(field[cellIdx(nc, nr)])) continue; // neither movement nor line-of-fire
+    // movement + fire/no fire
     for (const fire of [false, true]) {
       const u = simulateAction(bf, tank, field, d, fire, d, ourBusy, role, subRole);
       candidates.push({ dir: d, fire, u, goal: pass ? "move" : "break" });
     }
   }
-  // стоять + огонь/без
+  // stand + fire/no fire
   for (const fire of [false, true]) {
     const u = simulateAction(bf, tank, field, null, fire, st.prevDir ?? 2, ourBusy, role, subRole);
     candidates.push({ dir: null, fire, u, goal: "stand" });
   }
 
-  // 3. Лучший кандидат (максимум utility), плавность как tie-breaker.
+  // 3. Best candidate (maximum utility), smoothness as a tie-breaker.
   let best = null, bestU = -Infinity;
   for (const c of candidates) {
     let u = c.u;
-    if (best && c.u === bestU && c.dir === st.prevDir) u += 0.5; // предпочитаем плавность при равенстве
+    if (best && c.u === bestU && c.dir === st.prevDir) u += 0.5; // prefer smoothness on a tie
     if (u > bestU) { bestU = u; best = c; }
   }
   if (best === null) return { dir: null, fire: resolveFire(st, false, ourBusy), goal: "stuck" };
 
-  // АНТИ-ЗАСТРЕВАНИЕ (только для защитника): ИИ-защитник не видит стен (поле в
-  // toMem пустое), поэтому напрямую к цели может упереться в реальную стену и
-  // топтаться. Отслеживаем РАССТОЯНИЕ до цели: если движение не уменьшает его
-  // NO_PROGRESS_FRAMES кадров — начинаем УСТОЙЧИВЫЙ обход (едем перпендикулярно
-  // цели DETOUR_FRAMES кадров), чтобы обогнуть препятствие. Атакующему это НЕ
-  // применяем (его навигация остаётся исходной, чтобы не усиливать врага).
+  // ANTI-STUCK (defender only): the AI defender cannot see walls (the field in
+  // toMem is empty), so heading straight for the target may run into a real wall and
+  // stall. We track the DISTANCE to the target: if movement does not reduce it for
+  // NO_PROGRESS_FRAMES frames — we start a PERSISTENT detour (move perpendicular to the
+  // target for DETOUR_FRAMES frames) to go around the obstacle. We do NOT apply this
+  // to the attacker (its navigation stays as-is so as not to strengthen the enemy).
   if (role === "def" && best.dir !== null) {
     const g = goalPx(bf, tank, role, subRole);
     const gd = Math.abs(tank.x - g.x) + Math.abs(tank.y - g.y);
@@ -317,8 +317,8 @@ function decideTank(bf: any, tank: any, mem: any, st: any, role: any, subRole: a
   return { dir: best.dir, fire, goal: best.goal };
 }
 
-// --- ГЛАВНАЯ ФУНКЦИЯ ---
-// role: "att" — атаковать, "def" — защищать. Возвращает решения для своей команды.
+// --- MAIN FUNCTION ---
+// role: "att" — attack, "def" — defend. Returns decisions for its own team.
 export function lookaheadPlan(mem: any, prev: any, role = "att") {
   const bf: any = readState(mem);
   const ownTeam = role === "att" ? "ATT" : "DEF";

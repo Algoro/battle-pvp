@@ -1,15 +1,15 @@
-// StagePreview.tsx — предпросмотр стадии, собранный из ROM в памяти:
-// layout (13x13 блоков) + CHR-тайлы + атрибуты палитры берутся из ядра.
+// StagePreview.tsx — stage preview assembled from the ROM in memory:
+// layout (13x13 blocks) + CHR tiles + palette attributes are taken from the core.
 import { useEffect, useRef } from "react";
 import { useT } from "../i18n/index.tsx";
 import type { EmulatorDriver } from "../engine/emulator";
 
-const FIELD = 13; // блоков
-const BLOCK = 16; // пикселей
+const FIELD = 13; // blocks
+const BLOCK = 16; // pixels
 const SIZE = FIELD * BLOCK; // 208
 const BG = [10, 14, 20];
 
-// Палитры по атрибуту блока (pixel 0..3 -> RGB). pixel 0 = фон.
+// Palettes by block attribute (pixel 0..3 -> RGB). pixel 0 = background.
 const PALETTES = [
   [BG, [122, 59, 18], [194, 107, 42], [240, 208, 160]], // brick
   [BG, [16, 48, 160], [48, 96, 224], [160, 192, 255]], // water
@@ -20,7 +20,7 @@ const PALETTES = [
 interface Props {
   emulator: EmulatorDriver | null;
   stage: number;
-  /** Готовые коды блоков (169) — предпросмотр карты без ROM-патча (TD setup). */
+  /** Ready block codes (169) — map preview without a ROM patch (TD setup). */
   blocks?: Uint8Array;
   size?: number;
 }

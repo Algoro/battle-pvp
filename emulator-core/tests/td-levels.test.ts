@@ -1,5 +1,5 @@
-// td-levels.test.ts — конструктор TD-уровней: ASCII 13×13 -> байты стадии ROM,
-// связность коридоров, спавны/база, строимые клетки.
+// td-levels.test.ts — TD level constructor: ASCII 13×13 -> ROM stage bytes,
+// corridor connectivity, spawns/base, buildable cells.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";

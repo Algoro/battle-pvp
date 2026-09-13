@@ -1,5 +1,5 @@
-// LobbyRoom.tsx — комната ожидания: слоты DEF/ATT, ready, host-контролы,
-// инвайт-код, настройка слотов и чат комнаты.
+// LobbyRoom.tsx — waiting room: DEF/ATT slots, ready, host controls,
+// invite code, slot configuration and room chat.
 import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";

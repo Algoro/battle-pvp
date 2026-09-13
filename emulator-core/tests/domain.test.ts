@@ -1,4 +1,4 @@
-// domain.test.js — семантика домена: направления, флаги танков, тайлы, пули, апгрейд.
+// domain.test.js — domain semantics: directions, tank flags, tiles, bullets, upgrade.
 import { test } from "node:test";
 import assert from "node:assert";
 import {
@@ -32,8 +32,8 @@ test("domain: флаги танков", () => {
 
 test("domain: типы танков и пули", () => {
   assert.strictEqual(tankHits(TANK_TYPE.BASE), 1);
-  assert.strictEqual(tankHits(0xe2), 3); // броня (2)+1
-  assert.strictEqual(tankHits(0x84), 1); // мигающий
+  assert.strictEqual(tankHits(0xe2), 3); // armor (2)+1
+  assert.strictEqual(tankHits(0x84), 1); // flashing
   assert.strictEqual(tankSpeed(0xc0), 1.6);
   assert.strictEqual(tankSpeed(0xe0), 0.8);
   assert.strictEqual(bulletSpeed(0xc0), 4);

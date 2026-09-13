@@ -1,18 +1,18 @@
-// pacman-dots.ts — JS-рантайм режима «Pac-Man»: точки, сбор, счётчик, победа, бомбы.
+// pacman-dots.ts — JS runtime of the "Pac-Man" mode: dots, collection, counter, victory, bombs.
 //
-// Точки/бомбы перерисовываются в nametable КАЖДЫЙ кадр из JS-множества — это перекрывает
-// любые перерисовки поля игрой и даёт стабильный вид/сбор. Источник истины — ctx.state.dots
-// (несъеденные); после loadState множество восстанавливается по nametable.
+// Dots/bombs are redrawn into the nametable EVERY frame from the JS set — this overrides
+// any field redraws by the game and gives a stable look/collection. The source of truth is ctx.state.dots
+// (uneaten); after loadState the set is restored from the nametable.
 //
-// Уровень-лабиринт и замуровка базы — ROM-патч `pacman`.
+// The maze level and the base walling are the `pacman` ROM patch.
 //
-// Относительный путь: ./emulator-core/features/pacman-dots.ts
+// Relative path: ./emulator-core/features/pacman-dots.ts
 import { RAM } from "../rom-contract.ts";
 import { DEF_PORTS, isTankActive } from "../domain.ts";
 import type { FeatureContext, FeatureRuntime } from "../patching/runtime.ts";
 import { DOT_TILE, dotCells, BOMBS } from "./pacman-maze.ts";
 
-const HUD_OFF = 5 * 32 + 12; // "STAGE" в nametable $28AC
+const HUD_OFF = 5 * 32 + 12; // "STAGE" in nametable $28AC
 const DOT_CELLS = dotCells();
 
 function hudPalette(ctx: FeatureContext): number {
@@ -23,8 +23,8 @@ function hudPalette(ctx: FeatureContext): number {
   return 0;
 }
 
-// Палитра для иконки приза: BG-палитра, ближайшая к спрайтовой палитре 2 (которой ROM
-// рисует приз-спрайт). У BG цвет 0 — общий фон, сравниваем цвета 1..3.
+// Palette for the prize icon: BG palette closest to sprite palette 2 (which the ROM
+// uses to draw the prize sprite). For BG, color 0 is the shared background, so we compare colors 1..3.
 function bombPalette(ctx: FeatureContext): number {
   const v = ctx.kernel.ppuVram;
   const spr2 = [1, 2, 3].map((k) => v[0x3f18 + k] & 0x3f); // sprite palette 2 = $3F18
@@ -62,9 +62,9 @@ function renderDots(ctx: FeatureContext, pal: number): void {
   }
 }
 
-// Бомбы рисуются BG-тайлами 2×2 (иконка приза в CHR разбита на 4 квадранта):
-// base = 0x81 + id*4; верх [base-1, base+1], низ [base, base+2].
-// OAM не годится — игра каждый кадр затирает его DMA.
+// Bombs are drawn with BG tiles 2×2 (the prize icon in CHR is split into 4 quadrants):
+// base = 0x81 + id*4; top [base-1, base+1], bottom [base, base+2].
+// OAM is not suitable — the game overwrites it with DMA every frame.
 function renderBombsBG(ctx: FeatureContext): void {
   const nts = ctx.kernel.ppuNameTable;
   const bombs = ctx.state.bombs as { off: number; id: number; taken: boolean }[];
@@ -84,7 +84,7 @@ function renderBombsBG(ctx: FeatureContext): void {
   }
 }
 
-// Сбор: хитбокс точки — целый блок 16×16 (пересечение прямоугольника танка и блока).
+// Collection: the dot hitbox is a whole 16×16 block (intersection of the tank rectangle and the block).
 function collect(ctx: FeatureContext): void {
   const mem = ctx.kernel.mem;
   const dots: Set<number> = ctx.state.dots;
@@ -108,7 +108,7 @@ function collect(ctx: FeatureContext): void {
     }
   }
   if (picked > 0) {
-    // «вака-вака»: чередуем два КОРОТКИХ звука ROM (выстрел / попадание в танк)
+    // "waka-waka": alternate two SHORT ROM sounds (shot / hit on a tank)
     const alt = ctx.state.sfxAlt as boolean;
     ctx.kernel.mem[alt ? RAM.SFX_BULLET_HIT_TANK : RAM.SFX_SHOT] = 1;
     ctx.state.sfxAlt = !alt;
@@ -130,8 +130,8 @@ function pickBombs(ctx: FeatureContext): void {
       const y0 = mem[RAM.TANK_Y + t];
       if (x0 + 15 < bx0 || x0 > bx1 || y0 + 15 < by0 || y0 > by1) continue;
       b.taken = true;
-      // Выдаём настоящий ROM-приз у танка (дальше эффект применяет штатная логика).
-      // Не блокируемся активным призом — перезаписываем (иначе бомбу «не взять»).
+      // Spawn a real ROM prize at the tank (the standard logic then applies the effect).
+      // Don't block on an active prize — overwrite it (otherwise the bomb "can't be taken").
       mem[RAM.PRIZE_X] = x0;
       mem[RAM.PRIZE_Y] = y0;
       mem[RAM.PRIZE_ID] = b.id;
@@ -150,8 +150,8 @@ export const pacmanDotsRuntime: FeatureRuntime = {
     ctx.state.bombs = ctx.options?.bombs === false ? [] : BOMBS.map((b) => ({ off: b.off, id: b.id, taken: false }));
   },
 
-  // Рендер ДО ROM-кадра: если игра перетирает nametable в кадре, следующий preFrame
-  // всё равно успеть не может, но так кадр рисуется с точками/бомбами без задержки.
+  // Render BEFORE the ROM frame: if the game overwrites the nametable in the frame, the next preFrame
+  // can't catch up anyway, but this way the frame is drawn with dots/bombs without delay.
   preFrame(ctx) {
     const mem = ctx.kernel.mem;
     if (mem[RAM.ENEMIES_LEFT] === 0xff) return;
@@ -164,7 +164,7 @@ export const pacmanDotsRuntime: FeatureRuntime = {
 
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
-    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
+    if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // battle not started
     const stage = mem[RAM.STAGE];
     if (stage < 1 || stage > 35) return;
     if (ctx.state.seededStage !== stage) {

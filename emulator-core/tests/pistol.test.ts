@@ -1,6 +1,6 @@
-// pistol.test.js — приз «пистолет»: выпадение/подбор, 4-я звезда, супер-выстрел (луч).
-// Правила получения — ROM-патч `pistol`; эффект луча — JS-ядро PvPNes (детерминированно).
-// Запуск: node --test tests/pistol.test.js
+// pistol.test.js — the "pistol" prize: drop/pickup, 4th star, super-shot (beam).
+// The pickup rules are the `pistol` ROM patch; the beam effect is the JS core PvPNes (deterministic).
+// Run: node --test tests/pistol.test.js
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -12,7 +12,7 @@ import { RAM } from "../rom-contract.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = readFileSync(join(__dirname, "..", "..", "rom", "original", "_battle_city.nes"));
 
-// Быстрый старт: автозапуск и ожидание живого DEF-танка 0.
+// Fast start: autostart and wait for a living DEF tank 0.
 function boot() {
   const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"], attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
@@ -33,7 +33,7 @@ const idle = (emu, n = 1) => { for (let i = 0; i < n; i++) emu.stepFrame([{ port
 test("пistol: приз id 6 выпадает (таблица tbl_E8FA_bonus изменена)", () => {
   const emu = new PvPNes({ patchSet: "pvp", features: ["pistol"] });
   emu.loadROM(ROM);
-  // tbl_E8FA_bonus[6] в CPU-адресе 0xE900 (банк $C000)
+  // tbl_E8FA_bonus[6] at CPU address 0xE900 (bank $C000)
   assert.strictEqual(emu.cpu.mem[0xe900], 0x06, "шестая запись таблицы должна быть пистолетом");
 });
 
@@ -49,7 +49,7 @@ test("пistol: подбор приза 6 выдаёт оружие и боеза
 
 test("пistol: 1–3-я звезды апгрейдят, 4-я выдаёт оружие", () => {
   const emu = boot();
-  emu.cpu.mem[RAM.TANK_UPGRADE] = 0x40; // 2 звезды
+  emu.cpu.mem[RAM.TANK_UPGRADE] = 0x40; // 2 stars
   emu.spawnBonus(3, emu.readMem(RAM.TANK_X), emu.readMem(RAM.TANK_Y));
   idle(emu, 20);
   assert.strictEqual(emu.readMem(RAM.TANK_UPGRADE), 0x60, "3-я звезда должна дать максимум");
@@ -70,7 +70,7 @@ test("пistol: луч уничтожает кирпич, танк-противн
   emu.spawnBonus(6, tx, ty);
   idle(emu, 20);
 
-  // кирпич в 1-й клетке, сталь во 2-й, враг в 3-й
+  // brick in cell 1, steel in cell 2, enemy in cell 3
   emu.cpu.mem[RAM.FIELD + row * 32 + col] = 0x01; // brick
   emu.cpu.mem[RAM.FIELD + (row - 1) * 32 + col] = 0x10; // steel
   const ec = col, er = row - 2;
@@ -112,10 +112,10 @@ test("пistol: луч сносит воду, лёд и кусты, но не д�
   const row = (ty >> 3) - 1;
   emu.spawnBonus(6, tx, ty);
   idle(emu, 20);
-  emu.cpu.mem[RAM.FIELD + row * 32 + col] = 0x12; // вода
-  emu.cpu.mem[RAM.FIELD + (row - 1) * 32 + col] = 0x21; // лёд
-  emu.cpu.mem[RAM.FIELD + (row - 2) * 32 + col] = 0x22; // кусты
-  emu.cpu.mem[RAM.FIELD + (row - 3) * 32 + col] = 0x20; // дорога
+  emu.cpu.mem[RAM.FIELD + row * 32 + col] = 0x12; // water
+  emu.cpu.mem[RAM.FIELD + (row - 1) * 32 + col] = 0x21; // ice
+  emu.cpu.mem[RAM.FIELD + (row - 2) * 32 + col] = 0x22; // bushes
+  emu.cpu.mem[RAM.FIELD + (row - 3) * 32 + col] = 0x20; // road
   emu.stepFrame([{ port: 0, buttons: BTN.A }]);
   emu.stepFrame([{ port: 0, buttons: 0 }]);
   assert.strictEqual(emu.cpu.mem[RAM.FIELD + row * 32 + col], 0, "вода не снесена");
@@ -128,7 +128,7 @@ test("пistol: попадание луча в штаб разрушает баз
   const emu = boot();
   emu.spawnBonus(6, emu.readMem(RAM.TANK_X), emu.readMem(RAM.TANK_Y));
   idle(emu, 20);
-  // поставить танк слева от базы и направить вправо (dir=3)
+  // place the tank to the left of the base and aim it right (dir=3)
   emu.cpu.mem[RAM.TANK_X] = 11 * 8;
   emu.cpu.mem[RAM.TANK_Y] = 27 * 8;
   emu.cpu.mem[RAM.TANK_FLAG] = 0x03;
@@ -176,7 +176,7 @@ test("пistol: save/load вокруг выстрела эквивалентен 
   b.loadState(start);
   const hashesB = [];
   for (let i = 0; i < N; i++) {
-    if (i === 11) b.loadState(snapMid); // откат к кадру 10 и продолжение
+    if (i === 11) b.loadState(snapMid); // roll back to frame 10 and continue
     b.stepFrame(inputsAt(i));
     hashesB.push(b.getFrameHash());
   }
@@ -191,8 +191,8 @@ test("pistol: на разрушенных клетках рисуется ани
   const row = (ty >> 3) - 1;
   emu.spawnBonus(6, tx, ty);
   idle(emu, 20);
-  emu.cpu.mem[RAM.FIELD + row * 32 + col] = 0x01; // кирпич
-  emu.cpu.mem[RAM.FIELD + (row - 1) * 32 + col] = 0x10; // сталь
+  emu.cpu.mem[RAM.FIELD + row * 32 + col] = 0x01; // brick
+  emu.cpu.mem[RAM.FIELD + (row - 1) * 32 + col] = 0x10; // steel
   emu.stepFrame([{ port: 0, buttons: BTN.A }]);
 
   const sm = emu.ppu.spriteMem;
@@ -202,7 +202,7 @@ test("pistol: на разрушенных клетках рисуется ани
     if (sm[i * 4] < 0xf0 && FX_TILES.includes(sm[i * 4 + 1])) drawn++;
   }
   assert.ok(drawn >= 2, `нет спрайтов взрыва на разрушенных клетках (найдено ${drawn})`);
-  // анимация продолжается в следующих кадрах
+  // the animation continues in the following frames
   emu.stepFrame([{ port: 0, buttons: 0 }]);
   let drawn2 = 0;
   for (let i = 0; i < 64; i++) {
@@ -240,7 +240,7 @@ test("пistol: смерть игрока сбрасывает оружие (ROM-
   emu.cpu.mem[RAM.PISTOL] = 1;
   emu.cpu.mem[RAM.PISTOL_AMMO] = 3;
   emu.cpu.mem[RAM.TANK_UPGRADE] = 0x40;
-  // вражеская пуля ровно на танке 0
+  // an enemy bullet exactly on tank 0
   emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
   emu.cpu.mem[RAM.BULLET_X + 2] = emu.readMem(RAM.TANK_X);
   emu.cpu.mem[RAM.BULLET_Y + 2] = emu.readMem(RAM.TANK_Y);

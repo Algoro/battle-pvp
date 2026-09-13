@@ -1,9 +1,9 @@
-// friendly-fire-att.ts — ROM-дескриптор фичи `friendly-fire-att` (полностью JS-рантайм).
+// friendly-fire-att.ts — ROM descriptor of the `friendly-fire-att` feature (fully JS runtime).
 //
-// Коллизии «враг-пуля → другой враг» в ROM нет, поэтому проход целиком реализован
-// JS-рантаймом (features/friendly-fire-att.ts); ROM не патчится.
+// There is no "enemy bullet → another enemy" collision in the ROM, so the pass is entirely implemented
+// by the JS runtime (features/friendly-fire-att.ts); the ROM is not patched.
 //
-// Относительный путь: ./emulator-core/patching/patches/friendly-fire-att.ts
+// Relative path: ./emulator-core/patching/patches/friendly-fire-att.ts
 export const friendlyFireAtt = {
   id: "friendly-fire-att",
   version: 1,

@@ -1,5 +1,5 @@
-// use-match.ts — React-хук контроллера матча: связывает MatchController с состоянием UI.
-// Вся сетевая/игровая оркестрация живёт в контроллере; хук — только мост к React.
+// use-match.ts — React hook of the match controller: connects MatchController with UI state.
+// All network/game orchestration lives in the controller; the hook is just a bridge to React.
 import { useRef, useState, type MutableRefObject } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
 import type { MatchGateway, QuickMatchGateway, Team } from "../ports";

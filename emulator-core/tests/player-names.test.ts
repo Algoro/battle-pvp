@@ -1,7 +1,7 @@
-// player-names.test.ts — фича player-names: имя над танком через BG-overlay nametable.
-// Проверяем: отрисовку глифов, центровку, восстановление при движении, отсутствие
-// влияния на cpu.mem/хэш, исключение overlay из saveState, регистрацию и отсутствие
-// эффекта без имён.
+// player-names.test.ts — the player-names feature: the name above the tank via a BG nametable overlay.
+// Verifies: glyph rendering, centering, restoration on movement, absence of
+// effect on cpu.mem/hash, exclusion of the overlay from saveState, registration, and no
+// effect without names.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";
@@ -26,7 +26,7 @@ function boot(features: string[] = ["player-names"], names: Record<number, strin
     if ((flag & 0x80) && flag < 0xe0) break;
     emu.stepFrame([{ port: 0, buttons: 0 }]);
   }
-  emu.stepFrame([]); // применить overlay
+  emu.stepFrame([]); // apply the overlay
   return emu;
 }
 
@@ -72,7 +72,7 @@ test("player-names: при движении старая строка восст
   const offRow = (y0 >> 3) - 1;
   const offCol = x0 >> 3;
   const baseTile = off.ppu.nameTable[0].tile[offRow * 32 + offCol];
-  // смещаем танк на 4 тайла (32px) и прокручиваем кадр
+  // shift the tank by 4 tiles (32px) and advance a frame
   on.cpu.mem[RAM.TANK_X] = (x0 + 32) & 0xff;
   on.stepFrame([]);
   assert.strictEqual(
@@ -99,7 +99,7 @@ test("player-names: overlay исключается из saveState", () => {
   const off = (y >> 3) - 1;
   const col = x >> 3;
   const saved = on.saveState();
-  // снапшот снят без overlay -> загрузка в чистое ядро не должна содержать глиф
+  // the snapshot was taken without the overlay -> loading into a clean core must not contain glyphs
   const clean = new PvPNes({ patchSet: "pvp", attAI: "off", defAI: "off" });
   clean.loadROM(ROM);
   clean.loadState(saved);

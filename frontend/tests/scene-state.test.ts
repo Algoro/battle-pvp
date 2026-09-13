@@ -1,4 +1,4 @@
-// scene-state.test.ts — извлечение сцены из RAM: чистота, команды, призы, орёл, детали.
+// scene-state.test.ts — extracting the scene from RAM: purity, teams, bonuses, eagle, details.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readSceneFromMem, PLAY_BOUNDS } from "../src/render/scene-state.ts";
@@ -6,9 +6,9 @@ import { RAM } from "@core/rom-contract.ts";
 
 function baseMem(): Uint8Array {
   const m = new Uint8Array(0x10000);
-  m[RAM.ENEMIES_LEFT] = 20; // игра началась
-  m[RAM.GAME_OVER] = 0x80; // идёт
-  m[RAM.PRIZE_ID] = 0xff; // приза нет
+  m[RAM.ENEMIES_LEFT] = 20; // game started
+  m[RAM.GAME_OVER] = 0x80; // in progress
+  m[RAM.PRIZE_ID] = 0xff; // no bonus
   return m;
 }
 
@@ -22,15 +22,15 @@ function putEagle(m: Uint8Array): void {
 test("scene-state: базовая сцена — команды, направления, состояния, звёзды", () => {
   const m = baseMem();
   putEagle(m);
-  m[RAM.TANK_FLAG + 0] = 0xa2; // DEF, движется вниз
+  m[RAM.TANK_FLAG + 0] = 0xa2; // DEF, moving down
   m[RAM.TANK_X + 0] = 88;
   m[RAM.TANK_Y + 0] = 184;
-  m[RAM.TANK_UPGRADE + 0] = 0x40; // 2 звезды
+  m[RAM.TANK_UPGRADE + 0] = 0x40; // 2 stars
   m[RAM.LIVES + 0] = 2;
-  m[RAM.TANK_FLAG + 3] = 0x73; // взрыв
-  m[RAM.TANK_FLAG + 5] = 0xe0; // респавн
-  m[RAM.TANK_TYPE + 5] = 0xa4; // быстрые пули + мигающий
-  m[RAM.TANK_FLAG + 1] = 0x88; // стоящий DEF-танк (0x80..0x8F — «на поле»)
+  m[RAM.TANK_FLAG + 3] = 0x73; // explosion
+  m[RAM.TANK_FLAG + 5] = 0xe0; // respawn
+  m[RAM.TANK_TYPE + 5] = 0xa4; // fast bullets + blinking
+  m[RAM.TANK_FLAG + 1] = 0x88; // parked DEF tank (0x80..0x8F — "on the field")
 
   const s = readSceneFromMem(m, 42);
   assert.strictEqual(s.frame, 42);
@@ -49,7 +49,7 @@ test("scene-state: базовая сцена — команды, направл�
   assert.strictEqual(s.tanks[5].team, "ATT");
   assert.strictEqual(s.tanks[5].flashing, true);
   assert.strictEqual(s.tanks[5].armored, false);
-  // Стоящий human-танк (0x88|dir) обязан быть «живым», а не «мёртвым».
+  // A parked human tank (0x88|dir) must be "alive", not "dead".
   assert.strictEqual(s.tanks[1].state, "alive");
   assert.strictEqual(s.tanks[1].moving, false);
 });
@@ -57,7 +57,7 @@ test("scene-state: базовая сцена — команды, направл�
 test("scene-state: пули, приз, орёл, заморозка и точки", () => {
   const m = baseMem();
   putEagle(m);
-  m[RAM.BULLET_STATUS + 4] = 0x43; // летит вправо
+  m[RAM.BULLET_STATUS + 4] = 0x43; // flying right
   m[RAM.BULLET_X + 4] = 100;
   m[RAM.BULLET_Y + 4] = 120;
   m[RAM.PRIZE_ID] = 3;
@@ -86,8 +86,8 @@ test("scene-state: чистота — field это копия, mem не мути
 });
 
 test("scene-state: орёл разрушен, если тайлов нет при завершении игры", () => {
-  const m = baseMem(); // орла нет
-  m[RAM.GAME_OVER] = 0; // штаб уничтожен -> игра окончена
+  const m = baseMem(); // no eagle
+  m[RAM.GAME_OVER] = 0; // HQ destroyed -> game over
   const s = readSceneFromMem(m, 0);
   assert.strictEqual(s.eagle.destroyed, true);
 });

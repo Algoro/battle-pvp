@@ -1,14 +1,14 @@
-// registry.js — именованные наборы патчей и реестр ОПЦИОНАЛЬНЫХ фич.
+// registry.js — named patch sets and a registry of OPTIONAL features.
 //
-// Модель:
-//   * Базовые наборы (`pvp`, `base`) — обязательная совместимая основа (сеть/ROM).
-//   * Фичи (`pistol`, ...) — опциональные игровые патчи поверх базы. Включаются списком:
+// Model:
+//   * Base sets (`pvp`, `base`) — the mandatory compatible foundation (network/ROM).
+//   * Features (`pistol`, ...) — optional game patches on top of the base. Enabled by a list:
 //       applyPatchSet(rom, { base: "pvp", features: ["pistol"] })
-//     Порядок/дубли фич канонизируются, поэтому fingerprint однозначен.
-//   * Fingerprint базы (без фич) — предмет netcode-совместимости; набор фич выбирает хост
-//     и рассылает в `match.start`, все клиенты собирают один и тот же образ.
+//     Feature order/duplicates are canonicalized, so the fingerprint is unambiguous.
+//   * The base fingerprint (without features) is a netcode-compatibility concern; the host chooses
+//     the feature set and broadcasts it in `match.start`; all clients build the same image.
 //
-// Относительный путь: ./emulator-core/patching/registry.js
+// Relative path: ./emulator-core/patching/registry.js
 import { composeSets } from "./descriptor.ts";
 import { PatchError, PatchErrorCode } from "./errors.ts";
 import { RUNTIME_METHODS, type FeatureRuntime } from "./runtime.ts";
@@ -35,13 +35,13 @@ import { FEATURE_MANIFEST } from "../../shared/features.ts";
 const SETS = new Map<any, any>();
 const FEATURES = new Map<any, any>();
 
-/** Зарегистрировать (или заменить) именованный набор. */
+/** Register (or replace) a named set. */
 export function registerPatchSet(name: string, set: any): void {
   SETS.set(name, set);
 }
 
-/** Зарегистрировать опциональную фичу: { id, patch, runtime? }. Метаданные (title/description)
- *  берутся из shared/features.ts — здесь только проводка id → патч/рантайм. */
+/** Register an optional feature: { id, patch, runtime? }. Metadata (title/description)
+ *  comes from shared/features.ts — here only the id → patch/runtime wiring. */
 export function registerFeature(feature: any): void {
   if (!feature || !feature.id || !feature.patch) {
     throw new PatchError(PatchErrorCode.BAD_SET, "фича должна иметь id и patch");
@@ -50,7 +50,7 @@ export function registerFeature(feature: any): void {
   FEATURES.set(feature.id, { id: feature.id, patch: feature.patch, runtime: feature.runtime });
 }
 
-/** Проверить форму JS-рантайма фичи (только известные методы). */
+/** Validate the shape of a feature's JS runtime (known methods only). */
 function validateRuntime(runtime: any, id: string): void {
   if (typeof runtime !== "object") {
     throw new PatchError(PatchErrorCode.BAD_SET, `runtime фичи ${id} должен быть объектом`);
@@ -65,7 +65,7 @@ function validateRuntime(runtime: any, id: string): void {
   }
 }
 
-/** Рантаймы активных фич в детерминированном (каноническом) порядке. */
+/** Runtimes of active features in deterministic (canonical) order. */
 export function resolveFeatureRuntimes(features: any): { id: string; runtime: FeatureRuntime }[] {
   const ids = canonicalFeatures(features);
   const out: { id: string; runtime: FeatureRuntime }[] = [];
@@ -76,12 +76,12 @@ export function resolveFeatureRuntimes(features: any): { id: string; runtime: Fe
   return out;
 }
 
-/** Список фич (метаданные для UI/валидации) из единого манифеста. */
+/** Feature list (metadata for UI/validation) from the single manifest. */
 export function listFeatures() {
   return FEATURE_MANIFEST.map((f) => ({ id: f.id, title: f.title, description: f.description }));
 }
 
-/** Сверить манифест и реестр патчей (одно без другого — ошибка конфигурации). */
+/** Cross-check the manifest and the patch registry (one without the other is a config error). */
 export function assertFeaturesConsistent(): void {
   const registered = new Set(FEATURES.keys());
   const manifest = new Set(FEATURE_MANIFEST.map((f) => f.id));
@@ -93,7 +93,7 @@ export function assertFeaturesConsistent(): void {
   }
 }
 
-/** Канонический список id фич: строки, уникальные, отсортированные. */
+/** Canonical feature id list: strings, unique, sorted. */
 export function canonicalFeatures(features: any): string[] {
   if (!features) return [];
   const arr = Array.isArray(features) ? features : [features];
@@ -102,7 +102,7 @@ export function canonicalFeatures(features: any): string[] {
 }
 
 /**
- * Разрешить набор патчей: имя | дескриптор | спецификация { base, features }.
+ * Resolve a patch set: name | descriptor | spec { base, features }.
  */
 export function resolvePatchSet(nameOrSpec: any): any {
   if (typeof nameOrSpec === "string") {
@@ -111,9 +111,9 @@ export function resolvePatchSet(nameOrSpec: any): any {
     }
     return SETS.get(nameOrSpec);
   }
-  // Спецификация фич отличается от готового дескриптора: у дескриптора `base` — это
-  // объект base-verify {mapper,prgBanks,fingerprint}, а спец задаётся `features` или
-  // строковым именем базы.
+  // A feature spec differs from a ready descriptor: for a descriptor `base` is the
+  // base-verify object {mapper,prgBanks,fingerprint}, while the spec is given by `features` or
+  // a string base name.
   const isSpec =
     nameOrSpec &&
     typeof nameOrSpec === "object" &&
@@ -134,19 +134,19 @@ export function resolvePatchSet(nameOrSpec: any): any {
     set.features = ids;
     return set;
   }
-  return nameOrSpec; // готовый дескриптор
+  return nameOrSpec; // ready descriptor
 }
 
 export function listPatchSets() {
   return [...SETS.keys()];
 }
 
-// --- Встроенные наборы и фичи ---------------------------------------------
-// База `pvp` = ROM-контракт + сетевой PvP-патч (без игровых фич).
+// --- Built-in sets and features ---------------------------------------------
+// The `pvp` base = ROM contract + the network PvP patch (without game features).
 registerPatchSet("pvp", composeSets(baseNrom, pvp));
 registerPatchSet("base", composeSets(baseNrom));
 
-// Опциональные игровые фичи (метаданные — в shared/features.ts).
+// Optional game features (metadata — in shared/features.ts).
 registerFeature({
   id: "pistol",
   patch: pistol,
@@ -195,7 +195,7 @@ registerFeature({
   runtime: towerDefenceRuntime,
 });
 
-// Манифест и реестр обязаны совпадать (добавил фичу — зарегистрируй патч, и наоборот).
+// The manifest and the registry must match (added a feature — register the patch, and vice versa).
 assertFeaturesConsistent();
 
 export { baseNrom, pvp, pistol, enemyPrizes, friendlyFireDef, friendlyFireAtt, playerNames, pacman, wrapBorders, towerDefence };

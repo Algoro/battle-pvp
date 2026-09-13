@@ -1,12 +1,12 @@
-// game-core-port.test.ts — RollbackSession зависит ТОЛЬКО от порта GameCore.
-// Здесь вместо jsnes подставлен fake-ядро: детерминированное состояние без эмулятора.
+// game-core-port.test.ts — RollbackSession depends ONLY on the GameCore port.
+// Here a fake core is substituted for jsnes: deterministic state without an emulator.
 import { test } from "node:test";
 import assert from "node:assert";
 import { RollbackSession } from "../rollback/session.ts";
 import { LocalEndpoint, makeRng } from "../transport/local.ts";
 import type { GameCore, Input } from "../ports.ts";
 
-// Минимальная реализация порта GameCore (не Battle City, а абстрактная игра).
+// Minimal implementation of the GameCore port (not Battle City, but an abstract game).
 class FakeCore implements GameCore {
   frame = 0;
   state = new Uint8Array([7]);

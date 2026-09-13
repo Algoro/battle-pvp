@@ -1,5 +1,5 @@
-// rollforward.test.js — прогноз на реальном эмуляторе совпадает с фактическим будущим.
-// Это основа для отказа от отдельной JS-модели (sim/*) в lookahead-предсказаниях.
+// rollforward.test.js — prediction on the real emulator matches the actual future.
+// This is the basis for dropping the separate JS model (sim/*) in lookahead predictions.
 import { test } from "node:test";
 import assert from "node:assert";
 import { readFileSync } from "node:fs";

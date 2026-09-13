@@ -1,15 +1,15 @@
-// railgun.ts — общий JS-эффект супер-оружия (луч), используется рантаймами фич.
+// railgun.ts — shared JS super-weapon effect (beam), used by feature runtimes.
 //
-// Вынесен из pvp.ts, чтобы им могли пользоваться и `pistol` (DEF-игроки), и
-// `enemy-prizes` (враг, подобравший пистолет). Работает только через FeatureContext,
-// авторитетное состояние — RAM; очередь взрывов ctx.state.beamFx — визуальная.
+// Extracted from pvp.ts so both `pistol` (DEF players) and
+// `enemy-prizes` (an enemy that picked up a pistol) can use it. It works only through FeatureContext;
+// the authoritative state is RAM; the beam explosion queue ctx.state.beamFx is visual.
 //
-// Относительный путь: ./emulator-core/features/railgun.ts
+// Relative path: ./emulator-core/features/railgun.ts
 import { RAM } from "../rom-contract.ts";
 import { PISTOL_BEAM_HALF, NUM_PLAYERS, DEF_PORTS, isEagleTile, isRoad } from "../domain.ts";
 import type { FeatureContext } from "../patching/runtime.ts";
 
-// Тайлы анимации взрыва (как у танка): sub_DEE2 даёт 0xF1/0xF5/0xF9.
+// Explosion animation tiles (like the tank): sub_DEE2 gives 0xF1/0xF5/0xF9.
 export const BEAM_FX_TILES = [0xf1, 0xf5, 0xf9];
 
 export function initRailgunFx(ctx: FeatureContext): void {
@@ -20,19 +20,19 @@ export function resetRailgunFx(ctx: FeatureContext): void {
   if (ctx.state.beamFx) ctx.state.beamFx.length = 0;
 }
 
-// Уничтожить тайл: поле (коллизия) + nametable (рендер).
+// Destroy a tile: field (collision) + nametable (render).
 function clearTile(ctx: FeatureContext, off: number): void {
   const mem = ctx.kernel.mem;
   mem[RAM.FIELD + off] = 0;
   for (const nt of ctx.kernel.ppuNameTable) nt.tile[off] = 0;
 }
 
-// Убить живые танки, стоящие в клетке (col,row). Союзники тоже гибнут.
+// Kill living tanks standing in the cell (col,row). Allies die too.
 function killTanksAt(ctx: FeatureContext, col: number, row: number): void {
   const mem = ctx.kernel.mem;
   for (let tt = 0; tt < NUM_PLAYERS; tt++) {
     const flag = mem[RAM.TANK_FLAG + tt];
-    if (!(flag & 0x80) || flag >= 0xe0) continue; // только «на поле»
+    if (!(flag & 0x80) || flag >= 0xe0) continue; // only "on field"
     if ((mem[RAM.TANK_X + tt] >> 3) !== col || (mem[RAM.TANK_Y + tt] >> 3) !== row) continue;
     mem[RAM.TANK_FLAG + tt] = 0x73; // con_tank_flag_explosion + 3
     mem[RAM.TANK_TYPE + tt] = 0;
@@ -45,7 +45,7 @@ function killTanksAt(ctx: FeatureContext, col: number, row: number): void {
   }
 }
 
-// Убрать пули, находящиеся в клетке (col,row).
+// Remove bullets located in the cell (col,row).
 function clearBulletsAt(ctx: FeatureContext, col: number, row: number): void {
   const mem = ctx.kernel.mem;
   for (let b = 0; b < 10; b++) {
@@ -55,21 +55,21 @@ function clearBulletsAt(ctx: FeatureContext, col: number, row: number): void {
   }
 }
 
-// Разрушить штаб (своя база тоже): тайлы разрушенного орла + поражение.
+// Destroy the HQ (your own base too): destroyed-eagle tiles + defeat.
 function destroyHq(ctx: FeatureContext): void {
   const mem = ctx.kernel.mem;
-  const base = 26 * 32 + 14; // фиксированная позиция базы (см. sub_CC08)
+  const base = 26 * 32 + 14; // fixed base position (see sub_CC08)
   const tiles = [[0, 0xcc], [1, 0xce], [32, 0xcd], [33, 0xcf]];
   for (const [d, v] of tiles) {
     mem[RAM.FIELD + base + d] = v;
     for (const nt of ctx.kernel.ppuNameTable) nt.tile[base + d] = v;
   }
-  mem[RAM.GAME_OVER] = 0x27; // таймер поражения (как обычная пуля по орлу)
+  mem[RAM.GAME_OVER] = 0x27; // defeat timer (like a normal bullet hitting the eagle)
   mem[RAM.SFX_EXPLOSION_HQ] = 1;
   mem[RAM.SFX_EXPLOSION_PLAYER] = 1;
 }
 
-// Обработать одну клетку луча: тайл/танки/пули. true — попали в штаб.
+// Process one beam cell: tile/tanks/bullets. true — hit the HQ.
 function beamCell(ctx: FeatureContext, col: number, row: number): boolean {
   const mem = ctx.kernel.mem;
   const off = row * 32 + col;
@@ -78,8 +78,8 @@ function beamCell(ctx: FeatureContext, col: number, row: number): boolean {
     destroyHq(ctx);
     return true;
   }
-  // Луч сносит всё, кроме пустого, дороги и штаба: кирпич, сталь, воду, лёд, кусты.
-  // Настройка `terrain:false` оставляет ландшафт, убивая только танки и пули.
+  // The beam destroys everything except empty, road, and HQ: brick, steel, water, ice, bushes.
+  // The `terrain:false` setting keeps the terrain, killing only tanks and bullets.
   if (ctx.options?.terrain !== false && tile !== 0 && !isEagleTile(tile) && !isRoad(tile)) {
     clearTile(ctx, off);
     const fx = ctx.state.beamFx as { x: number; y: number; age: number }[];
@@ -90,8 +90,8 @@ function beamCell(ctx: FeatureContext, col: number, row: number): boolean {
   return false;
 }
 
-// Луч: прожигает линию до края поля, уничтожая тайлы, танки и пули.
-// Состояние (RAM) детерминировано и входит в saveState/rollback.
+// Beam: burns a line to the field edge, destroying tiles, tanks, and bullets.
+// The state (RAM) is deterministic and is part of saveState/rollback.
 export function fireRailgun(ctx: FeatureContext, t: number): void {
   const mem = ctx.kernel.mem;
   const dir = mem[RAM.TANK_FLAG + t] & 3;
@@ -100,7 +100,7 @@ export function fireRailgun(ctx: FeatureContext, t: number): void {
   const px = dx === 0 ? 1 : 0;
   const py = dy === 0 ? 1 : 0;
   const rawHalf = Number(ctx.options?.beamHalf ?? PISTOL_BEAM_HALF);
-  const H = Math.max(0, Math.min(3, Number.isFinite(rawHalf) ? Math.round(rawHalf) : PISTOL_BEAM_HALF)); // ширина луча = 2*H+1 тайлов
+  const H = Math.max(0, Math.min(3, Number.isFinite(rawHalf) ? Math.round(rawHalf) : PISTOL_BEAM_HALF)); // beam width = 2*H+1 tiles
   let col = mem[RAM.TANK_X + t] >> 3;
   let row = mem[RAM.TANK_Y + t] >> 3;
   for (let i = 0; i < 32; i++) {
@@ -119,8 +119,8 @@ export function fireRailgun(ctx: FeatureContext, t: number): void {
   mem[RAM.SFX_SHOT] = 1;
 }
 
-// Рендер взрывов луча в свободные OAM-спрайты (Y>=0xF0 — вне экрана).
-// Чистая визуализация: не пишет cpu.mem, поэтому не влияет на hash/сеть.
+// Render beam explosions into free OAM sprites (Y>=0xF0 — off-screen).
+// Pure visualization: it does not write cpu.mem, so it doesn't affect hash/network.
 export function renderRailgunFx(ctx: FeatureContext): void {
   const sm = ctx.kernel.ppuSpriteMem;
   const queue = ctx.state.beamFx as { x: number; y: number; age: number }[] | undefined;
@@ -132,7 +132,7 @@ export function renderRailgunFx(ctx: FeatureContext): void {
   let fi = 0;
   for (const fx of queue) {
     if (fi + 1 >= free.length) {
-      next.push(fx); // нет места — покажем в следующих кадрах
+      next.push(fx); // no room — show in the coming frames
       continue;
     }
     const T = BEAM_FX_TILES[Math.min(fx.age, BEAM_FX_TILES.length - 1)];
