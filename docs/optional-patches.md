@@ -87,7 +87,9 @@
   получает эффект (clock/shovel/grenade/tank/star/pistol), без фичи — нет; игрок
   подбирает как раньше; комбинация с `pistol` собирается без перекрытий.
 - `emulator-core/tests/friendly-fire.test.ts` — `friendly-fire-def` (свой убивает своего)
-  и `friendly-fire-att` (урон союзнику с бронёй и выпадением приза), без фич — нет.
+  и `friendly-fire-att` (урон союзнику с бронёй и выпадением приза; стрелок может погибнуть
+  от своей пули, но только после того, как она вышла из его «дула» — флаг в `ram_ff_att_cleared`),
+  без фич — нет.
 - `emulator-core/tests/player-names.test.ts` — имя над танком (глифы/центровка/движение),
   нет имён/фичи — ничего, хэш не меняется, overlay не попадает в `saveState`.
 - `emulator-core/tests/pacman.test.ts` — режим `pacman`: ROM-лабиринт (стадия 1), замуровка

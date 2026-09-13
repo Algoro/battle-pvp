@@ -130,3 +130,48 @@ test("ff-att: убийство носителя приза заставляет 
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG + 3], 0x73, "носитель не убит");
   assert.notStrictEqual(emu.cpu.mem[RAM.PRIZE_X], 0, "приз не выпал");
 });
+
+// Стрелок и его собственная пуля: в момент выстрела пуля внутри хитбокса, поэтому
+// самоурон разрешён только после того, как пуля вышла из «дула».
+test("ff-att: в момент выстрела стрелок не гибнет от своей пули", () => {
+  const emu = boot(["friendly-fire-att"]);
+  const c = emptyCell(emu);
+  parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
+  emu.cpu.mem[RAM.TANK_X + 2] = c.x;
+  emu.cpu.mem[RAM.TANK_Y + 2] = c.y;
+  emu.cpu.mem[RAM.TANK_FLAG + 2] = 0x90;
+  emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
+  emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
+  emu.cpu.mem[RAM.BULLET_X + 2] = c.x;
+  emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
+  emu.stepFrame([]);
+  assert.notStrictEqual(emu.cpu.mem[RAM.TANK_FLAG + 2], 0x73, "стрелок не должен гибнуть в момент выстрела");
+  assert.strictEqual(emu.cpu.mem[RAM.FF_ATT_CLEARED] & (1 << 2), 0, "пуля ещё в дуле");
+});
+
+test("ff-att: пуля, покинувшая стрелка, убивает его при возврате", () => {
+  const emu = boot(["friendly-fire-att"]);
+  const c = emptyCell(emu);
+  parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
+  const put = () => {
+    emu.cpu.mem[RAM.TANK_X + 2] = c.x;
+    emu.cpu.mem[RAM.TANK_Y + 2] = c.y;
+    emu.cpu.mem[RAM.TANK_FLAG + 2] = 0x90;
+    emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
+  };
+  put();
+  // 1) пуля далеко от стрелка — отмечаем «вышла из дула»
+  emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
+  emu.cpu.mem[RAM.BULLET_X + 2] = (c.x + 40) & 0xff;
+  emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
+  emu.stepFrame([]);
+  assert.strictEqual(emu.cpu.mem[RAM.FF_ATT_CLEARED] & (1 << 2), 1 << 2, "бит выхода из дула не выставлен");
+  // 2) пуля вернулась к стрелку — самоурон
+  put();
+  emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
+  emu.cpu.mem[RAM.BULLET_X + 2] = c.x;
+  emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
+  emu.stepFrame([]);
+  assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG + 2], 0x73, "стрелок должен погибнуть от своей пули");
+  assert.strictEqual(emu.cpu.mem[RAM.BULLET_STATUS + 2], 0x33, "пуля должна погаснуть");
+});
