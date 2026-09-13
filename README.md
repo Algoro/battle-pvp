@@ -158,6 +158,7 @@ git push -u origin main
 - [docs/render-voxel.md](docs/render-voxel.md) — драйвер `mc-voxel` (воксельный стиль).
 - [docs/tower-defense.md](docs/tower-defense.md) — соло-режим Tower Defence.
 - [docs/pistol-powerup.md](docs/pistol-powerup.md) — приз «Пистолет» и супер-оружие.
+- [docs/wrap-borders.md](docs/wrap-borders.md) — фича «открытые края» (тор по краям уровня).
 - [docs/typescript.md](docs/typescript.md) — конвенции TypeScript и раскладка типов.
 
 ## Лицензия и правовой статус
