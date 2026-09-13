@@ -4,6 +4,7 @@
 // не зависит от порядка определения функций в App и не держит устаревшие замыкания.
 import { useEffect, useRef, useState } from "react";
 import LobbyClient, { LobbyState, ChatMessage, LobbySettings } from "../engine/lobby-client";
+import { useT } from "../i18n/index.tsx";
 
 export interface LobbyHandlers {
   onMatchStart: (lc: LobbyClient, m: any) => void;
@@ -17,6 +18,7 @@ export interface LobbyHandlers {
 }
 
 export function useLobbyClient(meId: string, initialName: string, getHandlers: () => LobbyHandlers, backend: string) {
+  const t = useT();
   const [lobbies, setLobbies] = useState<LobbyState[]>([]);
   const [lobby, setLobby] = useState<LobbyState | null>(null);
   const [globalChat, setGlobalChat] = useState<ChatMessage[]>([]);
@@ -33,7 +35,7 @@ export function useLobbyClient(meId: string, initialName: string, getHandlers: (
 
   // Один WS на всё лобби + хендофф в матч.
   useEffect(() => {
-    const lc = new LobbyClient(meId, initialName || "Игрок");
+    const lc = new LobbyClient(meId, initialName || t("Игрок"));
     lcRef.current = lc;
     lc.onLobbies = setLobbies;
     lc.onLobby = (l) => { setLobby(l); setBusy(false); };
@@ -46,7 +48,7 @@ export function useLobbyClient(meId: string, initialName: string, getHandlers: (
     lc.onChatHistory = (scope, _id, msgs) =>
       scope === "global" ? setGlobalChat(msgs) : scope === "match" ? setMatchChat(msgs) : setRoomChat(msgs);
     lc.onError = (e) => { setError(e); setBusy(false); };
-    lc.onKicked = () => { setError("Вас исключили из комнаты"); setLobby(null); setBusy(false); };
+    lc.onKicked = () => { setError(t("Вас исключили из комнаты")); setLobby(null); setBusy(false); };
     lc.onMatchFinished = (winner) => handlersRef.current().onMatchFinished(winner);
     lc.onSpectateStart = () => {};
     lc.onSpectateData = (m) => handlersRef.current().onSpectateData(m);
@@ -63,7 +65,7 @@ export function useLobbyClient(meId: string, initialName: string, getHandlers: (
             .catch((e) => { setError(String(e?.message || e)); setBusy(false); });
         }
       })
-      .catch(() => setError("Нет связи с сервером"));
+      .catch(() => setError(t("Нет связи с сервером")));
     return () => lc.close();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

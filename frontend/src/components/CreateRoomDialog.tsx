@@ -6,6 +6,7 @@ import FeaturePicker, { type FeatureOptions } from "./FeaturePicker";
 import RenderPicker from "./RenderPicker";
 import type { LobbySettings } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   onCreate: (name: string, settings: LobbySettings) => void;
@@ -14,7 +15,8 @@ interface Props {
 }
 
 export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props) {
-  const [name, setName] = useState("Моя игра");
+  const t = useT();
+  const [name, setName] = useState(() => t("Моя игра"));
   const [defSlots, setDefSlots] = useState(2);
   const [attSlots, setAttSlots] = useState(2);
   const [autoStart, setAutoStart] = useState(false);
@@ -28,25 +30,25 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
   return (
     <div className="modal" onClick={onCancel}>
       <div className="modal__box" onClick={(e) => e.stopPropagation()}>
-        <h3>Создать игру</h3>
+        <h3>{t("Создать игру")}</h3>
         <label className="modal__field">
-          <span>Название</span>
+          <span>{t("Название")}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} maxLength={40} />
         </label>
         <label className="modal__field">
-          <span>Защитники: {defSlots} (1–2)</span>
+          <span>{t("Защитники: {count} (1–2)", { count: defSlots })}</span>
           <input type="range" min={1} max={2} value={defSlots} onChange={(e) => setDefSlots(+e.target.value)} />
         </label>
         <label className="modal__field">
-          <span>Атакующие: {attSlots} (1–6)</span>
+          <span>{t("Атакующие: {count} (1–6)", { count: attSlots })}</span>
           <input type="range" min={1} max={6} value={attSlots} onChange={(e) => setAttSlots(+e.target.value)} />
         </label>
         <label className="modal__field modal__check">
-          <span>Авто-старт при полном лобби</span>
+          <span>{t("Авто-старт при полном лобби")}</span>
           <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
         </label>
         <label className="modal__field modal__check">
-          <span>Старт только когда все готовы</span>
+          <span>{t("Старт только когда все готовы")}</span>
           <input type="checkbox" checked={requireReady} onChange={(e) => setRequireReady(e.target.checked)} />
         </label>
         <div className="modal__field">
@@ -72,14 +74,14 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
         <div className="modal__field">
           <RenderPicker emulator={emulator} stage={stage} />
         </div>
-        <p className="modal__hint">Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».</p>
+        <p className="modal__hint">{t("Пустые слоты добьёт ИИ. Игра будет ждать подключения игроков, пока ты не нажмёшь «Старт».")}</p>
         <div className="modal__actions">
-          <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
+          <button className="btn btn--ghost" onClick={onCancel}>{t("Отмена")}</button>
           <button
             className="btn btn--primary"
-            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol, features, featureOptions })}
+            onClick={() => onCreate(name.trim() || t("Игра"), { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol, features, featureOptions })}
           >
-            Создать
+            {t("Создать")}
           </button>
         </div>
       </div>

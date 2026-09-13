@@ -1,6 +1,7 @@
 // ChatPanel.tsx — панель чата (лобби/комната): список сообщений + ввод.
 import { useEffect, useRef, useState } from "react";
 import type { ChatMessage } from "../engine/lobby-client";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   title: string;
@@ -12,6 +13,7 @@ interface Props {
 }
 
 export default function ChatPanel({ title, messages, onSend, meId, disabled, placeholder }: Props) {
+  const t = useT();
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -22,9 +24,9 @@ export default function ChatPanel({ title, messages, onSend, meId, disabled, pla
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    const t = text.trim();
-    if (!t) return;
-    onSend(t);
+    const value = text.trim();
+    if (!value) return;
+    onSend(value);
     setText("");
   };
 
@@ -32,7 +34,7 @@ export default function ChatPanel({ title, messages, onSend, meId, disabled, pla
     <div className="chat">
       <div className="chat__title">{title}</div>
       <div className="chat__list" ref={listRef}>
-        {messages.length === 0 && <div className="chat__empty">Пока пусто</div>}
+        {messages.length === 0 && <div className="chat__empty">{t("Пока пусто")}</div>}
         {messages.map((m, i) => (
           <div key={i} className={`chat__msg${m.from === meId ? " is-me" : ""}`}>
             <span className="chat__name">{m.name}</span>
@@ -45,7 +47,7 @@ export default function ChatPanel({ title, messages, onSend, meId, disabled, pla
           value={text}
           onChange={(e) => setText(e.target.value)}
           maxLength={200}
-          placeholder={placeholder || (disabled ? "Нет соединения" : "Сообщение…")}
+          placeholder={placeholder || (disabled ? t("Нет соединения") : t("Сообщение…"))}
           disabled={disabled}
         />
         <button className="btn btn--ghost" disabled={disabled || !text.trim()}>

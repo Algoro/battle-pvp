@@ -3,6 +3,7 @@
 //
 // Относительный путь: ./frontend/src/render/extensions/minimap.ts
 import { isBrick, isSteel, isWater, isIce, isTree } from "@core/domain.ts";
+import { loadLang, translate } from "../../i18n/translate.ts";
 import type { RenderExtension, RenderHost, SceneState } from "../types.ts";
 
 const SIZE = 148;
@@ -52,7 +53,7 @@ export function createMinimapExtension(): RenderExtension {
       const cz = (bl.y / 8 - b.row0 + 0.5) * cell;
       ctx.fillRect(cx - cell * 0.35, cz - cell * 0.35, cell * 0.7, cell * 0.7);
     }
-    if (nameEl) nameEl.textContent = `3D-карта · кадр ${s.frame}`;
+    if (nameEl) nameEl.textContent = translate(loadLang(), "3D-карта · кадр {n}", { n: s.frame });
   }
 
   return {

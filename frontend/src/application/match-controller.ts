@@ -7,6 +7,7 @@ import type { MatchStart } from "../engine/lobby-client";
 import { buildSoloInputs, isGameplayStarted, isTankAlive, BTN_START } from "../engine/game-state";
 import { bytesToBase64 } from "../engine/b64";
 import { tdMapStage, type TdConfig } from "../../../shared/tower-defence.ts";
+import { loadLang, translate } from "../i18n/translate.ts";
 import type {
   FrameInput,
   MatchGateway,
@@ -213,7 +214,7 @@ export class MatchController {
     negotiate: () => Promise<NegotiatedTransport>;
   }): Promise<void> {
     const emu = this.deps.emu();
-    if (!emu) throw new Error("эмулятор не загружен");
+    if (!emu) throw new Error(translate(loadLang(), "эмулятор не загружен"));
 
     const feats = [...(opts.features || [])];
     emu.setPatchFeatures?.(feats);

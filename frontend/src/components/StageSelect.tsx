@@ -1,6 +1,7 @@
 // StageSelect.tsx — выбор стадии (1..35) с предпросмотром из ROM в памяти.
 import StagePreview from "./StagePreview";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   emulator: EmulatorDriver | null;
@@ -12,11 +13,12 @@ interface Props {
 
 export default function StageSelect({ emulator, stage, onChange, previewSize = 156, disabled }: Props) {
   const total = emulator?.getStageCount?.() ?? 35;
+  const t = useT();
   const set = (v: number) => onChange(Math.max(1, Math.min(total, v)));
   return (
     <div className="stage-select">
       <div className="stage-select__row">
-        <span className="stage-select__label">Стадия {stage} / {total}</span>
+        <span className="stage-select__label">{t("Стадия {stage} / {total}", { stage, total })}</span>
         <input
           className="stage-select__range"
           type="range" min={1} max={total} step={1} value={stage}

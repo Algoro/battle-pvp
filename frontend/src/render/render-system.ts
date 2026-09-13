@@ -8,6 +8,7 @@
 //
 // Относительный путь: ./frontend/src/render/render-system.ts
 import { CameraRig } from "./camera-rig.ts";
+import { loadLang, translate } from "../i18n/translate.ts";
 import { canonicalRenderExtensions, driverCapabilities, rendererById, resolveDriver, resolveExtensions } from "./registry.ts";
 import { loadRenderOptions } from "./prefs.ts";
 import { normalizeValues, specDefaults } from "./settings.ts";
@@ -157,12 +158,16 @@ export class RenderSystem {
     for (const id of canonicalRenderExtensions(ids)) {
       const info = rendererById(id);
       if (!info || info.kind !== "extension") {
-        this.extensionStatus.push({ id, state: "skipped", reason: "неизвестное расширение" });
+        this.extensionStatus.push({ id, state: "skipped", reason: translate(loadLang(), "неизвестное расширение") });
         continue;
       }
       const missing = (info.requires ?? []).filter((cap) => !this.capabilities.has(cap));
       if (missing.length) {
-        this.extensionStatus.push({ id, state: "skipped", reason: `нет capabilities: ${missing.join(", ")}` });
+        this.extensionStatus.push({
+          id,
+          state: "skipped",
+          reason: translate(loadLang(), "нет capabilities: {caps}", { caps: missing.join(", ") }),
+        });
         continue;
       }
       compatible.push(id);

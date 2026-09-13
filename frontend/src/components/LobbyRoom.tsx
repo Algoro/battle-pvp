@@ -8,6 +8,7 @@ import FeaturePicker from "./FeaturePicker";
 import RenderPicker from "./RenderPicker";
 import type { ChatMessage, LobbyState, LobbySettings, Team } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   lobby: LobbyState;
@@ -30,6 +31,7 @@ export default function LobbyRoom({
   const me = lobby.players.find((p) => p.id === meId);
   const isHost = !!me?.host;
   const [copied, setCopied] = useState(false);
+  const t = useT();
   const inviteUrl = `${location.origin}${location.pathname}?lobby=${lobby.code}`;
 
   const team = (t: Team) => lobby.players.filter((p) => p.team === t);
@@ -39,32 +41,32 @@ export default function LobbyRoom({
     navigator.clipboard?.writeText(inviteUrl).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); });
   };
 
-  const TeamColumn = ({ t, label, icon }: { t: Team; label: string; icon: string }) => {
-    const players = team(t);
-    const free = cap(t) - players.length;
+  const TeamColumn = ({ t: teamId, label, icon }: { t: Team; label: string; icon: string }) => {
+    const players = team(teamId);
+    const free = cap(teamId) - players.length;
     return (
-      <div className={`room-team room-team--${t.toLowerCase()}`}>
+      <div className={`room-team room-team--${teamId.toLowerCase()}`}>
         <div className="room-team__head">
           <span>{icon} {label}</span>
-          <span className="room-team__count">{players.length}/{cap(t)}</span>
+          <span className="room-team__count">{players.length}/{cap(teamId)}</span>
         </div>
         <div className="room-team__slots">
           {players.map((p) => (
             <div key={p.id} className="room-slot">
               <span className={`dot ${p.online ? "dot--on" : "dot--off"}`} />
               <span className="room-slot__name">{p.name}{p.host ? " 👑" : ""}</span>
-              <span className={`room-slot__ready ${p.ready ? "is-ready" : ""}`}>{p.ready ? "готов" : "ждёт"}</span>
+              <span className={`room-slot__ready ${p.ready ? "is-ready" : ""}`}>{p.ready ? t("готов") : t("ждёт")}</span>
               {isHost && p.id !== meId && !p.host && (
-                <button className="room-slot__kick" title="Кикнуть" onClick={() => onKick(p.id)}>✕</button>
+                <button className="room-slot__kick" title={t("Кикнуть")} onClick={() => onKick(p.id)}>✕</button>
               )}
             </div>
           ))}
           {Array.from({ length: Math.max(0, free) }).map((_, i) => (
-            <div key={"e" + i} className="room-slot room-slot--empty">свободный слот (ИИ)</div>
+            <div key={"e" + i} className="room-slot room-slot--empty">{t("свободный слот (ИИ)")}</div>
           ))}
         </div>
-        {me && me.team !== t && free > 0 && (
-          <button className="btn btn--ghost room-team__switch" onClick={() => onTeam(t)}>Перейти сюда</button>
+        {me && me.team !== teamId && free > 0 && (
+          <button className="btn btn--ghost room-team__switch" onClick={() => onTeam(teamId)}>{t("Перейти сюда")}</button>
         )}
       </div>
     );
@@ -75,10 +77,10 @@ export default function LobbyRoom({
       <header className="room-header">
         <div>
           <h1>{lobby.name}</h1>
-          <div className="room-header__meta">код <b>{lobby.code}</b> · {lobby.players.length}/{lobby.capacity} игроков</div>
+          <div className="room-header__meta">{t("код")} <b>{lobby.code}</b> · {lobby.players.length}/{lobby.capacity} {t("игроков")}</div>
         </div>
         <div className="room-header__invite">
-          <button className="btn btn--ghost" onClick={copyInvite}>{copied ? "✓ скопировано" : "🔗 Пригласить"}</button>
+          <button className="btn btn--ghost" onClick={copyInvite}>{copied ? t("✓ скопировано") : t("🔗 Пригласить")}</button>
         </div>
       </header>
 
@@ -86,29 +88,29 @@ export default function LobbyRoom({
 
       <div className="room">
         <div className="room__teams">
-          <TeamColumn t="DEF" label="Защитники" icon="🛡" />
-          <TeamColumn t="ATT" label="Атакующие" icon="⚔" />
+          <TeamColumn t="DEF" label={t("Защитники")} icon="🛡" />
+          <TeamColumn t="ATT" label={t("Атакующие")} icon="⚔" />
         </div>
 
         <div className="room__controls">
           {me ? (
             <>
               <button className={`btn ${me.ready ? "btn--ghost" : "btn--primary"}`} onClick={() => onReady(!me.ready)}>
-                {me.ready ? "Не готов" : "Готов"}
+                {me.ready ? t("Не готов") : t("Готов")}
               </button>
               {isHost && (
-                <button className="btn btn--primary" onClick={onStart}>▶ Старт ({lobby.players.length} живых + ИИ)</button>
+                <button className="btn btn--primary" onClick={onStart}>{t("▶ Старт ({count} живых + ИИ)", { count: lobby.players.length })}</button>
               )}
-              <button className="btn btn--ghost" onClick={onLeave}>Выйти</button>
+              <button className="btn btn--ghost" onClick={onLeave}>{t("Выйти")}</button>
             </>
           ) : (
-            <span className="muted">Подключение к комнате…</span>
+            <span className="muted">{t("Подключение к комнате…")}</span>
           )}
         </div>
 
         {isHost && (
           <div className="room__settings">
-            <span className="room__settings-label">Слоты (хост):</span>
+            <span className="room__settings-label">{t("Слоты (хост):")}</span>
             <label>DEF
               <input type="range" min={Math.max(1, team("DEF").length)} max={2} value={lobby.settings.defSlots}
                 onChange={(e) => onSettings({ defSlots: +e.target.value })} /> {lobby.settings.defSlots}
@@ -119,11 +121,11 @@ export default function LobbyRoom({
             </label>
             <label className="room__toggle">
               <input type="checkbox" checked={!!lobby.settings.autoStart}
-                onChange={(e) => onSettings({ autoStart: e.target.checked })} /> Авто-старт
+                onChange={(e) => onSettings({ autoStart: e.target.checked })} /> {t("Авто-старт")}
             </label>
             <label className="room__toggle">
               <input type="checkbox" checked={!!lobby.settings.requireReady}
-                onChange={(e) => onSettings({ requireReady: e.target.checked })} /> Только когда все готовы
+                onChange={(e) => onSettings({ requireReady: e.target.checked })} /> {t("Только когда все готовы")}
             </label>
             <div className="room__stage">
               <StageSelect
@@ -163,7 +165,7 @@ export default function LobbyRoom({
         </div>
 
         <aside className="room__chat">
-          <ChatPanel title="Чат комнаты" messages={chat} onSend={onSendChat} meId={meId} />
+          <ChatPanel title={t("Чат комнаты")} messages={chat} onSend={onSendChat} meId={meId} />
         </aside>
       </div>
     </div>

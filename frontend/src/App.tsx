@@ -18,6 +18,7 @@ import type { Team } from "./ports";
 import { useLobbyClient } from "./application/use-lobby";
 import { useMatch } from "./application/use-match";
 import { useSpectate } from "./application/use-spectate";
+import { I18nProvider, LanguageSwitcher, useT } from "./i18n/index.tsx";
 
 // Пустой VITE_BACKEND_URL => same-origin (SPA и API в одном контейнере/хосте).
 const BACKEND = import.meta.env.VITE_BACKEND_URL || "";
@@ -51,7 +52,8 @@ function loadName(): string {
   try { return localStorage.getItem("bc_playerName") || ""; } catch { return ""; }
 }
 
-export default function App() {
+function AppInner() {
+  const t = useT();
   const [screen, setScreen] = useState<Screen>({ name: "lobby" });
   const [rom, setRom] = useState<ArrayBuffer | null>(null);
   const [currentMatchId, setCurrentMatchId] = useState<string | null>(null);
@@ -100,7 +102,7 @@ export default function App() {
   });
 
   // Лобби-логика и состояние (хук); внешние события отдаются через getHandlers.
-  const L = useLobbyClient(meId, loadName() || "Игрок", () => ({
+  const L = useLobbyClient(meId, loadName() || t("Игрок"), () => ({
     onMatchStart: (lc, m) => {
       match.controller.startOnline(lc, m).catch((e) => lRef.current?.setError(String(e?.message || e)));
     },
@@ -295,5 +297,14 @@ export default function App() {
         />
       )}
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <I18nProvider>
+      <AppInner />
+      <LanguageSwitcher />
+    </I18nProvider>
   );
 }

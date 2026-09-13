@@ -1,5 +1,7 @@
 // StarsSelect.tsx — стартовый апгрейд DEF: звёзды (0..3) и опционально супер-оружие.
 // «4★» = максимальный апгрейд + пистолет (аналог сбора 4-й звезды в бою).
+import { useT } from "../i18n/index.tsx";
+
 interface Props {
   stars: number;
   onChange: (stars: number) => void;
@@ -9,16 +11,17 @@ interface Props {
 }
 
 export default function StarsSelect({ stars, onChange, pistol = false, onPistolChange, disabled }: Props) {
+  const t = useT();
   return (
     <div className="stars-select">
-      <span className="stars-select__label">Звёзды защитников:</span>
+      <span className="stars-select__label">{t("Звёзды защитников:")}</span>
       {[0, 1, 2, 3].map((n) => (
         <button
           key={n}
           className={`btn btn--ghost stars-select__btn${n === stars && !pistol ? " stars-select__btn--on" : ""}`}
           disabled={disabled}
           onClick={() => { onChange(n); onPistolChange?.(false); }}
-          title={n === 0 ? "Без звёзд" : `Уровень ${n}`}
+          title={n === 0 ? t("Без звёзд") : t("Уровень {n}", { n })}
         >
           {n === 0 ? "0" : "★".repeat(n)}
         </button>
@@ -28,7 +31,7 @@ export default function StarsSelect({ stars, onChange, pistol = false, onPistolC
           className={`btn btn--ghost stars-select__btn${pistol ? " stars-select__btn--on" : ""}`}
           disabled={disabled}
           onClick={() => { onPistolChange(!pistol); if (stars < 3) onChange(3); }}
-          title="4★: максимум + супер-оружие (пистолет)"
+          title={t("4★: максимум + супер-оружие (пистолет)")}
         >
           4★🔫
         </button>

@@ -1,6 +1,7 @@
 // Lobby.tsx — качественное лобби: выбор команды/имени, онлайн-матч или соло.
 import { useState } from "react";
 import type { Team } from "../engine/net";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   backendUrl: string;
@@ -34,6 +35,7 @@ const TEAMS: TeamCard[] = [
 ];
 
 export default function Lobby({ onStart, onSolo }: Props) {
+  const t = useT();
   const [team, setTeam] = useState<Team>("DEF");
   const [playerId, setPlayerId] = useState(`p_${Math.floor(Math.random() * 1e6)}`);
   const [busy, setBusy] = useState(false);
@@ -49,34 +51,34 @@ export default function Lobby({ onStart, onSolo }: Props) {
       <header className="lobby__header">
         <span className="lobby__logo">🐉</span>
         <h1>Battle City <span>PvP</span></h1>
-        <p className="lobby__subtitle">Классика на NES. Теперь против живых соперников — с сеткой и роллбэком.</p>
+        <p className="lobby__subtitle">{t("Классика на NES. Теперь против живых соперников — с сеткой и роллбэком.")}</p>
       </header>
 
       <section className="lobby__name">
-        <label htmlFor="nick">Позывной</label>
+        <label htmlFor="nick">{t("Позывной")}</label>
         <input
           id="nick"
           value={playerId}
           onChange={(e) => setPlayerId(e.target.value)}
-          placeholder="Введите имя игрока"
+          placeholder={t("Введите имя игрока")}
           maxLength={20}
         />
       </section>
 
       <section className="lobby__teams">
-        <div className="lobby__teams-label">Выберите сторону</div>
+        <div className="lobby__teams-label">{t("Выберите сторону")}</div>
         <div className="lobby__cards">
-          {TEAMS.map((t) => (
+          {TEAMS.map((card) => (
             <button
-              key={t.id}
+              key={card.id}
               type="button"
-              className={`lobby__card lobby__card--${t.accent}${team === t.id ? " is-selected" : ""}`}
-              onClick={() => setTeam(t.id)}
+              className={`lobby__card lobby__card--${card.accent}${team === card.id ? " is-selected" : ""}`}
+              onClick={() => setTeam(card.id)}
             >
-              <span className="lobby__card-icon">{t.icon}</span>
-              <span className="lobby__card-title">{t.title}</span>
-              <span className="lobby__card-sub">{t.subtitle}</span>
-              <span className="lobby__card-check">{team === t.id ? "✓ выбрано" : "выбрать"}</span>
+              <span className="lobby__card-icon">{card.icon}</span>
+              <span className="lobby__card-title">{t(card.title)}</span>
+              <span className="lobby__card-sub">{t(card.subtitle)}</span>
+              <span className="lobby__card-check">{team === card.id ? t("✓ выбрано") : t("выбрать")}</span>
             </button>
           ))}
         </div>
@@ -84,16 +86,16 @@ export default function Lobby({ onStart, onSolo }: Props) {
 
       <section className="lobby__actions">
         <button className="btn btn--primary" onClick={handleOnline} disabled={busy}>
-          {busy ? "Поиск соперника…" : "Играть онлайн"}
+          {busy ? t("Поиск соперника…") : t("Играть онлайн")}
         </button>
         <button className="btn btn--ghost" onClick={() => onSolo(team)}>
-          Соло ({team === "DEF" ? "защитники" : "атакующие"})
+          {t("Соло ({team})", { team: team === "DEF" ? t("защитники") : t("атакующие") })}
         </button>
       </section>
 
       <footer className="lobby__footer">
-        <span>🎮 WASD/стрелки — движение · Z — огонь · Enter — старт</span>
-        <span className="lobby__pulse"><i /> сервер онлайн</span>
+        <span>{t("🎮 WASD/стрелки — движение · Z — огонь · Enter — старт")}</span>
+        <span className="lobby__pulse"><i /> {t("сервер онлайн")}</span>
       </footer>
     </div>
   );

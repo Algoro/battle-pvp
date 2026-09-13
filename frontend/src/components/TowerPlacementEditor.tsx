@@ -7,6 +7,7 @@
 // стадию из-за нового массива towers при каждом снимке статуса).
 import { useEffect, useRef, useState, type MouseEvent } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 import { TD_SIZE, towerById } from "../../../shared/tower-defence.ts";
 
 const FIELD = TD_SIZE; // блоков
@@ -48,6 +49,7 @@ export default function TowerPlacementEditor({
   onContextCell,
   size = SIZE,
 }: Props) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const baseRef = useRef<HTMLCanvasElement | null>(null);
   const [baseReady, setBaseReady] = useState(0);
@@ -135,9 +137,10 @@ export default function TowerPlacementEditor({
       ctx.font = "bold 9px monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText((info?.title ?? "?").slice(0, 2), cx, cy + 0.5);
+      // Инициалы башни берём от переведённого названия, а не от русского источника.
+      ctx.fillText(info ? t(info.title).slice(0, 2) : "?", cx, cy + 0.5);
     }
-  }, [baseReady, towers]);
+  }, [baseReady, towers, t]);
 
   const cellFromEvent = (e: MouseEvent<HTMLCanvasElement>): number => {
     const rect = e.currentTarget.getBoundingClientRect();

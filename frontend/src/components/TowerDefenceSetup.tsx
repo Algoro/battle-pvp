@@ -2,6 +2,7 @@
 // мобильный танк. Показывает превью стадии из ROM и запускает режим.
 import { useMemo, useState } from "react";
 import StagePreview from "./StagePreview";
+import { useT } from "../i18n/index.tsx";
 import type { EmulatorDriver } from "../engine/emulator";
 import {
   TD_MAP_LIST,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export default function TowerDefenceSetup({ emulator, onCancel, onStart }: Props) {
+  const t = useT();
   const [map, setMap] = useState(TD_MAP_LIST[0].id);
   const [difficulty, setDifficulty] = useState<TdDifficulty>("normal");
   const [mobileTank, setMobileTank] = useState(true);
@@ -43,8 +45,7 @@ export default function TowerDefenceSetup({ emulator, onCancel, onStart }: Props
     <div className="td-setup">
       <h2>Tower Defence</h2>
       <p className="td-setup__hint">
-        Покупайте неподвижные танки-башни на очки от уничтожения врагов. Не дайте волнам ATT
-        добраться до базы.
+        {t("Покупайте неподвижные танки-башни на очки от уничтожения врагов. Не дайте волнам ATT добраться до базы.")}
       </p>
 
       <div className="td-setup__row">
@@ -55,7 +56,7 @@ export default function TowerDefenceSetup({ emulator, onCancel, onStart }: Props
               className={`btn ${map === m.id ? "btn--primary" : "btn--ghost"}`}
               onClick={() => setMap(m.id)}
             >
-              {m.title}
+              {t(m.title)}
             </button>
           ))}
         </div>
@@ -63,27 +64,29 @@ export default function TowerDefenceSetup({ emulator, onCancel, onStart }: Props
       </div>
 
       <div className="td-setup__row">
-        <span className="td-setup__label">Сложность:</span>
+        <span className="td-setup__label">{t("Сложность:")}</span>
         {TD_DIFFICULTIES.map((d) => (
           <button
             key={d.id}
             className={`btn ${difficulty === d.id ? "btn--primary" : "btn--ghost"}`}
             onClick={() => setDifficulty(d.id)}
           >
-            {d.title}
+            {t(d.title)}
           </button>
         ))}
-        <span className="td-setup__stat">очков: {diff.startPoints} · волн: {TD_WAVES.length}</span>
+        <span className="td-setup__stat">
+          {t("очков: {points} · волн: {waves}", { points: diff.startPoints, waves: TD_WAVES.length })}
+        </span>
       </div>
 
       <label className="td-setup__check">
         <input type="checkbox" checked={mobileTank} onChange={(e) => setMobileTank(e.target.checked)} />
-        Мобильный танк-командир (управление с клавиатуры)
+        {t("Мобильный танк-командир (управление с клавиатуры)")}
       </label>
 
       <div className="td-setup__actions">
-        <button className="btn btn--primary" onClick={start}>В бой</button>
-        <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
+        <button className="btn btn--primary" onClick={start}>{t("В бой")}</button>
+        <button className="btn btn--ghost" onClick={onCancel}>{t("Отмена")}</button>
       </div>
     </div>
   );

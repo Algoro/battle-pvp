@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { listRenderers } from "../render/registry";
 import type { RenderSystem } from "../render/render-system";
 import { DEFAULT_DRIVER, loadRenderPrefs, saveRenderPrefs } from "../render/prefs";
+import { useT } from "../i18n/index.tsx";
 import RendererSettingsPanel from "./RendererSettingsPanel";
 
 interface Props {
@@ -20,6 +21,7 @@ interface CamView {
 }
 
 export default function RenderSettings({ system }: Props) {
+  const t = useT();
   const [driver, setDriver] = useState(() => loadRenderPrefs().driver || DEFAULT_DRIVER);
   const [extensions, setExtensions] = useState<string[]>(() => loadRenderPrefs().extensions ?? []);
   const [status, setStatus] = useState<{ id: string; state: string; reason?: string }[]>([]);
@@ -111,23 +113,23 @@ export default function RenderSettings({ system }: Props) {
   return (
     <div className="rset">
       <button className="rset__toggle" onClick={() => setOpen((v) => !v)}>
-        Вид: {driverInfo?.title ?? driver} {open ? "▾" : "▸"}
+        {t("Вид: {name}", { name: t(driverInfo?.title ?? driver) })} {open ? "▾" : "▸"}
       </button>
       {open && (
         <div className="rset__panel">
           <label className="rset__row">
-            <span>Драйвер</span>
+            <span>{t("Драйвер")}</span>
             <select value={driver} onChange={(e) => void applyDriver(e.target.value)}>
               {drivers.map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.title}
+                  {t(d.title)}
                 </option>
               ))}
             </select>
           </label>
-          <div className="rset__desc">{driverInfo?.description}</div>
+          <div className="rset__desc">{driverInfo ? t(driverInfo.description) : ""}</div>
 
-          <div className="rset__sub">Расширения</div>
+          <div className="rset__sub">{t("Расширения")}</div>
           {exts.map((x) => {
             const missing = (x.requires ?? []).filter((c) => !caps.has(c));
             const checked = extensions.includes(x.id);
@@ -139,8 +141,8 @@ export default function RenderSettings({ system }: Props) {
                   disabled={missing.length > 0}
                   onChange={(e) => void toggleExtension(x.id, e.target.checked)}
                 />
-                <span>{x.title}</span>
-                {missing.length > 0 && <em>нет: {missing.join(", ")}</em>}
+                <span>{t(x.title)}</span>
+                {missing.length > 0 && <em>{t("нет: {list}", { list: missing.join(", ") })}</em>}
               </label>
             );
           })}
@@ -159,21 +161,21 @@ export default function RenderSettings({ system }: Props) {
 
           {caps.has("camera") && (
             <>
-              <div className="rset__sub">Камера</div>
-              <Slider label="Масштаб" min={8} max={90} step={0.5} value={cam.distance} onChange={(v) => updateCam({ distance: v })} />
-              <Slider label="Поворот (Yaw)" min={-3.14} max={3.14} step={0.01} value={cam.yaw} onChange={(v) => updateCam({ yaw: v })} />
-              <Slider label="Наклон (Pitch)" min={0.12} max={1.56} step={0.01} value={cam.pitch} onChange={(v) => updateCam({ pitch: v })} />
-              <Slider label="Крен (Roll)" min={-3.14} max={3.14} step={0.01} value={cam.roll} onChange={(v) => updateCam({ roll: v })} />
-              <Slider label="Тилт поля X" min={-1.5} max={1.5} step={0.01} value={cam.fx} onChange={(v) => updateCam({ fx: v })} />
-              <Slider label="Тилт поля Z" min={-1.5} max={1.5} step={0.01} value={cam.fz} onChange={(v) => updateCam({ fz: v })} />
+              <div className="rset__sub">{t("Камера")}</div>
+              <Slider label={t("Масштаб")} min={8} max={90} step={0.5} value={cam.distance} onChange={(v) => updateCam({ distance: v })} />
+              <Slider label={t("Поворот (Yaw)")} min={-3.14} max={3.14} step={0.01} value={cam.yaw} onChange={(v) => updateCam({ yaw: v })} />
+              <Slider label={t("Наклон (Pitch)")} min={0.12} max={1.56} step={0.01} value={cam.pitch} onChange={(v) => updateCam({ pitch: v })} />
+              <Slider label={t("Крен (Roll)")} min={-3.14} max={3.14} step={0.01} value={cam.roll} onChange={(v) => updateCam({ roll: v })} />
+              <Slider label={t("Тилт поля X")} min={-1.5} max={1.5} step={0.01} value={cam.fx} onChange={(v) => updateCam({ fx: v })} />
+              <Slider label={t("Тилт поля Z")} min={-1.5} max={1.5} step={0.01} value={cam.fz} onChange={(v) => updateCam({ fz: v })} />
               <div className="rset__btns">
-                <button onClick={() => preset("top")}>Сверху</button>
-                <button onClick={() => preset("iso")}>Изометрия</button>
-                <button onClick={() => preset("low")}>Низко</button>
-                <button onClick={reset}>Сброс</button>
+                <button onClick={() => preset("top")}>{t("Сверху")}</button>
+                <button onClick={() => preset("iso")}>{t("Изометрия")}</button>
+                <button onClick={() => preset("low")}>{t("Низко")}</button>
+                <button onClick={reset}>{t("Сброс")}</button>
               </div>
               <div className="rset__hint">
-                Мышь: ЛКМ — орбита, ПКМ/Shift — сдвиг, колесо — масштаб. Клавиши: Q/E, R/F, T/G, H, 1/2/3.
+                {t("Мышь: ЛКМ — орбита, ПКМ/Shift — сдвиг, колесо — масштаб. Клавиши: Q/E, R/F, T/G, H, 1/2/3.")}
               </div>
             </>
           )}

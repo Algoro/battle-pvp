@@ -6,6 +6,7 @@ import { driverCapabilities } from "../render/registry";
 import { previewScene } from "../render/preview-scene";
 import { stageScene } from "../render/stage-scene";
 import { RenderSystem } from "../render/render-system";
+import { useT } from "../i18n/index.tsx";
 import StagePreview from "./StagePreview";
 
 interface Props {
@@ -17,6 +18,7 @@ interface Props {
 }
 
 export default function RendererPreview({ driver, extensions, emulator, stage, onSystem }: Props) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const is3d = driverCapabilities(driver).has("three");
   const extKey = extensions.join(",");
@@ -57,7 +59,7 @@ export default function RendererPreview({ driver, extensions, emulator, stage, o
     return (
       <div className="rpreview rpreview--2d">
         <StagePreview emulator={emulator ?? null} stage={stage} size={240} />
-        <span className="rpreview__hint">Пиксельный вид (ROM)</span>
+        <span className="rpreview__hint">{t("Пиксельный вид (ROM)")}</span>
       </div>
     );
   }

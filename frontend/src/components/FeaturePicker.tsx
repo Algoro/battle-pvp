@@ -3,6 +3,7 @@
 // Используется на всех предполётных экранах.
 import { OPTIONAL_FEATURES } from "../features";
 import type { FeatureSettingSpec, FeatureSettingValue } from "../../../shared/features.ts";
+import { useT } from "../i18n/index.tsx";
 
 export type FeatureOptions = Record<string, Record<string, FeatureSettingValue>>;
 
@@ -22,9 +23,10 @@ export default function FeaturePicker({
   onChange,
   options = {},
   onOptionsChange,
-  title = "Опциональные патчи",
+  title,
   disabled,
 }: Props) {
+  const t = useT();
   const toggle = (id: string) => {
     onChange(features.includes(id) ? features.filter((x) => x !== id) : [...features, id]);
   };
@@ -44,8 +46,8 @@ export default function FeaturePicker({
   return (
     <div className="fpick">
       <div className="fpick__head">
-        <span className="fpick__title">{title}</span>
-        <span className="fpick__count">{selected.length ? `выбрано: ${selected.length}` : "ванильная игра"}</span>
+        <span className="fpick__title">{t(title ?? "Опциональные патчи")}</span>
+        <span className="fpick__count">{selected.length ? t("выбрано: {count}", { count: selected.length }) : t("ванильная игра")}</span>
       </div>
       <div className="fpick__list">
         {visible.map((f) => {
@@ -58,8 +60,8 @@ export default function FeaturePicker({
               <label className="fpick__row">
                 <input type="checkbox" checked={on} disabled={disabled} onChange={() => toggle(f.id)} />
                 <span className="fpick__item-body">
-                  <span className="fpick__item-title">{f.title}</span>
-                  <span className="fpick__item-desc">{f.description}</span>
+                  <span className="fpick__item-title">{t(f.title)}</span>
+                  <span className="fpick__item-desc">{t(f.description)}</span>
                 </span>
               </label>
               {on && fields.length > 0 && (
@@ -67,8 +69,8 @@ export default function FeaturePicker({
                   {fields.map((field) => {
                     const value = valueOf(f.id, field);
                     return (
-                      <label key={field.id} className="fpick__setting" title={field.hint || undefined}>
-                        <span className="fpick__setting-label">{field.label}</span>
+                      <label key={field.id} className="fpick__setting" title={field.hint ? t(field.hint) : undefined}>
+                        <span className="fpick__setting-label">{t(field.label)}</span>
                         {field.type === "toggle" && (
                           <input
                             type="checkbox"
@@ -102,7 +104,7 @@ export default function FeaturePicker({
                           >
                             {(field.options ?? []).map((o) => (
                               <option key={String(o.value)} value={String(o.value)}>
-                                {o.label}
+                                {t(o.label)}
                               </option>
                             ))}
                           </select>
@@ -119,10 +121,10 @@ export default function FeaturePicker({
       <div className="fpick__summary">
         {selected.length ? (
           <>
-            <b>В матче:</b> {selected.map((f) => f.title).join(" · ")}
+            <b>{t("В матче:")}</b> {selected.map((f) => t(f.title)).join(" · ")}
           </>
         ) : (
-          "Все патчи выключены — классические правила."
+          t("Все патчи выключены — классические правила.")
         )}
       </div>
     </div>

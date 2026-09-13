@@ -2,6 +2,7 @@
 // Настройки хранятся в AudioOutput (localStorage).
 import { useState } from "react";
 import type { AudioOutput } from "../engine/audio";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   audio: AudioOutput;
@@ -13,9 +14,10 @@ function Row(
     onToggle: () => void; onChange: (v: number) => void;
   },
 ) {
+  const t = useT();
   return (
     <span className="audio-ctl__row">
-      <button className="audio-ctl__btn" onClick={onToggle} title={`${label}: ${muted ? "включить" : "выключить"}`}>
+      <button className="audio-ctl__btn" onClick={onToggle} title={`${label}: ${muted ? t("включить") : t("выключить")}`}>
         {muted ? "🔇" : "🔊"}
       </button>
       <span className="audio-ctl__label">{label}</span>
@@ -31,6 +33,7 @@ function Row(
 }
 
 export default function AudioControl({ audio }: Props) {
+  const t = useT();
   const [musicMuted, setMusicMuted] = useState(audio.musicMuted);
   const [sfxMuted, setSfxMuted] = useState(audio.sfxMuted);
   const [musicVolume, setMusicVolume] = useState(audio.musicVolume);
@@ -39,14 +42,14 @@ export default function AudioControl({ audio }: Props) {
   return (
     <span className="audio-ctl">
       <Row
-        label="Музыка"
+        label={t("Музыка")}
         muted={musicMuted}
         volume={musicVolume}
         onToggle={() => { const m = !musicMuted; setMusicMuted(m); audio.setMusicMuted(m); audio.start(); }}
         onChange={(v) => { setMusicVolume(v); audio.setMusicVolume(v); audio.start(); }}
       />
       <Row
-        label="Эффекты"
+        label={t("Эффекты")}
         muted={sfxMuted}
         volume={sfxVolume}
         onToggle={() => { const m = !sfxMuted; setSfxMuted(m); audio.setSfxMuted(m); audio.start(); }}

@@ -3,6 +3,7 @@
 //
 // Относительный путь: ./frontend/src/render/extensions/particles.ts
 import * as THREE from "three";
+import { loadLang, translate } from "../../i18n/translate.ts";
 import type { RenderExtension, RenderHost, SceneState } from "../types.ts";
 
 const COUNT = 240;
@@ -30,7 +31,7 @@ export function createParticlesExtension(): RenderExtension {
     id: "particles",
     mount(nextHost: RenderHost) {
       const ctx = nextHost.shared.three as { scene?: THREE.Scene } | undefined;
-      if (!ctx?.scene) throw new Error("particles: three-контекст недоступен");
+      if (!ctx?.scene) throw new Error(translate(loadLang(), "particles: three-контекст недоступен"));
       scene = ctx.scene;
 
       pos = new Float32Array(COUNT * 3);

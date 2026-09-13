@@ -8,6 +8,7 @@ import FeaturePicker, { type FeatureOptions } from "./FeaturePicker";
 import RenderPicker from "./RenderPicker";
 import type { ChatMessage, LobbyState } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   lobbies: LobbyState[];
@@ -36,18 +37,19 @@ export default function LobbyBrowser({
   const [soloPistol, setSoloPistol] = useState(false);
   const [soloFeatures, setSoloFeatures] = useState<string[]>([]);
   const [soloFeatureOptions, setSoloFeatureOptions] = useState<FeatureOptions>({});
+  const t = useT();
 
   return (
     <div className="lobby">
       <header className="lobby__header">
         <span className="lobby__logo">🐉</span>
         <h1>Battle City <span>PvP</span></h1>
-        <p className="lobby__subtitle">Выбирай игру или создай свою — она дождётся живых игроков.</p>
+        <p className="lobby__subtitle">{t("Выбирай игру или создай свою — она дождётся живых игроков.")}</p>
       </header>
 
       <div className="browser__profile">
-        <label htmlFor="nick">Позывной</label>
-        <input id="nick" value={meName} onChange={(e) => onNameChange(e.target.value)} maxLength={20} placeholder="Ваше имя" />
+        <label htmlFor="nick">{t("Позывной")}</label>
+        <input id="nick" value={meName} onChange={(e) => onNameChange(e.target.value)} maxLength={20} placeholder={t("Ваше имя")} />
       </div>
 
       {error && <div className="lobby__error">⚠ {error}</div>}
@@ -55,11 +57,11 @@ export default function LobbyBrowser({
       <div className="browser">
         <section className="browser__games">
           <div className="browser__bar">
-            <button className="btn btn--primary" onClick={onCreate} disabled={busy}>＋ Создать игру</button>
-            <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>Соло 🛡</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>Соло ⚔</button>
-            <button className="btn btn--ghost" onClick={onTowerDefence} disabled={busy}>🏰 Tower Defence</button>
+            <button className="btn btn--primary" onClick={onCreate} disabled={busy}>{t("＋ Создать игру")}</button>
+            <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>{t("⚡ Быстрый матч")}</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>{t("Соло 🛡")}</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>{t("Соло ⚔")}</button>
+            <button className="btn btn--ghost" onClick={onTowerDefence} disabled={busy}>{t("🏰 Tower Defence")}</button>
           </div>
           <div className="browser__stage">
             <StageSelect emulator={emulator ?? null} stage={soloStage} onChange={setSoloStage} previewSize={140} />
@@ -85,22 +87,22 @@ export default function LobbyBrowser({
             <input
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="Код игры (напр. AB12)"
+              placeholder={t("Код игры (напр. AB12)")}
               maxLength={6}
             />
             <button className="btn btn--ghost" disabled={code.length < 4 || busy} onClick={() => onJoinCode(code)}>
-              Войти по коду
+              {t("Войти по коду")}
             </button>
           </div>
 
           <div className="browser__list">
-            {lobbies.length === 0 && <div className="browser__empty">Открытых игр нет. Создай первую!</div>}
+            {lobbies.length === 0 && <div className="browser__empty">{t("Открытых игр нет. Создай первую!")}</div>}
             {lobbies.map((l) => (
               <div key={l.id} className="game-card">
                 <div className="game-card__main">
                   <div className="game-card__name">{l.name}</div>
                   <div className="game-card__meta">
-                    код <b>{l.code}</b> · хост {l.players.find((p) => p.host)?.name || "—"} · {l.state}
+                    {t("код")} <b>{l.code}</b> · {t("хост")} {l.players.find((p) => p.host)?.name || "—"} · {l.state}
                   </div>
                 </div>
                 <div className="game-card__slots">
@@ -112,7 +114,7 @@ export default function LobbyBrowser({
                   disabled={busy || l.slots.DEF >= l.settings.defSlots && l.slots.ATT >= l.settings.attSlots}
                   onClick={() => onJoin(l.id)}
                 >
-                  Войти
+                  {t("Войти")}
                 </button>
               </div>
             ))}
@@ -120,7 +122,7 @@ export default function LobbyBrowser({
         </section>
 
         <aside className="browser__chat">
-          <ChatPanel title="Общий чат" messages={chat} onSend={onSendChat} meId={meId} />
+          <ChatPanel title={t("Общий чат")} messages={chat} onSend={onSendChat} meId={meId} />
         </aside>
       </div>
     </div>

@@ -7,6 +7,7 @@ import RenderSettings from "./RenderSettings";
 import { RenderSystem } from "../render/render-system";
 import { readScene } from "../render/scene-state";
 import type { ChatMessage } from "../engine/lobby-client";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   emulator: EmulatorDriver;
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function SpectateView({ emulator, meId, chat, onSendChat, frame, finished, onExit }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [render, setRender] = useState<RenderSystem | null>(null);
 
@@ -46,24 +48,27 @@ export default function SpectateView({ emulator, meId, chat, onSendChat, frame, 
   return (
     <div className="game">
       <div className="hud">
-        <span className="ok">Режим: наблюдатель</span>
-        <span>кадр: {frame}</span>
-        <button className="btn btn--ghost" onClick={onExit}>В лобби</button>
+        <span className="ok">{t("Режим: наблюдатель")}</span>
+        <span>{t("кадр: {frame}", { frame })}</span>
+        <button className="btn btn--ghost" onClick={onExit}>{t("В лобби")}</button>
       </div>
       <div className="game__body">
         <div className="game__board">
           <div ref={containerRef} className="screen-stage" />
           <RenderSettings system={render} />
-          <div className="controls-hint">Просмотр матча (без управления)</div>
+          <div className="controls-hint">{t("Просмотр матча (без управления)")}</div>
         </div>
         <aside className="game__side">
-          <ChatPanel title="Чат матча" messages={chat} meId={meId} onSend={onSendChat} />
+          <ChatPanel title={t("Чат матча")} messages={chat} meId={meId} onSend={onSendChat} />
         </aside>
       </div>
       {finished && (
         <div className="result">
-          <h2>Матч завершён. Победила команда {finished === "DEF" ? "защитников" : "атакующих"}</h2>
-          <button onClick={onExit}>Вернуться в лобби</button>
+          <h2>
+            {t("Матч завершён.")}{" "}
+            {t("Победила команда {team}", { team: finished === "DEF" ? t("защитников") : t("атакующих") })}
+          </h2>
+          <button onClick={onExit}>{t("Вернуться в лобби")}</button>
         </div>
       )}
     </div>

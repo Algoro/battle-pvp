@@ -1,6 +1,7 @@
 // StagePreview.tsx — предпросмотр стадии, собранный из ROM в памяти:
 // layout (13x13 блоков) + CHR-тайлы + атрибуты палитры берутся из ядра.
 import { useEffect, useRef } from "react";
+import { useT } from "../i18n/index.tsx";
 import type { EmulatorDriver } from "../engine/emulator";
 
 const FIELD = 13; // блоков
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function StagePreview({ emulator, stage, blocks, size = SIZE }: Props) {
+  const t = useT();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function StagePreview({ emulator, stage, blocks, size = SIZE }: P
       ref={canvasRef}
       className="stage-preview"
       style={{ width: size, height: size }}
-      title={`Стадия ${stage}`}
+      title={t("Стадия {stage}", { stage })}
     />
   );
 }

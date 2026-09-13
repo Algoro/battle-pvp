@@ -6,6 +6,7 @@ import type { KeyboardInput } from "../engine/input";
 import { BTN_START } from "../engine/game-state";
 import { RenderSystem } from "../render/render-system";
 import { readScene } from "../render/scene-state";
+import { useT } from "../i18n/index.tsx";
 import TowerPlacementEditor, { type EditorTower } from "./TowerPlacementEditor";
 import RenderSettings from "./RenderSettings";
 import {
@@ -34,6 +35,7 @@ interface Props {
 }
 
 export default function TowerDefenceView({ emulator, keyboard, config, onExit }: Props) {
+  const t = useT();
   const gameRef = useRef<HTMLDivElement>(null);
   const [status, setStatus] = useState<TdStatus | null>(null);
   const [selectedType, setSelectedType] = useState(TOWER_TYPES[0].id);
@@ -94,44 +96,44 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
     <div className="game td">
       <div className="hud">
         <span className="ok">Tower Defence</span>
-        <span>Очки: <b>{status?.points ?? 0}</b></span>
-        <span>Волна: {status?.wave ?? 0}/{status?.totalWaves ?? 0}</span>
+        <span>{t("Очки:")} <b>{status?.points ?? 0}</b></span>
+        <span>{t("Волна: {wave}/{total}", { wave: status?.wave ?? 0, total: status?.totalWaves ?? 0 })}</span>
         <span>
-          Фаза:{" "}
+          {t("Фаза:")}{" "}
           {phase === TD_PHASE.BUILD
-            ? "сборка"
+            ? t("сборка")
             : phase === TD_PHASE.WAVE
-              ? "бой"
+              ? t("бой")
               : phase === TD_PHASE.INTERMISSION
-                ? "передышка"
+                ? t("передышка")
                 : phase === TD_PHASE.VICTORY
-                  ? "победа"
-                  : "поражение"}
+                  ? t("победа")
+                  : t("поражение")}
         </span>
-        <button className="btn btn--ghost" onClick={onExit}>В лобби</button>
+        <button className="btn btn--ghost" onClick={onExit}>{t("В лобби")}</button>
       </div>
 
       {!inWave && !finished && (
         <div className="td__build">
           <div className="td__shop">
-            <div className="td__shop-title">Башни</div>
-            {TOWER_TYPES.map((t) => (
+            <div className="td__shop-title">{t("Башни")}</div>
+            {TOWER_TYPES.map((tower) => (
               <button
-                key={t.id}
-                className={`btn ${selectedType === t.id ? "btn--primary" : "btn--ghost"}`}
-                onClick={() => setSelectedType(t.id)}
+                key={tower.id}
+                className={`btn ${selectedType === tower.id ? "btn--primary" : "btn--ghost"}`}
+                onClick={() => setSelectedType(tower.id)}
               >
-                {t.title} · {t.cost}
-                <small>{t.description}</small>
+                {t(tower.title)} · {tower.cost}
+                <small>{t(tower.description)}</small>
               </button>
             ))}
-            <div className="td__tip">ЛКМ по клетке — поставить (или улучшить башню), ПКМ — продать.</div>
+            <div className="td__tip">{t("ЛКМ по клетке — поставить (или улучшить башню), ПКМ — продать.")}</div>
             <button
               className="btn btn--primary"
               disabled={!status?.started || (phase !== TD_PHASE.BUILD && phase !== TD_PHASE.INTERMISSION)}
               onClick={() => emulator.featureCommand("tower-defence", { type: "startWave" })}
             >
-              {status?.started ? "▶ В бой" : "Загрузка…"}
+              {status?.started ? t("▶ В бой") : t("Загрузка…")}
             </button>
           </div>
           <TowerPlacementEditor
@@ -155,8 +157,8 @@ export default function TowerDefenceView({ emulator, keyboard, config, onExit }:
 
       {finished && (
         <div className="result">
-          <h2>{phase === TD_PHASE.VICTORY ? "Победа! База устояла." : "Поражение. База пала."}</h2>
-          <button onClick={onExit}>Вернуться в лобби</button>
+          <h2>{phase === TD_PHASE.VICTORY ? t("Победа! База устояла.") : t("Поражение. База пала.")}</h2>
+          <button onClick={onExit}>{t("Вернуться в лобби")}</button>
         </div>
       )}
     </div>

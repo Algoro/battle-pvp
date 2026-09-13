@@ -3,6 +3,7 @@
 // Опрос ядра по таймеру (не каждый кадр), фильтрация и рендер в прокручиваемый список.
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { EmulatorDriver } from "../engine/emulator";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   emulator: EmulatorDriver;
@@ -18,6 +19,7 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 export default function TracePanel({ emulator }: Props) {
+  const t = useT();
   const [enabled, setEnabled] = useState(true);
   const [cap, setCap] = useState(300);
   const [filter, setFilter] = useState<Filter>({ side: "all", event: "all", tank: "all", goal: "all", text: "" });
@@ -75,33 +77,33 @@ export default function TracePanel({ emulator }: Props) {
   return (
     <div className="trace">
       <div className="trace__head">
-        <span className="trace__title">Трейс ИИ</span>
+        <span className="trace__title">{t("Трейс ИИ")}</span>
         <label className="trace__toggle">
           <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-          сбор
+          {t("сбор")}
         </label>
-        <select className="trace__cap" value={cap} onChange={(e) => setCap(Number(e.target.value))} title="лимит строк">
+        <select className="trace__cap" value={cap} onChange={(e) => setCap(Number(e.target.value))} title={t("лимит строк")}>
           {[100, 300, 500, 1000].map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
-        <button className="trace__clear" onClick={() => emulator.clearTrace()}>очистить</button>
+        <button className="trace__clear" onClick={() => emulator.clearTrace()}>{t("очистить")}</button>
       </div>
 
       <div className="trace__filters">
         <select value={filter.side} onChange={(e) => setFilter({ ...filter, side: e.target.value })}>
-          {sides.map((s) => <option key={s} value={s}>{s === "all" ? "все стороны" : s}</option>)}
+          {sides.map((s) => <option key={s} value={s}>{s === "all" ? t("все стороны") : s}</option>)}
         </select>
         <select value={filter.event} onChange={(e) => setFilter({ ...filter, event: e.target.value })}>
-          {events_.map((s) => <option key={s} value={s}>{s === "all" ? "все события" : s}</option>)}
+          {events_.map((s) => <option key={s} value={s}>{s === "all" ? t("все события") : s}</option>)}
         </select>
         <select value={filter.tank} onChange={(e) => setFilter({ ...filter, tank: e.target.value })}>
-          {tanks.map((s) => <option key={s} value={s}>{s === "all" ? "все танки" : `T${s}`}</option>)}
+          {tanks.map((s) => <option key={s} value={s}>{s === "all" ? t("все танки") : `T${s}`}</option>)}
         </select>
         <select value={filter.goal} onChange={(e) => setFilter({ ...filter, goal: e.target.value })}>
-          {goals.map((s) => <option key={s} value={s}>{s === "all" ? "все цели" : s}</option>)}
+          {goals.map((s) => <option key={s} value={s}>{s === "all" ? t("все цели") : s}</option>)}
         </select>
         <input
           className="trace__search"
-          placeholder="поиск…"
+          placeholder={t("поиск…")}
           value={filter.text}
           onChange={(e) => setFilter({ ...filter, text: e.target.value })}
         />
@@ -117,7 +119,7 @@ export default function TracePanel({ emulator }: Props) {
             {fmt(e)}
           </div>
         ))}
-        {filtered.length === 0 && <div className="trace__empty">нет событий</div>}
+        {filtered.length === 0 && <div className="trace__empty">{t("нет событий")}</div>}
       </div>
     </div>
   );

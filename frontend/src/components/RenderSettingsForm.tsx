@@ -2,6 +2,7 @@
 // схеме из shared/renderers.ts. Не знает о конкретном драйвере.
 import type { RenderSettingSpec, RenderSettingsSpec, SettingValue } from "../../../shared/renderers.ts";
 import { applyPreset, type SettingValues } from "../render/settings";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   spec: RenderSettingsSpec;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function RenderSettingsForm({ spec, values, onChange, activePreset }: Props) {
+  const t = useT();
   const set = (id: string, value: SettingValue) => onChange({ ...values, [id]: value });
 
   return (
@@ -22,9 +24,9 @@ export default function RenderSettingsForm({ spec, values, onChange, activePrese
               key={p.id}
               className={`rform__preset${activePreset === p.id ? " rform__preset--on" : ""}`}
               onClick={() => onChange(applyPreset(spec, p.id, values))}
-              title="Применить пресет"
+              title={t("Применить пресет")}
             >
-              {p.label}
+              {t(p.label)}
             </button>
           ))}
         </div>
@@ -48,11 +50,12 @@ function Field({
   showGroup: boolean;
   onChange: (v: SettingValue) => void;
 }) {
-  const label = field.type === "range" ? `${field.label}: ${value ?? field.default}` : field.label;
+  const t = useT();
+  const label = field.type === "range" ? `${t(field.label)}: ${value ?? field.default}` : t(field.label);
   return (
     <>
-      {showGroup && field.group && <div className="rform__group">{field.group}</div>}
-      <label className="rform__row" title={field.hint ?? ""}>
+      {showGroup && field.group && <div className="rform__group">{t(field.group)}</div>}
+      <label className="rform__row" title={field.hint ? t(field.hint) : ""}>
         <span>{label}</span>
         {field.type === "select" && (
           <select value={String(value ?? field.default)} onChange={(e) => {
@@ -62,7 +65,7 @@ function Field({
           }}>
             {field.options?.map((o) => (
               <option key={String(o.value)} value={String(o.value)}>
-                {o.label}
+                {t(o.label)}
               </option>
             ))}
           </select>

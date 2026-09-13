@@ -1,3 +1,4 @@
+import { loadLang, translate } from "../i18n/translate.ts";
 // net.ts — браузерный сетевой клиент: matchmaking + WS-signaling + rollback.
 // Использует детерминированное ядро (emulator-core) и netcode (rollback).
 import { RollbackSession } from "@netcode/rollback/session.ts";
@@ -39,7 +40,7 @@ export class NetClient {
       body: JSON.stringify({ playerId: this.pid, team, name: this.pname, cartridgeFingerprint: this.fingerprint }),
     });
     const data = await res.json();
-    if (!data.room) throw new Error("queued: ожидание соперника");
+    if (!data.room) throw new Error(translate(loadLang(), "queued: ожидание соперника"));
     this.match = { matchId: data.room, port: data.port, team, opponent: data.opponent };
     return this.match;
   }

@@ -14,6 +14,7 @@ import { readScene } from "../render/scene-state";
 import type { ChatMessage } from "../engine/lobby-client";
 import type { AudioOutput } from "../engine/audio";
 import { GameHud, GameOverlays, type ConnectionInfo } from "./GameUi";
+import { useT } from "../i18n/index.tsx";
 
 interface Props {
   emulator: EmulatorDriver;
@@ -50,6 +51,7 @@ function hudState(emu: EmulatorDriver) {
 }
 
 export default function GameCanvas({ emulator, keyboard, team, port, online, onResult, serverWinner, onExit, chat, meId, onSendChat, audio }: Props) {
+  const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const [render, setRender] = useState<RenderSystem | null>(null);
   const [hud, setHud] = useState({ livesDef: 0, livesDef2: 0, enemiesLeft: 0, gameOver: 0, stage: 0xff, pacmanWin: 0 });
@@ -162,12 +164,12 @@ export default function GameCanvas({ emulator, keyboard, team, port, online, onR
         <div className="game__board">
           <div ref={containerRef} className="screen-stage" />
           <RenderSettings system={render} />
-          <div className="controls-hint">WASD/стрелки — движение, Z — огонь, Enter — старт</div>
+          <div className="controls-hint">{t("WASD/стрелки — движение, Z — огонь, Enter — старт")}</div>
         </div>
         <aside className="game__side">
           {!online && <AIControls emulator={emulator} defHumanTank={team === "DEF"} />}
           {online && chat && meId && onSendChat && (
-            <ChatPanel title="Чат матча" messages={chat} meId={meId} onSend={onSendChat} />
+            <ChatPanel title={t("Чат матча")} messages={chat} meId={meId} onSend={onSendChat} />
           )}
           <TracePanel emulator={emulator} />
         </aside>
