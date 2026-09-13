@@ -1,3 +1,5 @@
+> 🌐 [English](en/render-extensions.md) · **Русский**
+
 # Драйверы и расширения рендерера (render drivers & extensions)
 
 > Статус: **реализовано** (`frontend/src/render/`: драйверы `pixel-2d`, `topdown-3d`,

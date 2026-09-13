@@ -1,3 +1,5 @@
+> 🌐 [English](en/architecture.md) · **Русский**
+
 # Архитектура
 
 Battle City PvP — надстройка над классической Battle City (NES). Команда **DEF**

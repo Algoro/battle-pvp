@@ -1,3 +1,5 @@
+> 🌐 [English](en/typescript.md) · **Русский**
+
 # TypeScript: конвенции и раскладка
 
 Собственный код проекта (`backend`, `netcode`, `emulator-core`, `frontend/src`, `qa`) —

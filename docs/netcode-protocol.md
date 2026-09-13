@@ -1,3 +1,5 @@
+> 🌐 [English](en/netcode-protocol.md) · **Русский**
+
 # Сетевой протокол netcode (frame format)
 
 Rollback netcode (аналог GGPO). Относительные пути: `./netcode/*`.

@@ -1,3 +1,5 @@
+> 🌐 [English](README.en.md) · **Русский**
+
 # Battle City PvP
 
 > Online multiplayer for Battle City (NES)

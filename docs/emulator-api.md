@@ -1,3 +1,5 @@
+> 🌐 [English](en/emulator-api.md) · **Русский**
+
 # API ядра (`emulator-core` / `PvPNes`)
 
 `PvPNes` — подкласс **неизменного** `NES` из jsnes (сабмодуль `vendor/jsnes`).

@@ -1,3 +1,5 @@
+> 🌐 [English](en/tower-defense.md) · **Русский**
+
 # Режим Tower Defence
 
 Соло-режим обороны (скрытая фича `tower-defence`): игрок DEF покупает и расставляет

@@ -1,3 +1,5 @@
+> 🌐 [English](en/rom-patching.md) · **Русский**
+
 # ROM и in-memory патчинг
 
 ## Принцип
