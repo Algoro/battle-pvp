@@ -79,7 +79,8 @@ function beamCell(ctx: FeatureContext, col: number, row: number): boolean {
     return true;
   }
   // Луч сносит всё, кроме пустого, дороги и штаба: кирпич, сталь, воду, лёд, кусты.
-  if (tile !== 0 && !isEagleTile(tile) && !isRoad(tile)) {
+  // Настройка `terrain:false` оставляет ландшафт, убивая только танки и пули.
+  if (ctx.options?.terrain !== false && tile !== 0 && !isEagleTile(tile) && !isRoad(tile)) {
     clearTile(ctx, off);
     const fx = ctx.state.beamFx as { x: number; y: number; age: number }[];
     if (fx.length < 128) fx.push({ x: col * 8 + 4, y: row * 8 + 4, age: 0 });
@@ -98,7 +99,8 @@ export function fireRailgun(ctx: FeatureContext, t: number): void {
   const dy = [-1, 0, 1, 0][dir];
   const px = dx === 0 ? 1 : 0;
   const py = dy === 0 ? 1 : 0;
-  const H = PISTOL_BEAM_HALF; // ширина луча = 2*H+1 тайлов
+  const rawHalf = Number(ctx.options?.beamHalf ?? PISTOL_BEAM_HALF);
+  const H = Math.max(0, Math.min(3, Number.isFinite(rawHalf) ? Math.round(rawHalf) : PISTOL_BEAM_HALF)); // ширина луча = 2*H+1 тайлов
   let col = mem[RAM.TANK_X + t] >> 3;
   let row = mem[RAM.TANK_Y + t] >> 3;
   for (let i = 0; i < 32; i++) {

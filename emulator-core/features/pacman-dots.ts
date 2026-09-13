@@ -147,7 +147,7 @@ export const pacmanDotsRuntime: FeatureRuntime = {
     ctx.state.seededStage = -1;
     ctx.state.dots = new Set<number>();
     ctx.state.sfxAlt = false;
-    ctx.state.bombs = BOMBS.map((b) => ({ off: b.off, id: b.id, taken: false }));
+    ctx.state.bombs = ctx.options?.bombs === false ? [] : BOMBS.map((b) => ({ off: b.off, id: b.id, taken: false }));
   },
 
   // Рендер ДО ROM-кадра: если игра перетирает nametable в кадре, следующий preFrame
@@ -169,7 +169,7 @@ export const pacmanDotsRuntime: FeatureRuntime = {
     if (stage < 1 || stage > 35) return;
     if (ctx.state.seededStage !== stage) {
       ctx.state.dots = new Set<number>(DOT_CELLS);
-      for (const b of ctx.state.bombs as { taken: boolean }[]) b.taken = false;
+      if (ctx.options?.bombs !== false) for (const b of ctx.state.bombs as { taken: boolean }[]) b.taken = false;
       ctx.state.seededStage = stage;
       mem[RAM.PACMAN_WIN] = 0;
     }

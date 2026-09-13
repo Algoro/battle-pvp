@@ -444,12 +444,12 @@ export class RelayServer {
       lobby.state = "open";
       return this._send(this.sockets.get(lobby.hostPlayerId!), { type: "error", error: res.error });
     }
-    const { room, peers, stage, defStars, defPistol, features } = res;
+    const { room, peers, stage, defStars, defPistol, features, featureOptions } = res;
     for (const p of lobby.players.values()) {
       this.sockets.set(p.playerId, p.socket || this.sockets.get(p.playerId));
     }
 
-    const payload = { type: "match.start", matchId: room.id, peers, stage, defStars, defPistol, features };
+    const payload = { type: "match.start", matchId: room.id, peers, stage, defStars, defPistol, features, featureOptions };
     for (const p of lobby.players.values()) this._send(p.socket, payload);
 
     this.lobbies!.remove(lobby.id);

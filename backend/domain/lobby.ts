@@ -12,6 +12,7 @@
 import { TEAM_DEF, TEAM_ATT, normalizeTeam, type Team } from "./teams.ts";
 import { systemClock, type Clock } from "./clock.ts";
 import { normalizeFeatures } from "./features.ts";
+import { normalizeFeatureOptions } from "../../shared/features.ts";
 import type { Room, RoomManager } from "./room.ts";
 
 export const DEFAULT_LOBBY_TTL_MS = 10 * 60 * 1000; // 10 минут простоя
@@ -34,6 +35,7 @@ export interface LobbySettings {
   defStars: number;
   defPistol: boolean;
   features: string[];
+  featureOptions: Record<string, Record<string, string | number | boolean>>;
 }
 
 export interface LobbyPlayer {
@@ -74,6 +76,7 @@ export function normalizeSettings(s: any = {}): LobbySettings {
     defStars: clampInt(s.defStars, 0, 3, 0), // стартовые звёзды команды DEF (0..3)
     defPistol: !!s.defPistol, // стартовое супер-оружие DEF (аналог 4-й звезды)
     features: normalizeFeatures(s.features), // включённые опциональные фичи-патчи
+    featureOptions: normalizeFeatureOptions(s.featureOptions), // настройки фич (валидируются по манифесту)
   };
 }
 

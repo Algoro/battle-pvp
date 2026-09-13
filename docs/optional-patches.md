@@ -25,6 +25,29 @@
   передаётся в `match.start` и применяется всеми клиентами **до старта симуляции**,
   поэтому образ у всех одинаков.
 
+## Настройки фич
+
+У фичи может быть схема параметров (`settings.fields` в `shared/features.ts`):
+`range` / `toggle` / `select` с `default`, границами и подсказками. Из схемы
+автоматически берутся:
+
+- **UI**: `FeaturePicker` рисует контролы у включённых фич (скрытые поля с
+  `requiresFeature` появляются только вместе с нужной фичей);
+- **валидация**: `normalizeFeatureOptions()` (клип диапазонов, значения по умолчанию,
+  отбрасывание неизвестных фич/полей) применяется на бэке в `normalizeSettings`;
+- **значения по умолчанию**: `effectiveFeatureOptions(id, raw)` — рантайм всегда получает
+  полный набор (default + переопределения).
+
+Проводка: `settings.featureOptions` (лобби) → `match.start.featureOptions` →
+`EmulatorDriver.setFeatureOptions()` → `opts.featureOptions` → `FeatureContext.options`
+(рантайм читает `ctx.options.<id>`). Значения одинаковы у всех клиентов матча (их задаёт
+хост); в fingerprint ROM они не входят, т.к. настройки сейчас влияют только на JS-рантаймы.
+
+Настраиваемые параметры существующих фич: `pistol` (ширина луча, снос ландшафта),
+`enemy-prizes` (длительность заморозки, подкрепление), `friendly-fire-def` (смертельный стан),
+`friendly-fire-att` (урон, самоурон), `player-names` (макс. длина), `pacman` (бомбы),
+`wrap-borders` (перенос по X/Y). У `tower-defence` свои настройки на отдельном экране.
+
 ## Ядро: реестр и API (`emulator-core/patching/`)
 
 - `registry.ts`:

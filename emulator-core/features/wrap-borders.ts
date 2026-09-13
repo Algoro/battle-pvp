@@ -76,13 +76,15 @@ function wrapTank(ctx: FeatureContext, mem: Uint8Array, t: number): void {
     return; // мёртв/взрыв/респавн
   }
 
+  const wrapX = ctx.options?.wrapX !== false;
+  const wrapY = ctx.options?.wrapY !== false;
   let x = mem[RAM.TANK_X + t];
   let y = mem[RAM.TANK_Y + t];
 
-  const cx = crossAxis(s.tx[t], x, false, false);
+  const cx = wrapX ? crossAxis(s.tx[t], x, false, false) : x;
   if (cx !== x) x = tankFits(mem, cx, y) ? cx : x < LOW ? LOW : HIGH;
 
-  const cy = crossAxis(s.ty[t], y, false, false);
+  const cy = wrapY ? crossAxis(s.ty[t], y, false, false) : y;
   if (cy !== y) y = tankFits(mem, x, cy) ? cy : y < LOW ? LOW : HIGH;
 
   mem[RAM.TANK_X + t] = x;
@@ -99,11 +101,13 @@ function wrapBullet(ctx: FeatureContext, mem: Uint8Array, b: number): void {
     return;
   }
 
+  const wrapX = ctx.options?.wrapX !== false;
+  const wrapY = ctx.options?.wrapY !== false;
   let x = mem[RAM.BULLET_X + b];
   let y = mem[RAM.BULLET_Y + b];
 
   const dir = mem[RAM.BULLET_STATUS + b] & 3;
-  const cx = crossAxis(s.bx[b], x, dir === 1, dir === 3);
+  const cx = wrapX ? crossAxis(s.bx[b], x, dir === 1, dir === 3) : x;
   if (cx !== x) {
     if (blocksBullet(mem[RAM.FIELD + (y >> 3) * FIELD_W + (cx >> 3)])) {
       mem[RAM.BULLET_STATUS + b] = BULLET.EXPLODE;
@@ -115,7 +119,7 @@ function wrapBullet(ctx: FeatureContext, mem: Uint8Array, b: number): void {
     mem[RAM.BULLET_X + b] = x;
   }
 
-  const cy = crossAxis(s.by[b], y, dir === 0, dir === 2);
+  const cy = wrapY ? crossAxis(s.by[b], y, dir === 0, dir === 2) : y;
   if (cy !== y) {
     if (blocksBullet(mem[RAM.FIELD + (cy >> 3) * FIELD_W + (x >> 3)])) {
       mem[RAM.BULLET_STATUS + b] = BULLET.EXPLODE;

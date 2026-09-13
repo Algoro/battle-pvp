@@ -18,8 +18,8 @@ const ROOT = join(__dirname, "..", "..");
 const ROM = readFileSync(join(ROOT, "rom", "original", "_battle_city.nes"));
 
 // Быстрый старт и ожидание живого DEF-танка 0.
-function boot(features = ["enemy-prizes"]) {
-  const emu = new PvPNes({ patchSet: "pvp", features, attAI: "off", defAI: "off" });
+function boot(features = ["enemy-prizes"], featureOptions?: any) {
+  const emu = new PvPNes({ patchSet: "pvp", features, featureOptions, attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
   for (let f = 1; f <= 1500; f++) {
     emu.stepFrame([{ port: 0, buttons: f % 30 === 0 ? BTN.Start : 0 }]);
@@ -154,6 +154,20 @@ test("enemy-prizes: grenade взрывает защитников", () => {
   emu.cpu.mem[RAM.TANK_FLAG] = 0x90;
   pickByEnemy(emu, 4);
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG], 0x73, "защитник не взорван");
+});
+
+test("enemy-prizes: настройка freezeFrames задаёт длительность заморозки", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { freezeFrames: 5 } });
+  pickByEnemy(emu, 1);
+  assert.strictEqual(emu.cpu.mem[RAM.PRIZE_FREEZE], 5, "DEF0: не применена настройка");
+  assert.strictEqual(emu.cpu.mem[RAM.PRIZE_FREEZE + 1], 5, "DEF1: не применена настройка");
+});
+
+test("enemy-prizes: настройка reinforcement=false отключает подкрепление", () => {
+  const emu = boot(["enemy-prizes"], { "enemy-prizes": { reinforcement: false } });
+  const before = emu.cpu.mem[RAM.ENEMIES_LEFT];
+  pickByEnemy(emu, 5);
+  assert.strictEqual(emu.cpu.mem[RAM.ENEMIES_LEFT], before, "подкрепление не должно добавляться");
 });
 
 test("enemy-prizes: tank даёт подкрепление (ENEMIES_LEFT++)", () => {

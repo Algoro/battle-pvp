@@ -23,6 +23,7 @@ export class EmulatorDriver {
   private startPistol = false; // стартовое супер-оружие DEF (аналог 4-й звезды)
   private patchFeatures: string[] = []; // включённые опциональные фичи (pistol, ...)
   private playerNames: Record<number, string> = {}; // порт → имя (фича player-names)
+  private featureOptions: Record<string, Record<string, string | number | boolean>> = {}; // настройки фич
   public onFrame?: (frame: number) => void;
 
   // Подключить аудио-вывод. Звук идёт из APU ядра; без него сэмплы отбрасываются.
@@ -61,6 +62,16 @@ export class EmulatorDriver {
 
   getPatchFeatures(): string[] { return [...this.patchFeatures]; }
 
+  // Настройки фич (id фичи → значения) для рантаймов; применяются при следующем loadROM/reset.
+  setFeatureOptions(options: Record<string, Record<string, string | number | boolean>> | null | undefined) {
+    this.featureOptions = JSON.parse(JSON.stringify(options || {}));
+    return this;
+  }
+
+  getFeatureOptions(): Record<string, Record<string, string | number | boolean>> {
+    return JSON.parse(JSON.stringify(this.featureOptions));
+  }
+
   // Имена игроков над танками (фича player-names): карта порт → имя.
   setPlayerNames(names: Record<number, string> | null | undefined) {
     this.playerNames = { ...(names || {}) };
@@ -89,6 +100,7 @@ export class EmulatorDriver {
     return {
       ...this.aiConfig,
       features: this.patchFeatures,
+      featureOptions: this.featureOptions,
       names: this.playerNames,
       onAudioSampleGroup: (group: "music" | "sfx", l: number, r: number) => this.audio?.pushGroup(group, l, r),
     };

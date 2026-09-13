@@ -17,8 +17,8 @@ const LOW = 0x18;
 const HIGH = 0xd8;
 const PERIOD = HIGH - LOW;
 
-function boot(features: string[] = ["wrap-borders"], zeroField = true) {
-  const emu = new PvPNes({ patchSet: "pvp", features, attAI: "off", defAI: "off" });
+function boot(features: string[] = ["wrap-borders"], zeroField = true, featureOptions?: any) {
+  const emu = new PvPNes({ patchSet: "pvp", features, featureOptions, attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
   for (let f = 1; f <= 3000; f++) {
     emu.stepFrame([{ port: 0, buttons: f % 30 === 0 ? BTN.Start : 0 }]);
@@ -136,4 +136,22 @@ test("wrap-borders: детерминизм (одинаковый hash у дву�
     b.stepFrame([{ port: 0, buttons: i % 7 === 0 ? 0x40 : 0 }]);
   }
   assert.strictEqual(a.getFrameHash(), b.getFrameHash());
+});
+
+test("wrap-borders: настройки wrapX/wrapY отключают перенос по оси", () => {
+  const emu = boot(["wrap-borders"], true, { "wrap-borders": { wrapX: false } });
+  const m = emu.cpu.mem;
+  m[RAM.TANK_FLAG] = 0x80;
+  m[RAM.TANK_X] = LOW;
+  m[RAM.TANK_Y] = 0x80;
+  idle(emu, 1);
+  m[RAM.TANK_X] = LOW - 8;
+  idle(emu, 1);
+  assert.strictEqual(m[RAM.TANK_X], LOW - 8, "wrapX=false: переноса по X быть не должно");
+
+  m[RAM.TANK_Y] = LOW;
+  idle(emu, 1);
+  m[RAM.TANK_Y] = LOW - 8;
+  idle(emu, 1);
+  assert.strictEqual(m[RAM.TANK_Y], LOW - 8 + PERIOD, "wrapY по умолчанию работает");
 });

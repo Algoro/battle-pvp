@@ -13,8 +13,8 @@ import { RAM } from "../rom-contract.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROM = readFileSync(join(__dirname, "..", "..", "rom", "original", "_battle_city.nes"));
 
-function boot(features: string[]) {
-  const emu = new PvPNes({ patchSet: "pvp", features, attAI: "off", defAI: "off" });
+function boot(features: string[], featureOptions?: any) {
+  const emu = new PvPNes({ patchSet: "pvp", features, featureOptions, attAI: "off", defAI: "off" });
   emu.loadROM(ROM);
   for (let f = 1; f <= 1500; f++) {
     emu.stepFrame([{ port: 0, buttons: f % 30 === 0 ? BTN.Start : 0 }]);
@@ -174,4 +174,39 @@ test("ff-att: пуля, покинувшая стрелка, убивает ег
   emu.stepFrame([]);
   assert.strictEqual(emu.cpu.mem[RAM.TANK_FLAG + 2], 0x73, "стрелок должен погибнуть от своей пули");
   assert.strictEqual(emu.cpu.mem[RAM.BULLET_STATUS + 2], 0x33, "пуля должна погаснуть");
+});
+
+test("ff-att: настройка damage снимает больше брони", () => {
+  const one = boot(["friendly-fire-att"]);
+  aimEnemy2AtEnemy3(one, 0xe3); // броня 3
+  one.stepFrame([]);
+  assert.strictEqual(one.cpu.mem[RAM.TANK_TYPE + 3], 0xe2, "урон по умолчанию = 1");
+
+  const three = boot(["friendly-fire-att"], { "friendly-fire-att": { damage: 3 } });
+  aimEnemy2AtEnemy3(three, 0xe3);
+  three.stepFrame([]);
+  assert.strictEqual(three.cpu.mem[RAM.TANK_TYPE + 3], 0xe0, "урон 3 должен снять всю броню");
+});
+
+test("ff-att: selfDamage=false отключает самоурон стрелка", () => {
+  const emu = boot(["friendly-fire-att"], { "friendly-fire-att": { selfDamage: false } });
+  const c = emptyCell(emu);
+  parkTanks(emu, [0, 1, 3, 4, 5, 6, 7]);
+  const put = () => {
+    emu.cpu.mem[RAM.TANK_X + 2] = c.x;
+    emu.cpu.mem[RAM.TANK_Y + 2] = c.y;
+    emu.cpu.mem[RAM.TANK_FLAG + 2] = 0x90;
+    emu.cpu.mem[RAM.TANK_TYPE + 2] = 0x80;
+  };
+  put();
+  emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
+  emu.cpu.mem[RAM.BULLET_X + 2] = (c.x + 40) & 0xff;
+  emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
+  emu.stepFrame([]); // выставить «пуля покинула дуло»
+  put();
+  emu.cpu.mem[RAM.BULLET_STATUS + 2] = 0x40;
+  emu.cpu.mem[RAM.BULLET_X + 2] = c.x;
+  emu.cpu.mem[RAM.BULLET_Y + 2] = c.y;
+  emu.stepFrame([]);
+  assert.notStrictEqual(emu.cpu.mem[RAM.TANK_FLAG + 2], 0x73, "стрелок не должен гибнуть при selfDamage=false");
 });

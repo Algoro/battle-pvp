@@ -42,6 +42,8 @@ export interface FeatureContext {
   state: Record<string, any>;
   /** Стартовые опции ядра (opts). */
   startOptions: Record<string, any>;
+  /** Настройки этой фичи (значения по умолчанию + переопределения из матча). */
+  readonly options: Record<string, string | number | boolean>;
   /** id этой фичи (для адресации канала). */
   readonly id: string;
   /** Очередь приказов этой фичи от хоста (UI). Читается/очищается в preFrame. */

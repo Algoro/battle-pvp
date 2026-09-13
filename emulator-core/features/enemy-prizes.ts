@@ -59,9 +59,11 @@ function explodeDefenders(ctx: FeatureContext): void {
 function applyEffect(ctx: FeatureContext, idx: number, id: number): void {
   const mem = ctx.kernel.mem;
   switch (id) {
-    case 1: // clock — заморозить защитников
-      for (let t = 0; t < DEF_PORTS; t++) mem[RAM.PRIZE_FREEZE + t] = FREEZE_FRAMES;
+    case 1: { // clock — заморозить защитников
+      const frames = Math.max(1, Math.min(0xff, Math.round(Number(ctx.options?.freezeFrames ?? FREEZE_FRAMES) || FREEZE_FRAMES)));
+      for (let t = 0; t < DEF_PORTS; t++) mem[RAM.PRIZE_FREEZE + t] = frames;
       break;
+    }
     case 2: // shovel — снять защиту базы
       clearBaseProtection(ctx);
       break;
@@ -71,8 +73,8 @@ function applyEffect(ctx: FeatureContext, idx: number, id: number): void {
     case 4: // grenade — взорвать защитников
       explodeDefenders(ctx);
       break;
-    case 5: // tank — подкрепление
-      if (mem[RAM.ENEMIES_LEFT] !== 0xff && mem[RAM.ENEMIES_LEFT] < 0xff) {
+    case 5: // tank — подкрепление (можно отключить настройкой)
+      if (ctx.options?.reinforcement !== false && mem[RAM.ENEMIES_LEFT] !== 0xff && mem[RAM.ENEMIES_LEFT] < 0xff) {
         mem[RAM.ENEMIES_LEFT] = (mem[RAM.ENEMIES_LEFT] + 1) & 0xff;
       }
       break;

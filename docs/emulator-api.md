@@ -32,6 +32,7 @@ emu.patching;                        // отчёт применения патч
 | `setStartStage(stage)` | Стартовая стадия партии (1..35), внедряется детерминированно. |
 | `setStartStars(stars)` | Стартовые звёзды команды DEF (0..3) — апгрейд танка (`ram_tank_upgrade`). |
 | `setStartPistol(on)` | Стартовое супер-оружие DEF (аналог 4-й звезды): максимум звёзд + пистолет (`ram_pistol`/`ram_pistol_ammo`). No-op без фичи `pistol`. |
+| `setFeatureOptions(options)` / `getFeatureOptions()` | Настройки фич (`id → значения`); применяются при следующем `reset()`. См. `docs/optional-patches.md`. |
 | `opts.features` | Опциональные фичи-патчи (`features: ["pistol"]`) передаются в конструктор `PvPNes` и применяются при `loadROM`. На уровне фронта — `EmulatorDriver.setPatchFeatures()`/`getPatchFeatures()` (применяются при следующем `reset()`). См. `docs/optional-patches.md`. |
 | `setPlayerNames(map)` | Карта `порт → имя` для фичи `player-names`: имя рисуется над танком (BG-overlay nametable, шрифт ROM). Не влияет на хэш/rollback. |
 | `getStage(stage)` / `getStageBlocks(stage)` / `getStageCount()` | Данные стадии из ROM в памяти (блоки 13×13, тайлы CHR, атрибуты) для предпросмотра. |
@@ -63,7 +64,7 @@ emu.patching;                        // отчёт применения патч
 
 - `emu.ppu.buffer` — `Uint32Array(256×240)` текущего кадра (в canvas: `0xff000000 | buf[i]`).
 - `emu.cpu.mem` — полное адресное пространство CPU (RAM + ROM).
-- `FeatureContext.kernel` даёт визуальные буферы: `ppuNameTable`, `ppuSpriteMem`, `ppuVram`,
+- `FeatureContext.options` — значения настроек текущей фичи (default + переопределения), `FeatureContext.kernel` даёт визуальные буферы: `ppuNameTable`, `ppuSpriteMem`, `ppuVram`,
   а также `ppuBuffer` (кадровый буфер) и `ppuSpritePalette` (палитра спрайтов) —
   используются 2D-оверлеями фич (например, TD).
 

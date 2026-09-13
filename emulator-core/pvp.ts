@@ -18,6 +18,7 @@ import BattleCityPPU from "./ppu-ext.ts";
 import BattleCityPAPU from "./papu-ext.ts";
 import { applyPatchSet } from "./patching/apply.ts";
 import { canonicalFeatures, resolveFeatureRuntimes } from "./patching/registry.ts";
+import { effectiveFeatureOptions } from "../shared/features.ts";
 import type { FeatureContext, KernelApi } from "./patching/runtime.ts";
 import { encodeState, decodeState } from "./io/state-codec.ts";
 import { readStage, readStageBlocks, readBlockTiles, readBlockAttribute, STAGE_COUNT, normalizeStage } from "./io/stage-data.ts";
@@ -233,11 +234,13 @@ class PvPNes extends NESBase {
     this._featureOrders = {};
     this._featureStatus = {};
     this._runtimes = resolveFeatureRuntimes(this._features).map(({ id, runtime }) => {
+      const featureOptions = (this.opts?.featureOptions ?? {})[id] as Record<string, string | number | boolean> | undefined;
       const ctx: FeatureContext = {
         kernel: this._kernelApi,
         frame: this._frame,
         state: {},
         startOptions: this.opts,
+        options: effectiveFeatureOptions(id, featureOptions),
         id,
         orders: (this._featureOrders[id] = []),
         status: (this._featureStatus[id] = {}),

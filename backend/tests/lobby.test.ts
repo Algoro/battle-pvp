@@ -49,8 +49,8 @@ test("Lobby: create, join, configurable slots, ports, reconnect, leave, host tra
 });
 
 test("Lobby: настройки клэмпятся в допустимые границы (DEF 1-2, ATT 1-6)", () => {
-  assert.deepStrictEqual(normalizeSettings({ defSlots: 5, attSlots: 99 }), { defSlots: 2, attSlots: 6, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0, defPistol: false, features: [] });
-  assert.deepStrictEqual(normalizeSettings({ defSlots: 0, attSlots: -3 }), { defSlots: 1, attSlots: 1, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0, defPistol: false, features: [] });
+  assert.deepStrictEqual(normalizeSettings({ defSlots: 5, attSlots: 99 }), { defSlots: 2, attSlots: 6, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0, defPistol: false, features: [], featureOptions: {} });
+  assert.deepStrictEqual(normalizeSettings({ defSlots: 0, attSlots: -3 }), { defSlots: 1, attSlots: 1, autoStart: false, requireReady: false, fillBots: true, stage: 1, defStars: 0, defPistol: false, features: [], featureOptions: {} });
   assert.strictEqual(normalizeSettings({ requireReady: true }).requireReady, true);
   assert.strictEqual(normalizeSettings({ stage: 42 }).stage, 35);
   assert.strictEqual(normalizeSettings({ stage: 0 }).stage, 1);
@@ -361,4 +361,16 @@ test("normalizeSettings: features фильтруются и канонизиру
   assert.deepStrictEqual(normalizeSettings({ features: ["pistol", "pistol", "nope"] }).features, ["pistol"]);
   assert.deepStrictEqual(normalizeSettings({ features: "pistol" }).features, ["pistol"]);
   assert.deepStrictEqual(normalizeSettings({}).features, []);
+});
+
+test("lobby: featureOptions нормализуются по манифесту", () => {
+  const s = normalizeSettings({
+    featureOptions: {
+      "friendly-fire-att": { damage: 9, nope: 1, selfDamage: 0 },
+      ghost: { a: 1 },
+    },
+  });
+  assert.deepStrictEqual(s.featureOptions, {
+    "friendly-fire-att": { damage: 3, selfDamage: false },
+  });
 });

@@ -16,32 +16,32 @@ const HUD_OFF = 5 * 32 + 12; // "STAGE" в nametable-адресе $28AC
 
 type SavedCell = { off: number; glyph: number; nt: { tile: number; attrib: number }[] };
 
-function sanitize(name: unknown): string {
+function sanitize(name: unknown, maxLen: number = MAX_LEN): string {
   const s = String(name ?? "");
   let out = "";
   for (const ch of s) {
     const c = ch.charCodeAt(0);
     if (c >= 0x20 && c <= 0x7e) out += ch;
   }
-  return out.trim().slice(0, MAX_LEN);
+  return out.trim().slice(0, maxLen);
 }
 
-function normalizeNames(src: any): Record<number, string> {
+function normalizeNames(src: any, maxLen: number = MAX_LEN): Record<number, string> {
   const out: Record<number, string> = {};
   if (!src) return out;
   if (Array.isArray(src)) {
     src.forEach((n, i) => {
-      const s = sanitize(n);
+      const s = sanitize(n, maxLen);
       if (s) out[i] = s;
     });
   } else if (src instanceof Map) {
     for (const [k, v] of src) {
-      const s = sanitize(v);
+      const s = sanitize(v, maxLen);
       if (s) out[Number(k)] = s;
     }
   } else if (typeof src === "object") {
     for (const k of Object.keys(src)) {
-      const s = sanitize(src[k]);
+      const s = sanitize(src[k], maxLen);
       if (s) out[Number(k)] = s;
     }
   }
@@ -82,7 +82,9 @@ function gameActive(mem: Uint8Array): boolean {
 function applyOverlay(ctx: FeatureContext): void {
   const mem = ctx.kernel.mem;
   if (!gameActive(mem)) return;
-  const names = normalizeNames(ctx.startOptions?.names);
+  const rawMax = Number(ctx.options?.maxLen ?? MAX_LEN);
+  const maxLen = Math.max(3, Math.min(MAX_LEN, Number.isFinite(rawMax) ? Math.round(rawMax) : MAX_LEN));
+  const names = normalizeNames(ctx.startOptions?.names, maxLen);
   const nts = ctx.kernel.ppuNameTable;
   const pal = hudPalette(ctx);
   const applied = new Map<number, SavedCell>();

@@ -98,11 +98,12 @@ export class MatchController {
   }
 
   // --- локальная игра ---
-  startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = [], names: Record<number, string> = {}): void {
+  startSolo(team: Team, stage = 1, stars = 0, pistol = false, features: string[] = [], names: Record<number, string> = {}, featureOptions: Record<string, Record<string, string | number | boolean>> = {}): void {
     const emu = this.deps.emu();
     if (!emu) return;
     const feats = [...features];
     emu.setPatchFeatures?.(feats);
+    emu.setFeatureOptions?.(featureOptions);
     emu.setPlayerNames?.(names);
     const forcedStage = feats.includes("pacman") ? 1 : stage; // режим pacman играет только лабиринт (stage 1)
     emu.setStartStage(forcedStage);
@@ -164,6 +165,7 @@ export class MatchController {
       defStars: start.defStars ?? 0,
       defPistol: !!start.defPistol,
       features: start.features ?? [],
+      featureOptions: start.featureOptions ?? {},
       names,
       opps,
       negotiate: () =>
@@ -205,6 +207,7 @@ export class MatchController {
     defStars: number;
     defPistol?: boolean;
     features?: string[];
+    featureOptions?: Record<string, Record<string, string | number | boolean>>;
     names?: Record<number, string>;
     opps: OnlineOpponent[];
     negotiate: () => Promise<NegotiatedTransport>;
@@ -214,6 +217,7 @@ export class MatchController {
 
     const feats = [...(opts.features || [])];
     emu.setPatchFeatures?.(feats);
+    emu.setFeatureOptions?.(opts.featureOptions || {});
     emu.setPlayerNames?.(opts.names || {});
     emu.reset({ attAI: "lookahead", defAI: "plan", defMode: "active" });
     emu.setStartStage(feats.includes("pacman") ? 1 : opts.stage);
@@ -381,6 +385,7 @@ export class MatchController {
 
   // Возврат в лобби без перезагрузки страницы.
   clear(): void {
+    this.deps.emu()?.setFeatureOptions?.({});
     this.lobbyGateway()?.clearMatchContext?.();
     // Вернуть базовый набор патчей (сеть/fingerprint) и пересоздать ядро.
     const emu = this.deps.emu();

@@ -265,8 +265,8 @@ export default function App() {
           onJoin={L.actions.join}
           onJoinCode={L.actions.joinCode}
           onQuickMatch={() => startQuickMatch("DEF")}
-          onSolo={(team, stage, stars, pistol, features) =>
-            match.controller.startSolo(team, stage, stars, pistol, features, L.meName ? { [team === "DEF" ? 0 : 2]: L.meName } : {})}
+          onSolo={(team, stage, stars, pistol, features, featureOptions) =>
+            match.controller.startSolo(team, stage, stars, pistol, features, L.meName ? { [team === "DEF" ? 0 : 2]: L.meName } : {}, featureOptions)}
           onTowerDefence={() => setShowTdSetup(true)}
           chat={L.globalChat}
           onSendChat={L.actions.sendGlobalChat}

@@ -239,6 +239,7 @@ async function handleHttp(
         defStars: r.defStars,
         defPistol: r.defPistol,
         features: r.features,
+        featureOptions: r.featureOptions,
       });
     }
     return json(res, 404, { error: "unknown-action" });

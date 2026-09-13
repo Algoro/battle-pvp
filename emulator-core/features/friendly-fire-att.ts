@@ -32,6 +32,9 @@ export const friendlyFireAttRuntime: FeatureRuntime = {
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
     if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
+    const rawDamage = Number(ctx.options?.damage ?? 1);
+    const damage = Math.max(1, Math.min(3, Number.isFinite(rawDamage) ? Math.round(rawDamage) : 1));
+    const selfDamage = ctx.options?.selfDamage !== false;
 
     let cleared = mem[RAM.FF_ATT_CLEARED];
     for (let b = ENEMY_FIRST; b <= ENEMY_LAST; b++) {
@@ -47,7 +50,7 @@ export const friendlyFireAttRuntime: FeatureRuntime = {
         const dy = Math.abs(mem[RAM.BULLET_Y + b] - mem[RAM.TANK_Y + b]);
         if (!ownerAlive(mem, b) || dx >= HIT_RADIUS || dy >= HIT_RADIUS) cleared |= bit;
       }
-      const selfOk = (cleared & bit) !== 0;
+      const selfOk = selfDamage && (cleared & bit) !== 0;
 
       let hit = false;
       for (let t = ENEMY_FIRST; t <= ENEMY_LAST && !hit; t++) {
@@ -59,7 +62,7 @@ export const friendlyFireAttRuntime: FeatureRuntime = {
         const dy = Math.abs(mem[RAM.BULLET_Y + b] - mem[RAM.TANK_Y + t]);
         if (dy >= HIT_RADIUS) continue;
         mem[RAM.BULLET_STATUS + b] = BULLET_EXPLODE;
-        damageEnemy(ctx, t, 1);
+        damageEnemy(ctx, t, damage);
         hit = true;
       }
     }

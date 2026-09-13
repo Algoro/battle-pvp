@@ -2,7 +2,7 @@
 import { useState } from "react";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
-import FeaturePicker from "./FeaturePicker";
+import FeaturePicker, { type FeatureOptions } from "./FeaturePicker";
 import RenderPicker from "./RenderPicker";
 import type { LobbySettings } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
@@ -23,6 +23,7 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
   const [defStars, setDefStars] = useState(0);
   const [defPistol, setDefPistol] = useState(false);
   const [features, setFeatures] = useState<string[]>([]);
+  const [featureOptions, setFeatureOptions] = useState<FeatureOptions>({});
 
   return (
     <div className="modal" onClick={onCancel}>
@@ -64,6 +65,8 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
               setFeatures(next);
               if (!next.includes("pistol")) setDefPistol(false);
             }}
+            options={featureOptions}
+            onOptionsChange={(id, values) => setFeatureOptions((prev) => ({ ...prev, [id]: values }))}
           />
         </div>
         <div className="modal__field">
@@ -74,7 +77,7 @@ export default function CreateRoomDialog({ onCreate, onCancel, emulator }: Props
           <button className="btn btn--ghost" onClick={onCancel}>Отмена</button>
           <button
             className="btn btn--primary"
-            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol, features })}
+            onClick={() => onCreate(name.trim() || "Игра", { defSlots, attSlots, autoStart, requireReady, fillBots: true, stage, defStars, defPistol, features, featureOptions })}
           >
             Создать
           </button>

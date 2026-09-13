@@ -36,7 +36,7 @@ vendor/jsnes/   git-сабмодуль: неизменный апстрим jsne
   `rom-contract/domain/startup` — регрессии «магии» ловятся в CI.
 - **`startup.ts`** — декларативный boot/apply API стартовых опций (стадия, звёзды,
   супер-оружие `setStartPistol`): один проверяемый хук на вход `sub_F000_draw_stage` вместо ad-hoc.
-- **`features/*.ts`** — JS-рантаймы фич (вызываются ядром вокруг ROM-кадра
+- **`features/*.ts`** — JS-рантаймы фич (настройки фичи — `ctx.options`, схема в `shared/features.ts`) (вызываются ядром вокруг ROM-кадра
   `preFrame → frame() → postFrame → render`); общий урон по врагам — `features/enemy-damage.ts`,
   луч пистолета — `features/railgun.ts` (`fireRailgun`/`renderRailgunFx`), соло `tower-defence` —
   `features/tower-defence.ts`. Контракт — `patching/runtime.ts`.

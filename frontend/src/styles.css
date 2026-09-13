@@ -400,10 +400,18 @@ body { margin: 0; }
 .fpick__count { font-size: 11px; color: #9aa3b2; }
 .fpick__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 6px; }
 .fpick__item {
-  display: flex; gap: 9px; align-items: flex-start;
+  display: flex; flex-direction: column; gap: 6px; align-items: stretch;
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
   border-radius: 9px; padding: 8px 10px; cursor: pointer;
 }
+.fpick__row { display: flex; gap: 9px; align-items: flex-start; cursor: pointer; }
+.fpick__settings { display: flex; flex-direction: column; gap: 4px; padding: 6px 0 0 24px; }
+.fpick__setting { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #b7bfcc; }
+.fpick__setting-label { flex: 1; }
+.fpick__setting-range { display: flex; align-items: center; gap: 6px; }
+.fpick__setting-range input { width: 110px; }
+.fpick__setting input[type="checkbox"] { margin: 0; }
+.fpick__setting select { background: #171c24; color: #e8ebf0; border: 1px solid rgba(255,255,255,0.12); border-radius: 6px; padding: 2px 4px; }
 .fpick__item--on { border-color: #e0b040; background: rgba(224,176,64,0.10); }
 .fpick__item--disabled { opacity: 0.5; cursor: not-allowed; }
 .fpick__item input { margin-top: 3px; }

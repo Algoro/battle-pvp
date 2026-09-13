@@ -146,8 +146,12 @@ export default function LobbyRoom({
             <div className="room__features">
               <FeaturePicker
                 features={lobby.settings.features || []}
+                options={lobby.settings.featureOptions || {}}
                 onChange={(next) =>
                   onSettings({ features: next, ...(next.includes("pistol") ? {} : { defPistol: false }) })
+                }
+                onOptionsChange={(id, values) =>
+                  onSettings({ featureOptions: { ...(lobby.settings.featureOptions || {}), [id]: values } })
                 }
               />
             </div>

@@ -36,6 +36,7 @@ export type StartMatchResult =
       defStars: number;
       defPistol: boolean;
       features: string[];
+      featureOptions: Record<string, Record<string, string | number | boolean>>;
     };
 
 /**
@@ -55,6 +56,7 @@ export function startMatch(lobby: Lobby, { rooms, store, chat }: StartMatchDeps)
     defStars: lobby.settings.defStars || 0,
     defPistol: !!lobby.settings.defPistol,
     features: [...(lobby.settings.features || [])],
+    featureOptions: { ...(lobby.settings.featureOptions || {}) },
   };
 }
 

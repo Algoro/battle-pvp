@@ -27,6 +27,7 @@ export const friendlyFireDefRuntime: FeatureRuntime = {
   postFrame(ctx) {
     const mem = ctx.kernel.mem;
     if (mem[RAM.ENEMIES_LEFT] === 0xff) return; // бой не начат
+    if (ctx.options?.lethal === false) return; // выключено — остаётся штатный стан ROM
     const before = ctx.state.stunBefore as number[];
     for (let t = 0; t < DEF_PORTS; t++) {
       if (before[t] !== 0 || mem[RAM.STUN + t] !== FF_STUN) continue;

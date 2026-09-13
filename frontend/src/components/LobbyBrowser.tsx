@@ -4,7 +4,7 @@ import { useState } from "react";
 import ChatPanel from "./ChatPanel";
 import StageSelect from "./StageSelect";
 import StarsSelect from "./StarsSelect";
-import FeaturePicker from "./FeaturePicker";
+import FeaturePicker, { type FeatureOptions } from "./FeaturePicker";
 import RenderPicker from "./RenderPicker";
 import type { ChatMessage, LobbyState } from "../engine/lobby-client";
 import type { EmulatorDriver } from "../engine/emulator";
@@ -16,7 +16,7 @@ interface Props {
   onJoinCode: (code: string) => void;
   onCreate: () => void;
   onQuickMatch: () => void;
-  onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean, features: string[]) => void;
+  onSolo: (team: "DEF" | "ATT", stage: number, stars: number, pistol: boolean, features: string[], featureOptions: FeatureOptions) => void;
   onTowerDefence: () => void;
   chat: ChatMessage[];
   onSendChat: (text: string) => void;
@@ -35,6 +35,7 @@ export default function LobbyBrowser({
   const [soloStars, setSoloStars] = useState(0);
   const [soloPistol, setSoloPistol] = useState(false);
   const [soloFeatures, setSoloFeatures] = useState<string[]>([]);
+  const [soloFeatureOptions, setSoloFeatureOptions] = useState<FeatureOptions>({});
 
   return (
     <div className="lobby">
@@ -56,8 +57,8 @@ export default function LobbyBrowser({
           <div className="browser__bar">
             <button className="btn btn--primary" onClick={onCreate} disabled={busy}>＋ Создать игру</button>
             <button className="btn btn--ghost" onClick={onQuickMatch} disabled={busy}>⚡ Быстрый матч</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло 🛡</button>
-            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures)} disabled={busy}>Соло ⚔</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("DEF", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>Соло 🛡</button>
+            <button className="btn btn--ghost" onClick={() => onSolo("ATT", soloStage, soloStars, soloPistol, soloFeatures, soloFeatureOptions)} disabled={busy}>Соло ⚔</button>
             <button className="btn btn--ghost" onClick={onTowerDefence} disabled={busy}>🏰 Tower Defence</button>
           </div>
           <div className="browser__stage">
@@ -70,10 +71,12 @@ export default function LobbyBrowser({
             />
             <FeaturePicker
               features={soloFeatures}
+              options={soloFeatureOptions}
               onChange={(next) => {
                 setSoloFeatures(next);
                 if (!next.includes("pistol")) setSoloPistol(false);
               }}
+              onOptionsChange={(id, values) => setSoloFeatureOptions((prev) => ({ ...prev, [id]: values }))}
             />
             <RenderPicker emulator={emulator} stage={soloStage} />
           </div>
