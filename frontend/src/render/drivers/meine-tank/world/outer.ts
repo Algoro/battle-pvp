@@ -34,6 +34,8 @@ export interface OuterWorld {
   biomeAt(x: number, z: number): BiomePalette;
   /** True outside the arena but inside the generated radius. */
   contains(x: number, z: number): boolean;
+  /** Enable/disable shadow casting+receiving for the terrain, trees and border. */
+  setShadows(on: boolean): void;
   /** Crater mouth positions of the generated volcanoes (world coords). */
   volcanoPoints(): { x: number; y: number; z: number }[];
   dispose(): void;
@@ -483,6 +485,16 @@ export function createOuterWorld(materials: MtMaterials, atlas: Atlas): OuterWor
     heightAt,
     biomeAt,
     contains,
+    setShadows(on) {
+      group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mat = mesh.material as THREE.Material | THREE.Material[];
+        const isWater = Array.isArray(mat) ? mat.some((m) => m === materials.water) : mat === materials.water;
+        mesh.receiveShadow = on;
+        mesh.castShadow = on && !isWater;
+      });
+    },
     volcanoPoints() {
       return volcanoTops;
     },

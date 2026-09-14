@@ -33,7 +33,7 @@ export function saveRenderPrefs(p: RenderPrefs): void {
   }
 }
 
-/** Settings of a specific driver (for example, mc-voxel). Map driverId -> options. */
+/** Settings of a specific driver (for example, meine-tank). Map driverId -> options. */
 export function loadRenderOptions<T>(driver: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(OPTIONS_KEY);

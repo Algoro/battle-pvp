@@ -446,27 +446,6 @@ body { margin: 0; }
 .rpreview__hint { font-size: 10px; color: #7d8798; }
 .room__render { grid-area: render; }
 
-/* ===================== MC-VOXEL: настройки и виньетка ===================== */
-.mcs { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
-.mcs__presets { display: flex; gap: 6px; flex-wrap: wrap; }
-.mcs__preset {
-  background: #1a2029; color: #c9d2de; border: 1px solid rgba(255,255,255,0.12);
-  border-radius: 7px; padding: 4px 9px; cursor: pointer; font-family: inherit; font-size: 11px; text-transform: capitalize;
-}
-.mcs__preset--on { border-color: #3ddc84; color: #bff5d6; background: rgba(61,220,132,0.10); }
-.mcs__row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: #c9d2de; }
-.mcs__row select {
-  background: #12161d; color: #e6edf3; border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 7px; padding: 4px 7px; font-family: inherit; font-size: 12px;
-}
-.mcs__row input[type="range"] { width: 150px; }
-.mcs__checks { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #c9d2de; }
-.mcs__checks label { display: flex; align-items: center; gap: 6px; }
-.mc-vignette {
-  position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
-}
-
 /* ===================== Настройки плагина рендера (универсальная форма) ===================== */
 .rform { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; }
 .rform__presets { display: flex; gap: 6px; flex-wrap: wrap; }

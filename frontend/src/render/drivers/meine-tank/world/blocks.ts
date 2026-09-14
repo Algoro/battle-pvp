@@ -37,12 +37,12 @@ export const BLOCK: Record<string, BlockDef> = {
     bottom: "bricks",
   },
   steel: { pass: "opaque", y0: 0, h: 1, solid: true, top: "iron_block", side: "iron_block", bottom: "iron_block" },
-  // Water and ice are floor-level tiles in Battle City, not raised blocks:
-  // thin slabs just above the ground so they read as flush.
+  // Water is a whole block column; per-cell height comes from the pond depth map
+  // (`world/water.ts`), so a larger pond is deeper. Ice stays a thin floor tile.
   water: {
     pass: "water",
     y0: 0,
-    h: 0.05,
+    h: 1,
     solid: false,
     top: "water_still",
     side: "water_still",

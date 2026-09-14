@@ -1,6 +1,7 @@
-// particles.ts — GPU sprite particles (Points + atlas shader) for `meine-tank`.
-// Each point picks a frame in a particle atlas; motion is simple ballistic physics,
-// frames animate over life, alpha fades out and size can grow (smoke).
+// particles.ts — GPU sprite particles for `meine-tank`, rendered as camera-facing
+// instanced billboards (InstancedMesh + atlas shader). Unlike THREE.Points, billboard
+// quads carry depth and normals, so the ray-tracing pipeline sees them: smoke reflects
+// in water, receives ambient occlusion and casts (alpha-shaped) shadows.
 //
 // Relative path: ./frontend/src/render/drivers/meine-tank/fx/particles.ts
 import * as THREE from "three";
@@ -37,9 +38,11 @@ export interface BurstOptions {
 }
 
 export interface MtParticles {
-  points: THREE.Points;
+  object: THREE.InstancedMesh;
   burst(opts: BurstOptions): void;
   update(dtMs: number): void;
+  /** World-space camera position + sun for volumetric-ish scattering in the sprites. */
+  setLighting(cameraPos: THREE.Vector3, sunDir: THREE.Vector3, sunColor: THREE.Color): void;
   activeCount(): number;
   dispose(): void;
 }
@@ -64,62 +67,150 @@ interface P {
   gravity: boolean;
 }
 
+/** Billboard world size per unit of `size`: matches the old Points scale at 720p/70°. */
+const SIZE_SCALE = 0.5;
+
 export function createParticles(sprites: ParticleSprites, max = 2600): MtParticles {
-  const positions = new Float32Array(max * 3);
+  const geometry = new THREE.InstancedBufferGeometry();
+  const plane = new THREE.PlaneGeometry(1, 1);
+  geometry.index = plane.index;
+  geometry.setAttribute("position", plane.attributes.position);
+  geometry.setAttribute("uv", plane.attributes.uv);
+
   const colors = new Float32Array(max * 3);
   const frames = new Float32Array(max);
-  const sizes = new Float32Array(max);
   const alphas = new Float32Array(max);
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-  geo.setAttribute("aColor", new THREE.BufferAttribute(colors, 3));
-  geo.setAttribute("aFrame", new THREE.BufferAttribute(frames, 1));
-  geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
-  geo.setAttribute("aAlpha", new THREE.BufferAttribute(alphas, 1));
+  const sizes = new Float32Array(max);
+  const iColor = new THREE.InstancedBufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage);
+  const iFrame = new THREE.InstancedBufferAttribute(frames, 1).setUsage(THREE.DynamicDrawUsage);
+  const iAlpha = new THREE.InstancedBufferAttribute(alphas, 1).setUsage(THREE.DynamicDrawUsage);
+  const iSize = new THREE.InstancedBufferAttribute(sizes, 1).setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute("iColor", iColor);
+  geometry.setAttribute("iFrame", iFrame);
+  geometry.setAttribute("iAlpha", iAlpha);
+  geometry.setAttribute("iSize", iSize);
+  geometry.instanceCount = max;
 
   const material = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
+    side: THREE.DoubleSide,
+    fog: true,
+    uniforms: THREE.UniformsUtils.merge([
+      THREE.UniformsLib.fog,
+      {
+        uAtlas: { value: null },
+        uCols: { value: sprites.cols },
+        uRows: { value: sprites.rows },
+        uCameraPos: { value: new THREE.Vector3() },
+        uSunDir: { value: new THREE.Vector3(0, 1, 0) },
+        uSunColor: { value: new THREE.Color(1, 1, 1) },
+      },
+    ]),
+    vertexShader: `
+      #include <common>
+      #include <fog_pars_vertex>
+      attribute vec3 iColor;
+      attribute float iFrame;
+      attribute float iAlpha;
+      attribute float iSize;
+      varying vec2 vUv;
+      varying vec3 vColor;
+      varying float vFrame;
+      varying float vAlpha;
+      varying vec3 vWorld;
+      void main() {
+        vUv = uv;
+        vColor = iColor;
+        vFrame = iFrame;
+        vAlpha = iAlpha;
+        vec4 origin = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        vWorld = origin.xyz;
+        vec4 mv = viewMatrix * origin;
+        mv.xy += position.xy * iSize;
+        #ifdef USE_FOG
+          vFogDepth = -mv.z;
+        #endif
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `
+      #include <fog_pars_fragment>
+      uniform sampler2D uAtlas;
+      uniform float uCols;
+      uniform float uRows;
+      uniform vec3 uCameraPos;
+      uniform vec3 uSunDir;
+      uniform vec3 uSunColor;
+      varying vec2 vUv;
+      varying vec3 vColor;
+      varying float vFrame;
+      varying float vAlpha;
+      varying vec3 vWorld;
+      void main() {
+        float c = mod(vFrame, uCols);
+        float r = floor(vFrame / uCols);
+        vec2 uv = vec2((c + vUv.x) / uCols, 1.0 - (r + vUv.y) / uRows);
+        vec4 tex = texture2D(uAtlas, uv);
+        if (tex.a < 0.05 || vAlpha < 0.01) discard;
+        gl_FragColor = vec4(tex.rgb * vColor, tex.a * vAlpha);
+        // Forward scattering: puffs glow when the sun is behind them, so light reads as
+        // being scattered inside the smoke volume.
+        vec3 viewDir = normalize(uCameraPos - vWorld);
+        float scatter = pow(max(dot(viewDir, uSunDir), 0.0), 6.0);
+        gl_FragColor.rgb += uSunColor * scatter * 0.9 * tex.a * vAlpha;
+        #ifdef USE_FOG
+          #ifdef FOG_EXP2
+            float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth);
+          #else
+            float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+          #endif
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor * 0.5);
+        #endif
+      }`,
+  });
+  material.uniforms.uAtlas.value = sprites.texture;
+  geometry.instanceCount = max;
+
+  const depthMaterial = new THREE.ShaderMaterial({
     uniforms: {
       uAtlas: { value: sprites.texture },
       uCols: { value: sprites.cols },
       uRows: { value: sprites.rows },
     },
     vertexShader: `
-      attribute vec3 aColor;
-      attribute float aFrame;
-      attribute float aSize;
-      attribute float aAlpha;
-      varying vec3 vColor;
+      attribute float iFrame;
+      attribute float iSize;
+      varying vec2 vUv;
       varying float vFrame;
-      varying float vAlpha;
       void main() {
-        vColor = aColor;
-        vFrame = aFrame;
-        vAlpha = aAlpha;
-        vec4 mv = modelViewMatrix * vec4(position, 1.0);
-        gl_PointSize = aSize * (260.0 / max(1.0, -mv.z));
+        vUv = uv;
+        vFrame = iFrame;
+        vec4 origin = modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0);
+        vec4 mv = viewMatrix * origin;
+        mv.xy += position.xy * iSize;
         gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: `
       uniform sampler2D uAtlas;
       uniform float uCols;
       uniform float uRows;
-      varying vec3 vColor;
+      varying vec2 vUv;
       varying float vFrame;
-      varying float vAlpha;
       void main() {
         float c = mod(vFrame, uCols);
         float r = floor(vFrame / uCols);
-        vec2 uv = vec2((c + gl_PointCoord.x) / uCols, 1.0 - (r + gl_PointCoord.y) / uRows);
-        vec4 tex = texture2D(uAtlas, uv);
-        if (tex.a < 0.05 || vAlpha < 0.01) discard;
-        gl_FragColor = vec4(tex.rgb * vColor, tex.a * vAlpha);
+        vec2 uv = vec2((c + vUv.x) / uCols, 1.0 - (r + vUv.y) / uRows);
+        if (texture2D(uAtlas, uv).a < 0.4) discard;
       }`,
   });
 
-  const points = new THREE.Points(geo, material);
-  points.frustumCulled = false;
+  const mesh = new THREE.InstancedMesh(geometry, material, max);
+  mesh.frustumCulled = false;
+  mesh.castShadow = true;
+  mesh.customDepthMaterial = depthMaterial;
+  mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+  for (let i = 0; i < max; i++) mesh.setMatrixAt(i, new THREE.Matrix4().makeScale(0, 0, 0));
+  mesh.instanceMatrix.needsUpdate = true;
 
   const pool: P[] = [];
   let cursor = 0;
@@ -182,14 +273,15 @@ export function createParticles(sprites: ParticleSprites, max = 2600): MtParticl
     }
   }
 
+  const _m = new THREE.Matrix4();
+
   function update(dtMs: number): void {
     for (let i = 0; i < max; i++) {
       const p = pool[i];
       const o = i * 3;
       if (p.life <= 0) {
-        positions[o] = 0;
-        positions[o + 1] = -100;
-        positions[o + 2] = 0;
+        _m.makeScale(0, 0, 0);
+        mesh.setMatrixAt(i, _m);
         sizes[i] = 0;
         alphas[i] = 0;
         continue;
@@ -207,9 +299,8 @@ export function createParticles(sprites: ParticleSprites, max = 2600): MtParticl
       }
       const k = Math.max(0, p.life / p.max); // 1 → 0 over life
       const fade = k < 0.35 ? k / 0.35 : 1;
-      positions[o] = p.x;
-      positions[o + 1] = p.y;
-      positions[o + 2] = p.z;
+      _m.makeTranslation(p.x, p.y, p.z);
+      mesh.setMatrixAt(i, _m);
       colors[o] = p.r;
       colors[o + 1] = p.g;
       colors[o + 2] = p.b;
@@ -219,28 +310,36 @@ export function createParticles(sprites: ParticleSprites, max = 2600): MtParticl
       } else {
         frames[i] = p.frameStart;
       }
-      sizes[i] = p.grow ? p.size * (0.7 + 0.9 * (1 - k)) : p.size * (0.6 + 0.4 * k);
+      const scale = p.grow ? p.size * (0.7 + 0.9 * (1 - k)) : p.size * (0.6 + 0.4 * k);
+      sizes[i] = scale * SIZE_SCALE;
       alphas[i] = p.maxAlpha * fade;
     }
-    (geo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
-    (geo.attributes.aColor as THREE.BufferAttribute).needsUpdate = true;
-    (geo.attributes.aFrame as THREE.BufferAttribute).needsUpdate = true;
-    (geo.attributes.aSize as THREE.BufferAttribute).needsUpdate = true;
-    (geo.attributes.aAlpha as THREE.BufferAttribute).needsUpdate = true;
+    mesh.instanceMatrix.needsUpdate = true;
+    iColor.needsUpdate = true;
+    iFrame.needsUpdate = true;
+    iSize.needsUpdate = true;
+    iAlpha.needsUpdate = true;
   }
 
   return {
-    points,
+    object: mesh,
     burst,
     update,
+    setLighting(cameraPos, sunDir, sunColor) {
+      (material.uniforms.uCameraPos.value as THREE.Vector3).copy(cameraPos);
+      (material.uniforms.uSunDir.value as THREE.Vector3).copy(sunDir).normalize();
+      (material.uniforms.uSunColor.value as THREE.Color).copy(sunColor);
+    },
     activeCount() {
       let n = 0;
       for (const p of pool) if (p.life > 0) n++;
       return n;
     },
     dispose() {
-      geo.dispose();
+      geometry.dispose();
       material.dispose();
+      depthMaterial.dispose();
+      mesh.dispose();
     },
   };
 }

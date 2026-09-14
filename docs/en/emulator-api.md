@@ -79,7 +79,7 @@ and `step()`/`draw()` invoke the installed callback; what to draw with is determ
 
 - `pixel-2d` (default) — the PPU frame 256×240;
 - `topdown-3d` — volumetric field (`render-3d.md`);
-- `mc-voxel` — voxel "sandbox" (`render-voxel.md`).
+- `meine-tank` — voxel world with Minecraft textures (`render-meine-tank.md`).
 
 Extensions (`minimap`, `particles`) are overlaid by the host `RenderSystem`. Drivers read
 only `SceneState` (`readScene`, from RAM/PPU) and do not affect the core step, hashes, save/load and

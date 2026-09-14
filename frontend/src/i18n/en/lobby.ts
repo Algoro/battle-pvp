@@ -130,8 +130,6 @@ const messages: Record<string, string> = {
   "Оригинальный кадр PPU, 256×240, pixel-perfect.": "Original PPU frame, 256×240, pixel-perfect.",
   "3D сверху": "3D top-down",
   "Объёмное поле с вращением, наклоном и масштабом.": "Volumetric field with rotation, tilt, and zoom.",
-  "Воксельный (sandbox)": "Voxel (sandbox)",
-  "Кубические блоки, пиксельные текстуры, небо и день/ночь — настраиваемый стиль.": "Cubic blocks, pixel textures, sky and day/night — customizable style.",
   "Миникарта": "Minimap",
   "Угловая схема поля поверх любого драйвера.": "Corner field overview over any driver.",
   "Частицы и искры": "Particles and sparks",

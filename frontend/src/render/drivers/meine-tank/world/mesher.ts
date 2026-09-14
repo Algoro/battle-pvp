@@ -170,25 +170,32 @@ export function meshCells(cells: MeshCell[], ctx: MeshContext): ChunkMeshData {
           : def.pass === "water"
             ? data.water
             : data.opaque;
+    const isWater = def.pass === "water";
     const tint = tintOf(def);
+    // Deeper water reads darker: a subtle depth cue for the whole-block volume.
+    const waterShade = isWater ? 1 - 0.14 * Math.min(3, Math.max(0, def.h - 1)) : 1;
 
     for (const face of FACES) {
       const n = neighbor(col, row, face.key);
       const nb = ctx.defAt(n.col, n.row);
-      const occluded =
-        def.solid &&
-        nb &&
-        nb.solid &&
-        nb.y0 <= def.y0 + 0.05 &&
-        nb.y0 + nb.h >= y1 - 0.05 &&
-        !(face.key === "top" && nb.h <= def.h);
-      if (face.key === "top" && occluded) continue;
-      if (face.key === "bottom" && def.y0 <= 0.001) continue;
-      if (face.key !== "top" && face.key !== "bottom" && occluded) continue;
+      const isSide = face.key !== "top" && face.key !== "bottom";
+      // Water culls its outer walls only against an equally tall neighbour; solid blocks
+      // cull as before. Water never culls its own top face.
+      const occluded = isWater
+        ? isSide && !!nb && nb.pass === "water" && nb.y0 <= def.y0 + 0.05 && nb.y0 + nb.h >= y1 - 0.05
+        : def.solid &&
+          isSide &&
+          !!nb &&
+          nb.solid &&
+          nb.y0 <= def.y0 + 0.05 &&
+          nb.y0 + nb.h >= y1 - 0.05;
+      // Water bottoms are drawn by the basin floor in the field, so skip them here.
+      if (face.key === "bottom" && (def.y0 <= 0.001 || isWater)) continue;
+      if (occluded) continue;
 
       const verts = cornerVerts(def, x, z, face.key, y1);
       const uvr = ctx.uvOf(face.tile === "top" ? def.top : face.tile === "bottom" ? def.bottom : def.side);
-      const bright = face.brightness;
+      const bright = face.brightness * waterShade;
 
       const brights =
         face.ao && ctx.ao === "smooth"

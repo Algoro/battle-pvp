@@ -3,7 +3,7 @@
 # Renderer drivers & extensions
 
 > Status: **implemented** (`frontend/src/render/`: drivers `pixel-2d`, `topdown-3d`,
-> `mc-voxel`; extensions `minimap`, `particles`). A type of entity parallel to "patches":
+> `meine-tank`; extensions `minimap`, `particles`). A type of entity parallel to "patches":
 > a patch changes the **game** (ROM + JS runtime, determinism, fingerprint), while a renderer
 > driver/extension changes **only the image** and is fully local.
 
@@ -57,9 +57,10 @@ export const RENDER_MANIFEST: RendererInfo[] = [
   { id: "topdown-3d", kind: "driver",    title: "3D сверху",
     description: "Объёмное поле с вращением, наклоном и масштабом.",
     provides: ["three", "camera", "overlay-dom"] },
-  { id: "mc-voxel",   kind: "driver",    title: "Воксельный (sandbox)",
-    description: "Кубические блоки, пиксельные текстуры, небо и день/ночь.",
-    provides: ["three", "camera", "overlay-dom", "voxel"] },
+  { id: "meine-tank", kind: "driver",    title: "Meine Tank",
+    description: "Воксельный мир на текстурах Minecraft (Faithful 32x).",
+    provides: ["three", "camera", "overlay-dom", "voxel"],
+    settings: { fields: MT_FIELDS, presets: MT_PRESETS } },
   { id: "minimap",    kind: "extension", title: "Миникарта",
     description: "Угловая схема поля поверх любого драйвера.", requires: ["overlay-dom"], order: 30 },
   { id: "particles",  kind: "extension", title: "Частицы и искры",
@@ -210,15 +211,16 @@ A field describes `id/label/type(select|range|toggle)/default/options|min|max|st
   mounting) and is connected in `RenderPicker` (preview) and `RenderSettings` (battle).
 - Utilities `render/settings.ts`: `specDefaults`, `normalizeValues` (validation/clamp by the
   schema), `applyPreset`.
-- The driver validates the input with its own `normalize` (for mc-voxel — on top of the same schema) and
+- The driver validates the input with its own `normalize` (for meine-tank — on top of the same schema) and
   implements `setOptions`. Structural changes (e.g. `textureSize`, `shadows`)
   rebuild the driver's world.
 - Local player for first-person cameras: `RenderHost.viewer = { port }`;
   `RenderSystem.setViewer({ port })` is called by `GameCanvas`/`SpectateView`/the preview.
-  Example: `mc-voxel.cameraMode = "orbit" | "third" | "first"` (plus `cameraFollow` —
+  Example: `meine-tank.cameraMode = "orbit" | "third" | "first"` (plus `cameraFollow` —
   a smooth turn toward the tank's direction in all modes; manual input temporarily takes priority).
   A driver may also have non-standard subsystems via its own settings — for example,
-  the "living world" of `mc-voxel`: `birds`, `mice`, `clouds = off|flat|voxel`.
+  the "living world" of `meine-tank`: `fauna = off|ambient|lively` (plus groups and density),
+  `clouds = off|flat|voxel`, the outer world and fauna.
 
 ## 8. Integration with the core
 

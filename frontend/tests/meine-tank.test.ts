@@ -11,6 +11,7 @@ import { pickBiome, surfaceFor, BIOMES } from "../src/render/drivers/meine-tank/
 import * as THREE from "three";
 import { createMob } from "../src/render/drivers/meine-tank/models/mobs/geometry.ts";
 import { MOB_GEOMETRY } from "../src/render/drivers/meine-tank/models/mobs/defs.ts";
+import { createFauna, escapeHeading, facingYaw, mobYaw } from "../src/render/drivers/meine-tank/fauna/manager.ts";
 import { normalTile } from "../src/render/drivers/meine-tank/textures/atlas.ts";
 import { traceLavaRivers } from "../src/render/drivers/meine-tank/world/lava.ts";
 import type { MtTheme } from "../src/render/drivers/meine-tank/options.ts";
@@ -49,7 +50,7 @@ test("meine-tank: тайл -> блок (тема classic)", () => {
   assert.strictEqual(blockForTile(0x0f)?.top, "bricks");
   assert.strictEqual(blockForTile(0x10)?.top, "iron_block");
   assert.strictEqual(blockForTile(0x12)?.pass, "water");
-  assert.ok((blockForTile(0x12)?.h ?? 1) <= 0.1, "вода должна быть заподлицо");
+  assert.ok((blockForTile(0x12)?.h ?? 0) >= 1, "вода — цельный блок, а не плоская плёнка");
   assert.ok((blockForTile(0x21)?.h ?? 1) <= 0.1, "лёд должен быть заподлицо");
   assert.strictEqual(blockForTile(0x21)?.top, "blue_ice");
   assert.strictEqual(blockForTile(0x22)?.top, "oak_leaves");
@@ -219,5 +220,81 @@ test("meine-tank: модели мобов собираются и тело ст�
       `${species}: тело не стоит на ногах (body.y=${bodyBox.min.y.toFixed(2)}, legs.y=${legBox.max.y.toFixed(2)})`,
     );
     inst.dispose();
+  }
+});
+
+test("meine-tank: животное смотрит по направлению движения (forward = -Z)", () => {
+  for (let i = 0; i < 16; i++) {
+    const a = (i / 16) * Math.PI * 2;
+    const yaw = mobYaw(Math.cos(a), Math.sin(a));
+    const fwd = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(0, yaw, 0));
+    assert.ok(
+      Math.abs(fwd.x - Math.cos(a)) < 1e-6 && Math.abs(fwd.z - Math.sin(a)) < 1e-6,
+      `heading ${a.toFixed(2)}: смотрит в (${fwd.x.toFixed(2)}, ${fwd.z.toFixed(2)})`,
+    );
+  }
+});
+
+test("meine-tank: стоящее животное не крутится на месте", () => {
+  assert.strictEqual(facingYaw(0, 0, 1.23), 1.23, "нулевая скорость — сохраняем прежний разворот");
+  assert.ok(Math.abs(facingYaw(0.004, 0, 0) - mobYaw(1, 0)) < 1e-9, "в движении смотрим по скорости");
+});
+
+test("meine-tank: после удара в стену животное уходит в свободную сторону", () => {
+  const west = (x: number): boolean => x < 5;
+  assert.strictEqual(escapeHeading(0, 5, 5, west), Math.PI, "разворот назад, если там свободно");
+
+  const north = (_x: number, z: number): boolean => z < 5;
+  assert.strictEqual(escapeHeading(0, 5, 5, north), -Math.PI / 2, "иначе боковой проход");
+
+  assert.strictEqual(escapeHeading(0.7, 5, 5, () => false), 0.7, "заперт — направление не меняем");
+});
+
+test("meine-tank: наземная фауна не проходит сквозь препятствия арены", () => {
+  const orig = Math.random;
+  let seed = 987654321;
+  Math.random = () => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  try {
+    const bounds = { col0: 2, row0: 2, cols: 26, rows: 26 };
+    const opts = normalizeMtOptions({ fauna: "ambient", faunaDensity: 1, outerWorld: "off" });
+    const flying = new Set(["bee", "parrot", "bat", "allay", "dragon"]);
+    const speciesOf = new Map<THREE.Object3D, string>();
+    // Only a 3-cell-wide vertical corridor is walkable; everything else is wall.
+    const walkable = (x: number, z: number): boolean => {
+      const c = Math.floor(x);
+      const r = Math.floor(z);
+      return r >= 2 && r <= 23 && c >= 12 && c <= 14;
+    };
+    const fauna = createFauna({
+      createMob: (species) => {
+        const group = new THREE.Group();
+        speciesOf.set(group, species);
+        return { group, bones: new Map<string, THREE.Group>(), dispose() {} };
+      },
+      getBounds: () => bounds,
+      getOptions: () => opts,
+      getTankPositions: () => [],
+      walkableAt: walkable,
+      terrain: { enabled: false, heightAt: () => 0, contains: () => false },
+    });
+    for (let i = 0; i < 900; i++) fauna.update(16, i * 16);
+    let ground = 0;
+    for (const child of fauna.group.children) {
+      if (!child.visible) continue;
+      const sp = speciesOf.get(child);
+      if (!sp || flying.has(sp)) continue;
+      ground++;
+      assert.ok(
+        walkable(child.position.x, child.position.z),
+        `${sp} прошёл в препятствие (${child.position.x.toFixed(2)}, ${child.position.z.toFixed(2)})`,
+      );
+    }
+    assert.ok(ground > 0, "наземные животные не заспавнились");
+    fauna.dispose();
+  } finally {
+    Math.random = orig;
   }
 });

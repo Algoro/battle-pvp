@@ -33,10 +33,6 @@ const messages: Record<string, string> = {
   "Оригинальный кадр PPU, 256×240, pixel-perfect.": "Original PPU frame, 256×240, pixel-perfect.",
   "3D сверху": "3D top-down",
   "Объёмное поле с вращением, наклоном и масштабом.": "Volumetric field with rotation, tilt, and zoom.",
-  "Воксельный (sandbox)": "Voxel (sandbox)",
-  "Кубические блоки, пиксельные текстуры, небо и день/ночь — настраиваемый стиль.":
-    "Cubic blocks, pixel textures, sky and day/night — a customizable style.",
-
   // --- Manifest: extensions ----------------------------------------------------
   "Миникарта": "Minimap",
   "Угловая схема поля поверх любого драйвера.": "Corner field map over any driver.",
@@ -71,8 +67,6 @@ const messages: Record<string, string> = {
   "Облака": "Clouds",
   "Блочные": "Blocky",
   "Плоские": "Flat",
-  "Птицы": "Birds",
-  "Мышки": "Mice",
   "Вода": "Water",
   "Анимированная": "Animated",
   "Простая": "Simple",
@@ -80,14 +74,18 @@ const messages: Record<string, string> = {
   "Текстуры": "Textures",
   "Обзор (FOV)": "FOV",
   "Контур блоков": "Block outline",
-  "Виньетка": "Vignette",
-  "Дрейф облаков": "Cloud drift",
+  "Рейтрейсинг (эксперимент)": "Ray tracing (experimental)",
+  "Вкл (GTAO + SSR)": "On (GTAO + SSR)",
+  "Ультра (больше сэмплов)": "Ultra (more samples)",
+  "Screen-space GI: качественный ambient occlusion, отражения, bloom и мягкие тени + IBL. Требует WebGL2 и заметно грузит GPU.":
+    "Screen-space GI: high-quality ambient occlusion, reflections, bloom and soft shadows + IBL. Requires WebGL2 and is GPU-heavy.",
+  "RT для внешнего мира": "RT for the outer world",
+  "Отражать реки и отбрасывать тени холмами/деревьями за ареной: широкая теневая карта 4096² и SSR на реках. Работает только при включённом рейтрейсинге и заметно тяжелее.":
+    "Reflect rivers and cast shadows from the hills/trees beyond the arena: a wide 4096² shadow map and SSR on rivers. Only works with ray tracing enabled and is noticeably heavier.",
 
   // --- Driver presets (shared/renderers.ts) ---------------------------------
   "Классика": "Classic",
-  "Выживание": "Survival",
   "Кинематограф": "Cinematic",
   "Производительность": "Performance",
-  "Ретро": "Retro",
 };
 export default messages;

@@ -152,7 +152,7 @@ The `tower-defence` feature (`hidden: true` — enabled not by a checkbox but by
   `PvPNes.getFeatureState(id)`. The core itself does not know specific features — the channel is generic.
 - **Shared damage**: `features/enemy-damage.ts` (armor/prize/death) is used by both
   friendly-fire and towers.
-- **Rendering**: 2D — blending tank/bullet sprites directly into the PPU pixel buffer (render hook); 3D (`topdown-3d`/`mc-voxel`) —
+- **Rendering**: 2D — blending tank/bullet sprites directly into the PPU pixel buffer (render hook); 3D (`topdown-3d`/`meine-tank`) —
   towers from `SceneState.towers` as immobile DEF tanks (stars = level).
 - **Enemy types**: `TD_WAVES[].types` — the `ram_tank_type` queue in spawn order
   (basic/fast bullet/fast/armored); the runtime overrides the type at spawn.

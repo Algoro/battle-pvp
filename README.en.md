@@ -115,7 +115,7 @@ backend/         Node backend: matchmaking, lobby/rooms, signaling relay, SQLite
 emulator-core/   core: PvPNes (on top of immutable jsnes), patching/, features/ (feature JS runtimes), ai/, sim/, model/, io/
 netcode/         rollback-netcode: protocol, session, transports (webrtc/relay/local)
 frontend/        React/TS SPA (Vite): canvas, lobby, chat, spectator, HUD,
-                 render/ (drivers and extensions: pixel-2d, topdown-3d, mc-voxel, minimap, particles)
+                 render/ (drivers and extensions: pixel-2d, topdown-3d, meine-tank, minimap, particles)
 shared/          import-free manifests: features.ts, renderers.ts, tower-defence.ts (TD data)
 qa/              node tests + Playwright e2e
 rom/             original/ (your ROM; not committed) + generated disasm/
@@ -157,7 +157,7 @@ git push -u origin main
 - [docs/asm-label-map.md](docs/asm-label-map.md) — ROM label map.
 - [docs/render-extensions.md](docs/render-extensions.md) — render drivers/extensions.
 - [docs/render-3d.md](docs/render-3d.md) — the `topdown-3d` driver.
-- [docs/render-voxel.md](docs/render-voxel.md) — the `mc-voxel` driver (voxel style).
+- [docs/render-meine-tank.md](docs/render-meine-tank.md) — the `meine-tank` voxel driver (Minecraft/Faithful textures, fauna).
 - [docs/tower-defense.md](docs/tower-defense.md) — solo Tower Defence mode.
 - [docs/pistol-powerup.md](docs/pistol-powerup.md) — the "Pistol" power-up and super-weapon.
 - [docs/wrap-borders.md](docs/wrap-borders.md) — the "open edges" feature (torus at the level edges).

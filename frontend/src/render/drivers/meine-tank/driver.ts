@@ -7,13 +7,14 @@ import * as THREE from "three";
 import { createThreeBootstrap, type ThreeBootstrap } from "../../three/bootstrap.ts";
 import { attachCameraControls } from "../../camera-controls.ts";
 import { tankCenter, cellCenter, fieldCenter, FACING, followYaw } from "../../coords.ts";
+import { tankPassable } from "@core/domain.ts";
 import { towerCellCenter, towerToSceneTank } from "../../tower-visual.ts";
 import { loadTextureStore, type TextureStore } from "./textures/loader.ts";
 import { buildAtlas, type Atlas } from "./textures/atlas.ts";
 import { createAnimatedTextures, type AnimatedSet } from "./textures/animated.ts";
 import { createMaterials, type MtMaterials } from "./materials.ts";
 import { createFieldWorld, type FieldWorld } from "./world/field.ts";
-import { createDecor, type Decor } from "./world/decor.ts";
+import { createDecor, decorReadyToBuild, type Decor } from "./world/decor.ts";
 import { createOuterWorld, type OuterWorld } from "./world/outer.ts";
 import { createMtTank, type MtTank } from "./models/tank.ts";
 import { createMtBase, type MtBase } from "./models/base.ts";
@@ -22,6 +23,7 @@ import { createMob } from "./models/mobs/geometry.ts";
 import { MOB_GEOMETRY, type MobSpecies } from "./models/mobs/defs.ts";
 import { createFauna, type MtFauna } from "./fauna/manager.ts";
 import { createSky, type MtSky } from "./sky/sky.ts";
+import { createRayTracing, type RayTracingPipeline } from "./post/raytracing.ts";
 import { createParticles, type MtParticles, type ParticleSprites } from "./fx/particles.ts";
 import { particleSpriteRanges } from "./fx/sprites.ts";
 import { normalizeMtOptions, type MtBiome, type MtBorder, type MtOptions, type MtOuterWorld } from "./options.ts";
@@ -90,7 +92,7 @@ export function createMeineTankDriver(): RenderDriver {
   let tanks: MtTank[] = [];
   let towerModels: MtTank[] = [];
   const MAX_TOWERS = 16;
-  const mobMaterials = new Map<string, THREE.MeshLambertMaterial>();
+  const mobMaterials = new Map<string, THREE.MeshStandardMaterial>();
   const mobTextures: THREE.Texture[] = [];
   let root: THREE.Group | null = null;
   let world: THREE.Group | null = null;
@@ -103,17 +105,25 @@ export function createMeineTankDriver(): RenderDriver {
 
   let state: SceneState | null = null;
   let prevField: Uint8Array | null = null;
+  let decorReady = false;
+  let decorPending = true;
+  let decorPendingFrames = 0;
+  let rt: RayTracingPipeline | null = null;
+  let outerRebuilds = 0;
+  let fieldStableFrames = 0;
+  let arenaFrames = 0;
   let prevBullets: { x: number; y: number }[] = [];
   const explodeTimer: number[] = new Array(8).fill(0);
   let smokeAccum = 0;
   let time = 0;
   const _q = new THREE.Quaternion();
+  const _sunDir = new THREE.Vector3();
 
   function center(): { x: number; z: number } {
     return fieldCenter(state?.bounds ?? { col0: 2, row0: 2, cols: 26, rows: 26 });
   }
 
-  function mobMaterial(species: MobSpecies): THREE.MeshLambertMaterial {
+  function mobMaterial(species: MobSpecies): THREE.MeshStandardMaterial {
     const key =
       species === "parrot"
         ? PARROT_SKINS[Math.floor(Math.random() * PARROT_SKINS.length)]
@@ -127,21 +137,102 @@ export function createMeineTankDriver(): RenderDriver {
     let mat = mobMaterials.get(key);
     if (mat) return mat;
     const tex = store ? entityTexture(store, key) : null;
-    mat = new THREE.MeshLambertMaterial({
+    // PBR + cutout (NOT transparent): alpha-tested entities stay in the opaque queue, so
+    // they receive IBL, cast shadows and are not dropped by the transmission/depth passes
+    // of the ray-tracing pipeline (where transparent fauna behind water used to vanish).
+    mat = new THREE.MeshStandardMaterial({
       map: tex,
-      transparent: true,
+      transparent: false,
       alphaTest: 0.5,
       side: THREE.DoubleSide,
+      roughness: 0.85,
+      metalness: 0,
     });
     mobMaterials.set(key, mat);
     if (tex) mobTextures.push(tex);
     return mat;
   }
 
+  /** Meshes that may receive screen-space reflections (arena water/ice, + outer rivers). */
+  function collectReflective(): THREE.Mesh[] {
+    const out: THREE.Mesh[] = [];
+    if (field) out.push(...field.reflectiveMeshes());
+    if (options.outerRayTracing && outer && materials) {
+      outer.group.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (mesh.isMesh && (mesh.material === materials!.water || mesh.material === materials!.translucent)) {
+          out.push(mesh);
+        }
+      });
+    }
+    return out;
+  }
+
+  /** Reflection list identity: arena remesh + outer rebuild + scope flag. */
+  function reflectionVersion(): number {
+    return (field?.chunkVersion() ?? 0) + outerRebuilds * 1_000_000 + (options.outerRayTracing ? 500_000 : 0);
+  }
+
+  function rebuildOuter(seed: number): void {
+    if (!outer) return;
+    outer.rebuild(state?.bounds ?? DEFAULT_BOUNDS, outerOptionsFrom(options), seed);
+    outer.setShadows(!!rt && options.outerRayTracing);
+    outerRebuilds++;
+  }
+
+  /** Shadow configuration; the experimental RT mode forces shadows and a sharper map. */
+  function applyShadowMode(): void {
+    if (!boot || !sun) return;
+    const want = options.shadows === "soft" || !!rt;
+    boot.renderer.shadowMap.enabled = want;
+    if (!want) {
+      sun.castShadow = false;
+      return;
+    }
+    const outerRt = !!rt && options.outerRayTracing;
+    boot.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    sun.castShadow = true;
+    const size = outerRt ? 4096 : rt ? (options.rayTracing === "ultra" ? 4096 : 2048) : 1024;
+    if (sun.shadow.map && sun.shadow.map.width !== size) {
+      sun.shadow.map.dispose();
+      (sun.shadow as unknown as { map: THREE.WebGLRenderTarget | null }).map = null;
+    }
+    sun.shadow.mapSize.set(size, size);
+    // Tight ortho box around the arena; the outer-world scope widens it to the whole radius.
+    const half = outerRt ? Math.max(16, options.outerRadius + 12) : rt ? 16 : 22;
+    sun.shadow.radius = rt ? 4 : 1;
+    sun.shadow.bias = -0.0004;
+    sun.shadow.normalBias = rt ? 0.035 : 0.02;
+    const sc = sun.shadow.camera as THREE.OrthographicCamera;
+    sc.left = -half;
+    sc.right = half;
+    sc.top = half;
+    sc.bottom = -half;
+    sc.near = 1;
+    sc.far = 200;
+    sc.updateProjectionMatrix();
+  }
+
+  function teardownRt(): void {
+    rt?.dispose();
+    rt = null;
+  }
+
+  /** (Re)create the experimental ray-tracing pipeline for the current quality setting. */
+  function configureRt(): void {
+    teardownRt();
+    if (!boot || !host || options.rayTracing === "off") return;
+    rt = createRayTracing(boot.renderer, boot.scene, boot.camera, options.rayTracing, { width: host.width, height: host.height }, {
+      reflectiveMeshes: collectReflective,
+      chunkVersion: reflectionVersion,
+    });
+  }
+
   async function initWorld(): Promise<void> {
     if (!host || !boot || !store) return;
     const token = ++buildToken;
     const c = center();
+    teardownRt();
 
     blockAtlas = buildAtlas(
       store.ofKind("block").filter((t) => !t.asset.animated),
@@ -151,7 +242,7 @@ export function createMeineTankDriver(): RenderDriver {
     const particleTextures = store.ofKind("particle");
     particleAtlas = buildAtlas(particleTextures, { cell: 32, cols: 8 });
     animated = createAnimatedTextures(store);
-    materials = createMaterials(blockAtlas, animated, options.normalMaps);
+    materials = createMaterials(blockAtlas, animated, options.normalMaps, options.rayTracing);
     boot.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     boot.renderer.toneMappingExposure = options.exposure;
 
@@ -162,17 +253,18 @@ export function createMeineTankDriver(): RenderDriver {
     world.position.set(-c.x, 0, -c.z);
     root.add(world);
 
+    const shadowsOn = options.shadows === "soft" || options.rayTracing !== "off";
     field = createFieldWorld(materials, blockAtlas, {
       ao: options.ao,
       outline: options.outline,
-      shadows: options.shadows === "soft",
+      shadows: shadowsOn,
       theme: options.theme,
     });
     decor = createDecor(blockAtlas);
     outer = createOuterWorld(materials, blockAtlas);
-    outer.rebuild(state?.bounds ?? DEFAULT_BOUNDS, outerOptionsFrom(options), WORLD_SEED);
-    base = createMtBase(blockAtlas, options.shadows === "soft");
-    props = createMtProps(blockAtlas, itemAtlas, options.shadows === "soft");
+    rebuildOuter(WORLD_SEED);
+    base = createMtBase(blockAtlas, shadowsOn);
+    props = createMtProps(blockAtlas, itemAtlas, shadowsOn);
     sky = createSky({
       sun: entityTexture(store, "sun") ?? undefined,
       moon: entityTexture(store, "moon_full") ?? undefined,
@@ -184,16 +276,34 @@ export function createMeineTankDriver(): RenderDriver {
       sprites: particleSpriteRanges(particleTextures.map((t) => t.asset.name)),
     };
     particles = createParticles(sprites);
-    tanks = Array.from({ length: 8 }, () => createMtTank(blockAtlas!, options.shadows === "soft"));
-    towerModels = Array.from({ length: MAX_TOWERS }, () => createMtTank(blockAtlas!, options.shadows === "soft"));
+    tanks = Array.from({ length: 8 }, () => createMtTank(blockAtlas!, shadowsOn));
+    towerModels = Array.from({ length: MAX_TOWERS }, () => createMtTank(blockAtlas!, shadowsOn));
     fauna = createFauna({
       createMob: (species, shadows) => createMob(MOB_GEOMETRY[species], mobMaterial(species), shadows),
       getBounds: () => state?.bounds ?? DEFAULT_BOUNDS,
-      getOptions: () => options,
+      // Ray tracing forces shadows, so animals cast them too.
+      getOptions: () => (rt ? { ...options, faunaShadows: true } : options),
       getTankPositions: () =>
         (state?.tanks ?? [])
           .filter((t) => t.state !== "dead" && t.state !== "exploding")
           .map((t) => tankCenter(state!.bounds, t.x, t.y)),
+      walkableAt: (x, z) => {
+        const s = state;
+        if (!s) return true;
+        const col = Math.floor(x) + s.bounds.col0;
+        const row = Math.floor(z) + s.bounds.row0;
+        if (col < s.bounds.col0 || col >= s.bounds.col0 + s.bounds.cols) return false;
+        if (row < s.bounds.row0 || row >= s.bounds.row0 + s.bounds.rows) return false;
+        return tankPassable(s.field[row * 32 + col]);
+      },
+      // Debug: inspect `globalThis.__mtFaunaSpins` (browser console) for spin-in-place
+      // regressions; the ring buffer stays empty when animals behave.
+      onSpin: (info) => {
+        const g = globalThis as { __mtFaunaSpins?: unknown[] };
+        const buf = (g.__mtFaunaSpins ??= []);
+        buf.push({ t: performance.now(), ...info });
+        if (buf.length > 200) buf.shift();
+      },
       terrain: {
         get enabled() {
           return !!outer && options.outerWorld !== "off";
@@ -203,7 +313,7 @@ export function createMeineTankDriver(): RenderDriver {
       },
     });
 
-    world.add(field.group, decor.group, outer.group, base.group, props.group, particles.points, fauna.group);
+    world.add(field.group, decor.group, outer.group, base.group, props.group, particles.object, fauna.group);
     for (const t of tanks) world.add(t.group);
     for (const t of towerModels) world.add(t.group);
     boot.scene.add(sky.group);
@@ -212,20 +322,9 @@ export function createMeineTankDriver(): RenderDriver {
     sun = new THREE.DirectionalLight(0xfff6e0, 1.6);
     boot.scene.add(hemi, sun, sun.target);
 
-    if (options.shadows === "soft") {
-      boot.renderer.shadowMap.enabled = true;
-      boot.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      sun.castShadow = true;
-      sun.shadow.mapSize.set(1024, 1024);
-      const sc = sun.shadow.camera as THREE.OrthographicCamera;
-      sc.left = -22;
-      sc.right = 22;
-      sc.top = 22;
-      sc.bottom = -22;
-      sc.near = 1;
-      sc.far = 200;
-      sc.updateProjectionMatrix();
-    }
+    configureRt();
+    applyShadowMode();
+    outer?.setShadows(!!rt && options.outerRayTracing);
 
     host.shared.three = { THREE, scene: boot.scene, camera: boot.camera, renderer: boot.renderer, root, world };
     if (token === buildToken) ready = true;
@@ -281,6 +380,11 @@ export function createMeineTankDriver(): RenderDriver {
     animated = null;
     materials = null;
     prevField = null;
+    decorReady = false;
+    decorPending = true;
+    decorPendingFrames = 0;
+    fieldStableFrames = 0;
+    arenaFrames = 0;
     prevBullets = [];
     smokeAccum = 0;
   }
@@ -308,6 +412,93 @@ export function createMeineTankDriver(): RenderDriver {
 
   function updateDecor(): void {
     if (decor && state) decor.rebuild(state.bounds, state.field, options.decor, options.theme);
+    // Debug: `globalThis.__mtDecorInfo` shows when decor was seeded and whether the stage
+    // had already loaded (guards against plants on ice/water from an empty first frame).
+    const g = globalThis as { __mtDecorBuilds?: number; __mtDecorInfo?: unknown };
+    g.__mtDecorBuilds = (g.__mtDecorBuilds ?? 0) + 1;
+    let onIce = 0;
+    let onBlocked = 0;
+    if (decor && state) {
+      for (const child of decor.group.children) {
+        const col = Math.floor(child.position.x) + state.bounds.col0;
+        const row = Math.floor(child.position.z) + state.bounds.row0;
+        const v = state.field[row * 32 + col];
+        if (v === 0x21) onIce++;
+        if (v !== 0) onBlocked++;
+      }
+    }
+    g.__mtDecorInfo = { frame: arenaFrames, hasTerrain: fieldHasTerrain(), count: decor?.group.children.length ?? 0, onIce, onBlocked };
+  }
+
+  /** The stage layout is written into the collision buffer only after the match starts. */
+  function fieldHasTerrain(): boolean {
+    const s = state;
+    if (!s) return false;
+    for (let r = s.bounds.row0; r < s.bounds.row0 + s.bounds.rows; r++) {
+      for (let c = s.bounds.col0; c < s.bounds.col0 + s.bounds.cols; c++) {
+        if (s.field[r * 32 + c] !== 0) return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Debug: re-check every frame that no seeded prop ended up on a non-empty tile. If the
+   * stage loads in several passes, the terrain changes after the decor build and this
+   * reports `__mtDecorBadNow > 0` plus the first offender in `__mtDecorFirstBad`.
+   */
+  function decorSpawnAudit(): void {
+    const s = state;
+    const g = globalThis as { __mtDecorBadNow?: number; __mtDecorBadFrames?: number; __mtDecorFirstBad?: unknown };
+    if (!decor || !s || !decorReady) {
+      g.__mtDecorBadNow = 0;
+      return;
+    }
+    let bad = 0;
+    for (const child of decor.group.children) {
+      const col = Math.floor(child.position.x) + s.bounds.col0;
+      const row = Math.floor(child.position.z) + s.bounds.row0;
+      const v = s.field[row * 32 + col];
+      if (v !== 0) {
+        bad++;
+        if (!g.__mtDecorFirstBad) {
+          g.__mtDecorFirstBad = { frame: arenaFrames, x: +child.position.x.toFixed(2), z: +child.position.z.toFixed(2), tile: v };
+        }
+      }
+    }
+    g.__mtDecorBadNow = bad;
+    if (bad > 0) g.__mtDecorBadFrames = (g.__mtDecorBadFrames ?? 0) + 1;
+  }
+
+  /**
+   * Cells that turned from bare ground into an obstacle since the previous frame
+   * (stage load or a switch to another level). During a match this never happens: brick
+   * only disappears, water/ice/trees never appear. So a positive count means the current
+   * decor seed is stale and must be rebuilt.
+   */
+  function countNewObstacles(): number {
+    const s = state;
+    if (!s || !prevField || prevField.length !== s.field.length) return 0;
+    let n = 0;
+    for (let r = s.bounds.row0; r < s.bounds.row0 + s.bounds.rows; r++) {
+      for (let c = s.bounds.col0; c < s.bounds.col0 + s.bounds.cols; c++) {
+        const idx = r * 32 + c;
+        if (prevField[idx] === 0 && s.field[idx] !== 0) n++;
+      }
+    }
+    return n;
+  }
+
+  /** Same terrain as the previous frame: the level has finished loading. */
+  function fieldUnchanged(): boolean {
+    const s = state;
+    if (!s || !prevField || prevField.length !== s.field.length) return false;
+    for (let r = s.bounds.row0; r < s.bounds.row0 + s.bounds.rows; r++) {
+      for (let c = s.bounds.col0; c < s.bounds.col0 + s.bounds.cols; c++) {
+        if (prevField[r * 32 + c] !== s.field[r * 32 + c]) return false;
+      }
+    }
+    return true;
   }
 
   return {
@@ -329,7 +520,8 @@ export function createMeineTankDriver(): RenderDriver {
       const structural =
         next.textureSize !== options.textureSize ||
         next.shadows !== options.shadows ||
-        next.normalMaps !== options.normalMaps;
+        next.normalMaps !== options.normalMaps ||
+        next.rayTracing !== options.rayTracing;
       const groundChanged = next.theme !== options.theme;
       const modeChanged = next.cameraMode !== options.cameraMode;
       const decorChanged = next.decor !== options.decor;
@@ -341,6 +533,7 @@ export function createMeineTankDriver(): RenderDriver {
         next.outerRivers !== options.outerRivers ||
         next.outerTrees !== options.outerTrees ||
         next.outerVolcano !== options.outerVolcano;
+      const outerRtChanged = next.outerRayTracing !== options.outerRayTracing;
       options = next;
       if (structural) {
         teardownWorld();
@@ -350,7 +543,12 @@ export function createMeineTankDriver(): RenderDriver {
       field?.configure({ ao: options.ao, outline: options.outline });
       if (groundChanged) field?.rebuildGround(options.theme);
       if (decorChanged || groundChanged) updateDecor();
-      if (outerChanged && outer) outer.rebuild(state?.bounds ?? DEFAULT_BOUNDS, outerOptionsFrom(options), WORLD_SEED);
+      if (outerChanged) rebuildOuter(WORLD_SEED);
+      if (outerRtChanged) {
+        // Refresh the SSR list (outer rivers in/out) and the shadow scope.
+        outer?.setShadows(!!rt && options.outerRayTracing);
+        applyShadowMode();
+      }
       if (boot) {
         boot.renderer.toneMappingExposure = options.exposure;
         boot.camera.fov = options.fov;
@@ -375,6 +573,7 @@ export function createMeineTankDriver(): RenderDriver {
 
     resize(width, height) {
       boot?.resize(width, height);
+      rt?.setSize(width, height);
     },
 
     render(dtMs) {
@@ -400,9 +599,32 @@ export function createMeineTankDriver(): RenderDriver {
       time += dtMs;
 
       field.configure({ ao: options.ao, outline: options.outline });
-      const fieldWasEmpty = !prevField || prevField.length !== state.field.length;
+      arenaFrames++;
       field.update(state.field, state.bounds);
-      if (fieldWasEmpty) updateDecor();
+      // Build decor only when the stage layout has actually loaded and settled —
+      // otherwise flowers land on cells that later become ice/water/brick.
+      fieldStableFrames = fieldUnchanged() ? fieldStableFrames + 1 : 0;
+      // Mark the decor stale on a level load/switch (empty ground turning into an
+      // obstacle), then reseed once — after the layout has settled.
+      if (decorReady && !fieldHasTerrain()) {
+        decorPending = true;
+        decorPendingFrames = 0;
+      }
+      if (countNewObstacles() > 0) {
+        // Drop props that a freshly loaded level just swallowed, then reseed when settled.
+        if (decor && state) decor.prune(state.field, state.bounds);
+        decorPending = true;
+        decorPendingFrames = 0;
+      }
+      if (decorPending) {
+        decorPendingFrames++;
+        if (decorReadyToBuild(fieldHasTerrain(), fieldStableFrames >= 8, decorPendingFrames)) {
+          updateDecor();
+          decorReady = true;
+          decorPending = false;
+        }
+      }
+      decorSpawnAudit();
 
       for (let i = 0; i < tanks.length; i++) {
         const t = state.tanks[i];
@@ -528,8 +750,37 @@ export function createMeineTankDriver(): RenderDriver {
         smokeAccum = 0;
       }
       particles.update(dtMs);
+      if (particles) {
+        const pm = particles.object.material as THREE.ShaderMaterial;
+        (globalThis as { __mtParticlesInfo?: unknown }).__mtParticlesInfo = {
+          active: particles.activeCount(),
+          visible: particles.object.visible,
+          inScene: !!particles.object.parent,
+          shadows: particles.object.castShadow,
+          fog: pm.fog,
+          hasAtlas: !!pm.uniforms?.uAtlas?.value,
+          fogDensity: pm.uniforms?.fogDensity?.value ?? null,
+        };
+      }
 
       fauna?.update(dtMs, time);
+      if (fauna) {
+        let visible = 0;
+        let firstVisible: { y: number; parentVisible: boolean } | null = null;
+        for (const child of fauna.group.children) {
+          if (!child.visible) continue;
+          visible++;
+          if (!firstVisible) firstVisible = { y: child.position.y, parentVisible: !!child.parent?.visible };
+        }
+        (globalThis as { __mtFaunaInfo?: unknown }).__mtFaunaInfo = {
+          rt: !!rt,
+          active: fauna.activeCount(),
+          visible,
+          inScene: !!fauna.group.parent,
+          groupVisible: fauna.group.visible,
+          firstVisible,
+        };
+      }
 
       sky.setFlatClouds(options.clouds === "flat");
       const day = sky.update(options.time, dtMs, time);
@@ -538,6 +789,11 @@ export function createMeineTankDriver(): RenderDriver {
         hemi.intensity = options.lighting === "flat" ? Math.max(day.ambientIntensity, 1.1) : day.ambientIntensity;
         sun.color.setHex(day.sunColor);
         sun.intensity = options.lighting === "flat" ? Math.max(day.sunIntensity, 1.2) : day.sunIntensity;
+        if (rt) {
+          // IBL already supplies ambient, so lean on the key light for contrast.
+          hemi.intensity *= 0.35;
+          sun.intensity *= 1.15;
+        }
         const c = center();
         sun.position.set(c.x + day.sunDir.x * 60, day.sunDir.y * 60, c.z + day.sunDir.z * 60);
         sun.target.position.set(c.x, 0, c.z);
@@ -620,11 +876,17 @@ export function createMeineTankDriver(): RenderDriver {
         boot.camera.updateProjectionMatrix();
       }
 
-      boot.renderer.render(boot.scene, boot.camera);
+      if (particles && sun) {
+        particles.setLighting(boot.camera.position, _sunDir.set(day.sunDir.x, day.sunDir.y, day.sunDir.z), sun.color);
+      }
+
+      if (rt) rt.render();
+      else boot.renderer.render(boot.scene, boot.camera);
     },
     dispose() {
       detachControls?.();
       detachControls = null;
+      teardownRt();
       teardownWorld();
       if (host) delete host.shared.three;
       boot?.dispose();

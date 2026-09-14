@@ -24,6 +24,14 @@ export interface FaunaDeps {
   getOptions(): MtOptions;
   /** Tank world positions to avoid in `lively` mode. */
   getTankPositions(): { x: number; z: number }[];
+  /** Arena collision buffer: false where a ground animal cannot stand (brick/steel/water). */
+  walkableAt(x: number, z: number): boolean;
+  /**
+   * Debug hook (optional): called when an animal turns sharply while standing almost
+   * still — the signature of the old "spinning in place" bug. Wire it to a console/ring
+   * buffer to catch regressions.
+   */
+  onSpin?(info: FaunaSpinInfo): void;
   terrain: FaunaTerrain;
 }
 
@@ -98,6 +106,19 @@ interface Mob {
   phase: number;
   outer: boolean;
   ground: number;
+  prevX: number;
+  prevZ: number;
+}
+
+/** Debug payload for `FaunaDeps.onSpin`: an animal turned sharply while barely moving. */
+export interface FaunaSpinInfo {
+  species: string;
+  x: number;
+  z: number;
+  heading: number;
+  vx: number;
+  vz: number;
+  yawDelta: number;
 }
 
 const TAU = Math.PI * 2;
@@ -110,6 +131,35 @@ function wrapAngle(a: number): number {
   if (a > Math.PI) a -= TAU;
   if (a < -Math.PI) a += TAU;
   return a;
+}
+
+/** Yaw so a Bedrock entity model (its forward is local -Z) faces world direction (fx, fz). */
+export function mobYaw(fx: number, fz: number): number {
+  return Math.atan2(-fx, -fz);
+}
+
+/**
+ * Yaw for the current velocity: while the animal is (almost) standing still it keeps its
+ * previous facing instead of spinning in place whenever the random heading changes.
+ */
+export function facingYaw(vx: number, vz: number, current: number, eps = 1e-4): number {
+  const sp = Math.hypot(vx, vz);
+  return sp > eps ? mobYaw(vx / sp, vz / sp) : current;
+}
+
+/** Pick a heading with free space ahead (reverse first, then sideways) after a wall hit. */
+export function escapeHeading(
+  heading: number,
+  x: number,
+  z: number,
+  walkable: (x: number, z: number) => boolean,
+  lead = 0.4,
+): number {
+  for (const off of [Math.PI, Math.PI / 2, -Math.PI / 2, 0]) {
+    const h = wrapAngle(heading + off);
+    if (walkable(x + Math.cos(h) * lead, z + Math.sin(h) * lead)) return h;
+  }
+  return heading;
 }
 
 export function createFauna(deps: FaunaDeps): MtFauna {
@@ -176,6 +226,28 @@ export function createFauna(deps: FaunaDeps): MtFauna {
         return { x, z, y: cfg.flying ? gh + rand(cfg.yMin, cfg.yMax) : gh, outer: true };
       }
     }
+    if (!cfg.flying) {
+      // Require at least one open direction, otherwise the animal would be sealed in a
+      // one-cell pocket and mill about in place forever.
+      const canRoam = (x: number, z: number): boolean => {
+        if (!deps.walkableAt(x, z)) return false;
+        for (let k = 0; k < 4; k++) {
+          const h = (k * Math.PI) / 2;
+          if (deps.walkableAt(x + Math.cos(h) * 0.4, z + Math.sin(h) * 0.4)) return true;
+        }
+        return false;
+      };
+      for (let attempt = 0; attempt < 40; attempt++) {
+        const x = rand(2, b.cols - 2);
+        const z = rand(2, b.rows - 2);
+        if (canRoam(x, z)) return { x, z, y: 0, outer: false };
+      }
+      for (let r = 1; r < b.rows - 1; r++) {
+        for (let c = 1; c < b.cols - 1; c++) {
+          if (canRoam(c + 0.5, r + 0.5)) return { x: c + 0.5, z: r + 0.5, y: 0, outer: false };
+        }
+      }
+    }
     return {
       x: rand(2, b.cols - 2),
       z: rand(2, b.rows - 2),
@@ -200,8 +272,10 @@ export function createFauna(deps: FaunaDeps): MtFauna {
       phase: rand(0, TAU),
       outer: pos.outer,
       ground: pos.outer && !cfg.flying ? deps.terrain.heightAt(pos.x, pos.z) : 0,
+      prevX: pos.x,
+      prevZ: pos.z,
     };
-    inst.group.rotation.y = m.heading;
+    inst.group.rotation.y = mobYaw(Math.cos(m.heading), Math.sin(m.heading));
     inst.group.position.set(m.x, m.y, m.z);
     return m;
   }
@@ -211,7 +285,19 @@ export function createFauna(deps: FaunaDeps): MtFauna {
     const t = timeMs * 0.001 + m.phase;
     const bones = inst.bones;
     inst.group.position.set(m.x, m.y, m.z);
-    inst.group.rotation.y = m.heading;
+    const prevYaw = inst.group.rotation.y;
+    inst.group.rotation.y = facingYaw(m.vx, m.vz, inst.group.rotation.y);
+    if (deps.onSpin) {
+      let dyaw = inst.group.rotation.y - prevYaw;
+      while (dyaw > Math.PI) dyaw -= TAU;
+      while (dyaw < -Math.PI) dyaw += TAU;
+      const moved = Math.hypot(m.x - m.prevX, m.z - m.prevZ);
+      if (Math.abs(dyaw) > 0.3 && moved < 0.02) {
+        deps.onSpin({ species: m.cfg.species, x: m.x, z: m.z, heading: m.heading, vx: m.vx, vz: m.vz, yawDelta: dyaw });
+      }
+    }
+    m.prevX = m.x;
+    m.prevZ = m.z;
 
     switch (m.cfg.species) {
       case "bee": {
@@ -374,8 +460,8 @@ export function createFauna(deps: FaunaDeps): MtFauna {
       m.vx = (m.vx / sp) * max;
       m.vz = (m.vz / sp) * max;
     }
-    const nx = m.x + m.vx * dtMs;
-    const nz = m.z + m.vz * dtMs;
+    let nx = m.x + m.vx * dtMs;
+    let nz = m.z + m.vz * dtMs;
 
     if (m.outer && deps.terrain.enabled) {
       if (deps.terrain.contains(nx, nz)) {
@@ -398,10 +484,46 @@ export function createFauna(deps: FaunaDeps): MtFauna {
       return;
     }
 
-    if (m.x < 1 || nx < 1) m.heading = wrapAngle(m.heading + 0.4 * (dtMs / 16));
-    if (nx > b.cols - 1) m.heading = wrapAngle(m.heading - 0.4 * (dtMs / 16));
-    if (m.z < 1 || nz < 1) m.heading = wrapAngle(m.heading - 0.4 * (dtMs / 16));
-    if (nz > b.rows - 1) m.heading = wrapAngle(m.heading + 0.4 * (dtMs / 16));
+    if (!m.cfg.flying) {
+      const sp = Math.hypot(m.vx, m.vz);
+      const fx = sp > 1e-5 ? m.vx / sp : Math.cos(m.heading);
+      const fz = sp > 1e-5 ? m.vz / sp : Math.sin(m.heading);
+      if (!deps.walkableAt(nx, nz) || !deps.walkableAt(nx + fx * 0.4, nz + fz * 0.4)) {
+        m.heading = escapeHeading(m.heading, m.x, m.z, deps.walkableAt);
+        m.vx = 0;
+        m.vz = 0;
+        nx = m.x;
+        nz = m.z;
+      }
+    }
+
+    // Arena bounds: bounce once off the edge. The old code nudged the heading every
+    // frame while inside the edge band, which made animals (especially fliers) spin in
+    // place forever.
+    const minX = 1;
+    const maxX = b.cols - 1;
+    const minZ = 1;
+    const maxZ = b.rows - 1;
+    let bounced = false;
+    if (nx < minX) {
+      m.vx = Math.abs(m.vx);
+      nx = minX;
+      bounced = true;
+    } else if (nx > maxX) {
+      m.vx = -Math.abs(m.vx);
+      nx = maxX;
+      bounced = true;
+    }
+    if (nz < minZ) {
+      m.vz = Math.abs(m.vz);
+      nz = minZ;
+      bounced = true;
+    } else if (nz > maxZ) {
+      m.vz = -Math.abs(m.vz);
+      nz = maxZ;
+      bounced = true;
+    }
+    if (bounced) m.heading = wrapAngle(Math.atan2(m.vz, m.vx));
     m.x = Math.max(0.5, Math.min(b.cols - 0.5, nx));
     m.z = Math.max(0.5, Math.min(b.rows - 0.5, nz));
     if (m.cfg.flying) {

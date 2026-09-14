@@ -7,14 +7,13 @@ textures from the Faithful 32x resource pack (never the whole pack). Like every 
 driver it is display-only: it reads a read-only `SceneState` and never affects RAM, core
 frames, rollback/desync, hashes or the fingerprint.
 
-## 1. Difference from `mc-voxel`
+## 1. Highlights
 
-- `mc-voxel` is a procedural "voxel look"; `meine-tank` uses real textures and MC shapes
-  (full cube, slab, cross plants, billboard items).
-- The new driver is self-contained: only shared scaffolding is reused
+- Real textures and MC shapes (full cube, slab, cross plants, billboard items).
+- The driver is self-contained: only shared scaffolding is reused
   (`three/bootstrap`, `camera-rig`, `camera-controls`, `coords`, `render/settings`,
-  `render/types`); `mc-voxel` internals are not imported.
-- Adds configurable fauna (bees, parrots, chickens, bats, allays) on real entity skins.
+  `render/types`).
+- Configurable fauna (bees, parrots, chickens, bats, allays) on real entity skins.
 
 ## 2. Assets and license
 
@@ -43,13 +42,18 @@ frontend/src/render/drivers/meine-tank/
 ## 4. World
 
 - The field from `SceneState.field`: brick → `bricks` (damaged → `cracked_stone_bricks`
-  with per-quadrant height), steel → `iron_block`, water → animated `water_still`,
-  ice → `blue_ice`, trees → `oak_leaves` (cutout, biome tint), road → `dirt_path`,
-  ground → `grass_block_top` + `grass_block_side`.
+  with per-quadrant height), steel → `iron_block`, water → whole blocks of animated
+  `water_still`, ice → `blue_ice`, trees → `oak_leaves` (cutout, biome tint),
+  road → `dirt_path`, ground → `grass_block_top` + `grass_block_side`.
+- **Water depth**: `world/water.ts` finds connected ponds and gives every cell of a pond
+  the same whole-block depth (1..4) from its area — the larger the pond, the deeper.
+  Water sinks **below the arena level** (surface flush with the ground); a basin is carved
+  into the ground: floor and dirt walls; deeper water is darker (vertex color).
 - Mesher: shared-face culling, smooth AO, tint, separate passes (opaque/cutout/
   translucent/water), optional outline.
 - Stage themes: `classic` / `desert` / `wasteland` (change ground and road).
-- Decor (`decor`): flowers, grass, boulders — seeded from field size, no collision.
+- Decor (`decor`): flowers, grass, boulders — seeded from field size, no collision,
+  bare ground only (never on water, ice, trees, roads, brick or steel).
 
 ## 5. Models and effects
 
@@ -116,8 +120,45 @@ shadows, fog, clouds, water, decor, theme, particles, texture size (32/16), outl
 `vanilla`, `cinematic`, `lively`, `performance`, `retro16`. Stored locally
 (`bc_renderOptions`), never sent to the lobby.
 
-Next graphics steps (in progress): safe emissive bloom, SSAO, water reflections, physical
-sky and volumetric clouds — as separate options.
+### Experimental ray tracing (`rayTracing`)
+
+The `rayTracing` setting (`off` / `on` / `ultra`) enables screen-space tracing — as close as
+WebGL gets: `frontend/src/render/drivers/meine-tank/post/raytracing.ts` builds an
+`EffectComposer` pipeline:
+
+- **GTAO** — high-quality ambient occlusion (soft contact shading in crevices; `ultra` = 32 samples);
+- **SSR** — **selective** screen-space reflections: metalness is written only for water and
+  ice, so walls/grass stay matte (no parasitic reflections); on a stage with no water or ice
+  the SSR pass is disabled entirely instead of falling back to "reflect everything";
+- **water/ice**: `MeshPhysicalMaterial` — `ultra` enables true **refraction** (transmission,
+  IOR 1.33, depth absorption), `on` gives glossy see-through water; ice gets gloss
+  (roughness 0.05, metalness 0.3) and environment reflections;
+- **SSR distance** is raised (100/150) so tall and distant objects — trees, hills, the flying
+  dragon and volcano smoke — end up in reflections;
+- **particles/smoke** are instanced billboards (`InstancedMesh`), not `Points`: they take part in
+  the RT depth/normal passes, so smoke **reflects in water**, receives AO and **casts shadows**
+  (alpha-shaped via `customDepthMaterial`); fog at half strength (0.5);
+- **light scattering in smoke**: forward scattering toward the sun in the particle shader makes
+  backlit plumes glow;
+- **UnrealBloom** — HDR glow on bright areas;
+- **SMAA** — antialiasing;
+- **OutputPass** — ACES tone mapping and sRGB output;
+- **IBL** — a PMREM sky-gradient environment (`scene.environment`); fauna is PBR too
+  (`MeshStandardMaterial`), so animals no longer vanish in shadow.
+
+Shadows are forced and sharper: 2048² map (`on`) / 4096² (`ultra`), a tight ortho box around
+the arena and a larger radius; blocks, tanks, the base and fauna cast them.
+
+A separate **`outerRayTracing`** toggle ("RT for the outer world") extends the mode beyond the
+arena: river meshes join the SSR selection, and hills, trees, lava and the border start
+casting/receiving shadows — the ortho camera widens to the whole world radius with a 4096² map.
+It only works while `rayTracing` is on and is noticeably heavier, so it is off by default. The hemisphere-light
+share is reduced (balance shifts to the "sun"). Display-only: `SceneState` is untouched,
+determinism and hashes are unaffected. It is GPU-heavy (`ultra` more so) and requires WebGL2; on
+HiDPI the pipeline resolution is capped (≤1.25×).
+
+Next graphics steps (in progress): safe emissive bloom, physical sky and volumetric clouds —
+as separate options.
 
 ## 9. Tests
 

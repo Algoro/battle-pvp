@@ -267,7 +267,7 @@ owner, ttl), номер волны — в `ctx.state`. `onLoadState` сбрас�
   поддерживаются (задокументировать). `TD_STATE` — единственный новый байт.
 - **Баланс**: числа (очки/стоимость/волны) тюнятся в фазе 5, вынесены в `shared`.
 - **3D**: реализовано — `SceneState.towers` + `render/tower-visual.ts`, башни рисуются
-  в `topdown-3d`/`mc-voxel`.
+  в `topdown-3d`/`meine-tank`.
 
 ## 12. Вне рамок
 

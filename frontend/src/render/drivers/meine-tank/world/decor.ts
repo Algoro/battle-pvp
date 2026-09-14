@@ -1,8 +1,9 @@
 // decor.ts — seeded decorative ground props (grass, flowers, small rocks) for
-// `meine-tank`. Display-only: no collision, placed on walkable cells.
+// `meine-tank`. Display-only: no collision, placed on bare ground only.
 //
 // Relative path: ./frontend/src/render/drivers/meine-tank/world/decor.ts
 import * as THREE from "three";
+import { TILE } from "@core/domain.ts";
 import type { RenderBounds } from "../../../types.ts";
 import type { Atlas } from "../textures/atlas.ts";
 import type { MtDecor, MtTheme } from "../options.ts";
@@ -10,7 +11,27 @@ import type { MtDecor, MtTheme } from "../options.ts";
 export interface Decor {
   group: THREE.Group;
   rebuild(bounds: RenderBounds, field: Uint8Array, level: MtDecor, theme: MtTheme): void;
+  /** Remove props whose cell is no longer bare ground (level loaded/switched under them). */
+  prune(field: Uint8Array, bounds: RenderBounds): void;
   dispose(): void;
+}
+
+/**
+ * Decor grows only on bare ground. Water, ice, trees, roads, brick, steel and the eagle
+ * are never decorated (otherwise flowers appear on water/ice or inside tree canopies).
+ */
+export function decorAllowed(tile: number): boolean {
+  return tile === TILE.EMPTY;
+}
+
+/**
+ * Whether decor may be placed yet. The stage layout reaches the collision buffer only a
+ * moment after the match starts; building earlier scatters plants over an all-empty field
+ * and they stay on cells that later turn out to be ice/water/brick. Wait until the terrain
+ * is non-empty and unchanged for a frame (or a grace period for genuinely empty levels).
+ */
+export function decorReadyToBuild(hasTerrain: boolean, settled: boolean, frames: number, graceFrames = 120): boolean {
+  return (hasTerrain && settled) || frames > graceFrames;
 }
 
 const PLANTS = [
@@ -98,8 +119,7 @@ export function createDecor(atlas: Atlas): Decor {
         const c = bounds.col0 + Math.floor(rnd() * bounds.cols);
         const r = bounds.row0 + Math.floor(rnd() * bounds.rows);
         const tile = field[r * 32 + c];
-        const walkable = tile === 0 || (tile >= 0x20 && tile < 0x80);
-        if (!walkable) continue;
+        if (!decorAllowed(tile)) continue;
         const x = c - bounds.col0 + 0.5;
         const z = r - bounds.row0 + 0.5;
         if (rnd() < 0.14 && theme === "classic") {
@@ -108,6 +128,17 @@ export function createDecor(atlas: Atlas): Decor {
           group.add(plantMesh(palette[Math.floor(rnd() * palette.length)], x, z));
         }
         placed++;
+      }
+    },
+    prune(field, bounds) {
+      for (let i = group.children.length - 1; i >= 0; i--) {
+        const c = group.children[i];
+        const col = Math.floor(c.position.x) + bounds.col0;
+        const row = Math.floor(c.position.z) + bounds.row0;
+        const inside = col >= bounds.col0 && col < bounds.col0 + bounds.cols && row >= bounds.row0 && row < bounds.row0 + bounds.rows;
+        if (inside && decorAllowed(field[row * 32 + col])) continue;
+        c.traverse((o) => (o as THREE.Mesh).geometry?.dispose?.());
+        group.remove(c);
       }
     },
     dispose() {

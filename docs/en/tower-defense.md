@@ -266,7 +266,7 @@ An adaptation of `StagePreview`:
   supported in TD (document). `TD_STATE` is the only new byte.
 - **Balance**: the numbers (points/cost/waves) are tuned in phase 5, moved into `shared`.
 - **3D**: implemented — `SceneState.towers` + `render/tower-visual.ts`, towers are drawn
-  in `topdown-3d`/`mc-voxel`.
+  in `topdown-3d`/`meine-tank`.
 
 ## 12. Out of scope
 

@@ -19,6 +19,7 @@ export type MtFaunaTime = "auto" | "day" | "night";
 export type MtBorder = "off" | "edge" | "wall";
 export type MtOuterWorld = "off" | "hills" | "full";
 export type MtBiome = "mixed" | "plains" | "forest" | "desert" | "snow" | "volcanic";
+export type MtRayTracing = "off" | "on" | "ultra";
 
 export interface MtOptions {
   preset: string;
@@ -39,6 +40,8 @@ export interface MtOptions {
   outline: boolean;
   exposure: number;
   normalMaps: boolean;
+  rayTracing: MtRayTracing;
+  outerRayTracing: boolean;
   border: MtBorder;
   outerWorld: MtOuterWorld;
   outerBiome: MtBiome;

@@ -35,5 +35,9 @@ test("meine-tank: драйвер выбирается, монтирует WebGL 
   await expect(page.getByText(/Вид: Meine Tank/)).toBeVisible();
   await page.waitForTimeout(6000);
 
+  // Ground decor must never sit on water/ice/trees/brick/steel (see driver's spawn audit).
+  const decorBad = await page.evaluate(() => (globalThis as { __mtDecorBadNow?: number }).__mtDecorBadNow ?? 0);
+  expect(decorBad, "декор на непустых клетках").toBe(0);
+
   expect(errors, errors.join("\n")).toEqual([]);
 });

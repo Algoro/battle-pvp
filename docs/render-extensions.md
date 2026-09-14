@@ -3,7 +3,7 @@
 # Драйверы и расширения рендерера (render drivers & extensions)
 
 > Статус: **реализовано** (`frontend/src/render/`: драйверы `pixel-2d`, `topdown-3d`,
-> `mc-voxel`; расширения `minimap`, `particles`). Тип сущностей, параллельный «патчам»:
+> `meine-tank`; расширения `minimap`, `particles`). Тип сущностей, параллельный «патчам»:
 > патч меняет **игру** (ROM + JS-рантайм, детерминизм, fingerprint), а драйвер/расширение
 > рендерера меняют **только изображение** и полностью локальны.
 
@@ -57,9 +57,10 @@ export const RENDER_MANIFEST: RendererInfo[] = [
   { id: "topdown-3d", kind: "driver",    title: "3D сверху",
     description: "Объёмное поле с вращением, наклоном и масштабом.",
     provides: ["three", "camera", "overlay-dom"] },
-  { id: "mc-voxel",   kind: "driver",    title: "Воксельный (sandbox)",
-    description: "Кубические блоки, пиксельные текстуры, небо и день/ночь.",
-    provides: ["three", "camera", "overlay-dom", "voxel"] },
+  { id: "meine-tank", kind: "driver",    title: "Meine Tank",
+    description: "Воксельный мир на текстурах Minecraft (Faithful 32x).",
+    provides: ["three", "camera", "overlay-dom", "voxel"],
+    settings: { fields: MT_FIELDS, presets: MT_PRESETS } },
   { id: "minimap",    kind: "extension", title: "Миникарта",
     description: "Угловая схема поля поверх любого драйвера.", requires: ["overlay-dom"], order: 30 },
   { id: "particles",  kind: "extension", title: "Частицы и искры",
@@ -210,15 +211,16 @@ idle ──setDriver(mount ok)──► live ──setDriver/ошибка──�
   монтирования) и подключается в `RenderPicker` (предпросмотр) и `RenderSettings` (бой).
 - Утилиты `render/settings.ts`: `specDefaults`, `normalizeValues` (валидация/clamp по
   схеме), `applyPreset`.
-- Драйвер валидирует вход своим `normalize` (для mc-voxel — поверх той же схемы) и
+- Драйвер валидирует вход своим `normalize` (для meine-tank — поверх той же схемы) и
   реализует `setOptions`. Структурные изменения (например, `textureSize`, `shadows`)
   пересобирают мир драйвера.
 - Локальный игрок для камер «из глаз»: `RenderHost.viewer = { port }`;
   `RenderSystem.setViewer({ port })` вызывают `GameCanvas`/`SpectateView`/предпросмотр.
-  Пример: `mc-voxel.cameraMode = "orbit" | "third" | "first"` (плюс `cameraFollow` —
+  Пример: `meine-tank.cameraMode = "orbit" | "third" | "first"` (плюс `cameraFollow` —
   плавный доворот к направлению танка во всех режимах; ручной ввод временно приоритетнее).
   Драйвер может иметь и нестандартные подсистемы через свои же настройки — например,
-  «живой мир» `mc-voxel`: `birds`, `mice`, `clouds = off|flat|voxel`.
+  «живой мир» `meine-tank`: `fauna = off|ambient|lively` (плюс группы и плотность),
+  `clouds = off|flat|voxel`, внешний мир и фауна.
 
 ## 8. Интеграция с ядром
 

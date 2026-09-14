@@ -115,7 +115,7 @@ backend/         Node backend: matchmaking, лобби/комнаты, signaling
 emulator-core/   ядро: PvPNes (поверх неизменного jsnes), patching/, features/ (JS-рантаймы фич), ai/, sim/, model/, io/
 netcode/         rollback-netcode: протокол, сессия, транспорты (webrtc/relay/local)
 frontend/        React/TS SPA (Vite): canvas, лобби, чат, spectator, HUD,
-                 render/ (драйверы и расширения: pixel-2d, topdown-3d, mc-voxel, meine-tank, minimap, particles)
+                 render/ (драйверы и расширения: pixel-2d, topdown-3d, meine-tank, minimap, particles)
 shared/          манифесты без импортов: features.ts, renderers.ts, tower-defence.ts (данные TD)
 qa/              node-тесты + Playwright e2e
 rom/             original/ (ваш ROM; не коммитится) + генерируемый disasm/
@@ -157,8 +157,7 @@ git push -u origin main
 - [docs/asm-label-map.md](docs/asm-label-map.md) — карта меток ROM.
 - [docs/render-extensions.md](docs/render-extensions.md) — драйверы/расширения рендера.
 - [docs/render-3d.md](docs/render-3d.md) — драйвер `topdown-3d`.
-- [docs/render-voxel.md](docs/render-voxel.md) — драйвер `mc-voxel` (воксельный стиль).
-- [docs/render-meine-tank.md](docs/render-meine-tank.md) — драйвер `meine-tank` (текстуры Minecraft/Faithful, фауна).
+- [docs/render-meine-tank.md](docs/render-meine-tank.md) — воксельный драйвер `meine-tank` (текстуры Minecraft/Faithful, фауна).
 - [docs/tower-defense.md](docs/tower-defense.md) — соло-режим Tower Defence.
 - [docs/pistol-powerup.md](docs/pistol-powerup.md) — приз «Пистолет» и супер-оружие.
 - [docs/wrap-borders.md](docs/wrap-borders.md) — фича «открытые края» (тор по краям уровня).
